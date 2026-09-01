@@ -4,11 +4,24 @@ Paris ICC is a browser demo of an operations control room for the Paris Metro an
 
 The demo shows how an operator can handle an incident with help from an AI agent. The agent reads the same information as the operator, finds the matching procedure and suggests the next steps. The operator reviews every proposal and remains the only person who can apply an action.
 
+At network level, Paris ICC acts as an **operational hypervisor** above the
+control centre of each line. It does not replace local ICC responsibilities or
+field authority. It gives a regional supervisor one shared workspace to
+coordinate operations that cross line and mode boundaries: regulating connected
+Metro and RER services, rerouting passengers, setting up provisional rail
+services, dispatching maintenance, and running replacement buses. The demo
+models this coordination layer with local data; it does not claim a live
+connection to line control centres.
+
 ![Paris ICC network overview](artifacts/native-network-semantic-zoom.png)
 
 ## What the demo does
 
 The main screen is an interactive map of 21 Metro and RER lines. Trains occupy a station or an interstation, just as they would occupy a track section in an operations display. When the map is zoomed out, it shows the location of problems. When it is zoomed in, it shows trains, missions, delays and incident details.
+
+The shared network view lets the supervisor prepare, approve and monitor a
+multimodal response beyond the scope of any one local ICC, while each line
+control centre keeps its own operational responsibility.
 
 From the application, an operator can:
 
