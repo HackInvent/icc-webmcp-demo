@@ -13,6 +13,7 @@ import "./operational-pages.css";
 import "./ux-polish.css";
 import "./configuration-modal.css";
 import "./passenger-flow.css";
+import "./traction-power.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <RuntimeGate>
