@@ -778,7 +778,7 @@ def main() -> None:
 
             page.get_by_role(
                 "button",
-                name="Draft from shift logs",
+                name="Agent draft from shift logs",
                 exact=True,
             ).click()
             report_document.get_by_text(

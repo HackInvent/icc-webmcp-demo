@@ -72,7 +72,7 @@ describe("operations records pages", () => {
     const draft = renderToStaticMarkup(createElement(ShiftReportPage, {
       shift: shift(),
     }));
-    expect(draft).toContain("Draft from shift logs");
+    expect(draft).toContain("Agent draft from shift logs");
     expect(draft).toContain("Freeze &amp; print PDF");
     expect(draft).toContain("Autosave enabled · no Save button");
     expect(draft).toContain('contenteditable="true"');

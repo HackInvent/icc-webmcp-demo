@@ -244,7 +244,7 @@ export function ShiftReportPage({ shift }: { shift: ShiftWorkspaceSnapshot }) {
               onClick={() => void requestAgentDraft()}
             >
               <Icon name="radio" size={15}/>
-              {agentBusy ? "Reading shift logs…" : "Draft from shift logs"}
+              {agentBusy ? "Agent reading shift logs…" : "Agent draft from shift logs"}
             </button>
             <button
               type="button"
