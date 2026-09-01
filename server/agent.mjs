@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { openAiReasoningParameter } from "./openai-model-catalog.mjs";
 
 const TOOL_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{0,79}$/;
 const ENTITY_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$/;
@@ -698,6 +699,7 @@ export class AgentService {
     this.now = options.now ?? (() => Date.now());
     this.runtimeStore = options.runtimeStore ?? {
       currentModel: () => this.config.openai.model,
+      currentReasoningEffort: () => this.config.openai.reasoningEffort,
       record: async () => null,
     };
     this.runs = new Map();
@@ -710,14 +712,18 @@ export class AgentService {
 
   async draftShiftReport(rawEvidence) {
     const model = this.runtimeStore.currentModel();
+    const reasoningEffort = typeof this.runtimeStore.currentReasoningEffort === "function"
+      ? this.runtimeStore.currentReasoningEffort()
+      : this.config.openai.reasoningEffort;
     return this.#loggedCall({
       category: "report",
       model,
+      reasoningEffort,
       entityId: typeof rawEvidence?.shiftId === "string" ? rawEvidence.shiftId : undefined,
-    }, () => this.#draftShiftReportWithModel(rawEvidence, model));
+    }, () => this.#draftShiftReportWithModel(rawEvidence, model, reasoningEffort));
   }
 
-  async #draftShiftReportWithModel(rawEvidence, model) {
+  async #draftShiftReportWithModel(rawEvidence, model, reasoningEffort) {
     if (!this.config.openai.enabled) {
       protocolError("agent_disabled", "The report assistant is disabled by server configuration.", 503);
     }
@@ -741,7 +747,7 @@ export class AgentService {
               { type: "input_text", text: "Prepare the end-of-shift draft from this JSON evidence only:\n" + JSON.stringify(evidence) },
             ],
           }],
-          reasoning: { effort: this.config.openai.reasoningEffort },
+          ...openAiReasoningParameter(reasoningEffort),
           max_output_tokens: this.config.openai.maxOutputTokens,
           text: { format: SHIFT_REPORT_TEXT_FORMAT },
           store: false,
@@ -850,6 +856,7 @@ export class AgentService {
       return await this.#loggedCall({
         category: run.outputMode === INCIDENT_DECISION_OUTPUT_MODE ? "incident" : "generic",
         model: run.model,
+        reasoningEffort: run.reasoningEffort,
         runId: run.id,
         entityId: run.incidentDecision?.incidentId,
         toolRound: run.toolRounds + 1,
@@ -907,10 +914,14 @@ export class AgentService {
     } else {
       prompt = this.#prompt(body.prompt);
     }
+    const reasoningEffort = typeof this.runtimeStore.currentReasoningEffort === "function"
+      ? this.runtimeStore.currentReasoningEffort()
+      : this.config.openai.reasoningEffort;
     const run = {
       id: randomUUID(),
       sessionId,
       model: this.runtimeStore.currentModel(),
+      reasoningEffort,
       outputMode,
       incidentDecision,
       tools,
@@ -1264,7 +1275,7 @@ export class AgentService {
           tools: openAiTools(run.tools, run.outputMode),
           tool_choice: this.#toolChoice(run),
           parallel_tool_calls: false,
-          reasoning: { effort: this.config.openai.reasoningEffort },
+          ...openAiReasoningParameter(run.reasoningEffort),
           max_output_tokens: this.config.openai.maxOutputTokens,
           store: false,
           ...(run.outputMode === INCIDENT_DECISION_OUTPUT_MODE

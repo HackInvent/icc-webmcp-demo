@@ -72,7 +72,8 @@ shape is:
   },
   "openai": {
     "model": "gpt-5.6-terra",
-    "allowedModels": ["gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna"]
+    "reasoningEffort": "low",
+    "allowedModels": ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]
   },
   "agent": {
     "logMaxEntries": 1000
@@ -85,14 +86,19 @@ shape is:
 }
 ```
 
-This is only an excerpt. Keep the complete `auth`, `openai`, `agent`, and `prim`
-sections from the template. Paths are resolved relative to the JSON file, not the
+This is only an excerpt. The packaged example enables every current model that
+supports the complete Paris ICC Responses API, function-tool, and
+structured-output workflow. The server publishes each model's valid effort
+values to the Configuration modal and rejects invalid model/effort pairs. Keep
+the complete `auth`, `openai`, `agent`, and `prim` sections from the template.
+Paths are resolved relative to the JSON file, not the
 current shell. For the private external deployment kit, use
 `state/paris-icc.sqlite` so the database remains beside that kit and outside Git.
 
 The configurator writes the JSON with mode `0600`. The repository creates the
-SQLite file with mode `0600`; the agent model override and bounded metadata-only
-execution log are atomically persisted in `agentRuntimePath` with mode `0600`.
+SQLite file with mode `0600`; the agent model-and-effort override and bounded
+metadata-only execution log are atomically persisted in `agentRuntimePath` with
+mode `0600`.
 Their parent directory should be mode `0700`. Never put a secret in a `VITE_`
 variable.
 

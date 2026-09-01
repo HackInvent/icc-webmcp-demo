@@ -26,6 +26,7 @@ export interface PublicRuntimeConfiguration {
   agent: {
     enabled: boolean;
     model: string | null;
+    reasoningEffort: string | null;
     maxToolRounds: number;
     presets: AgentPreset[];
   };
@@ -38,7 +39,7 @@ export interface PublicRuntimeConfiguration {
 interface RuntimeContextValue {
   configuration: PublicRuntimeConfiguration;
   signOut: () => Promise<void>;
-  updateAgentModel: (model: string) => void;
+  updateAgentConfiguration: (model: string, reasoningEffort: string | null) => void;
 }
 
 const RuntimeContext = createContext<RuntimeContextValue | null>(null);
@@ -53,6 +54,7 @@ const DEVELOPMENT_CONFIGURATION: PublicRuntimeConfiguration = {
   agent: {
     enabled: false,
     model: null,
+    reasoningEffort: null,
     maxToolRounds: 8,
     presets: [],
   },
@@ -258,15 +260,15 @@ export function RuntimeGate({ children }: { children: ReactNode }) {
     setConfiguration({ ...configuration, authenticated: false });
   };
 
-  const updateAgentModel = (model: string) => {
+  const updateAgentConfiguration = (model: string, reasoningEffort: string | null) => {
     setConfiguration((current) => current ? {
       ...current,
-      agent: { ...current.agent, model },
+      agent: { ...current.agent, model, reasoningEffort },
     } : current);
   };
 
   return (
-    <RuntimeContext.Provider value={{ configuration, signOut, updateAgentModel }}>
+    <RuntimeContext.Provider value={{ configuration, signOut, updateAgentConfiguration }}>
       {children}
     </RuntimeContext.Provider>
   );

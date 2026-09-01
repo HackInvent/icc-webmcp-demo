@@ -26,7 +26,7 @@
     "smoke:prim": "node scripts/smoke_prim.mjs",
     "check": "tsc -b --pretty false",
     "check:rail-graph": "node scripts/build_rail_interdependence_graph.mjs --check",
-    "check:server": "node --check server/index.mjs && node --check server/app.mjs && node --check server/agent-runtime-store.mjs && node --check server/bounded-sse-writer.mjs && node --check server/exclusive-file-lock.mjs && node --check server/operations-repository.mjs && node --check server/agent.mjs && node --check server/config.mjs && node --check server/security.mjs && node --check scripts/configure_server.mjs && node --import tsx -e \"import('./server/operations-service.ts')\""
+    "check:server": "node --check server/index.mjs && node --check server/app.mjs && node --check server/agent-runtime-store.mjs && node --check server/openai-model-catalog.mjs && node --check server/bounded-sse-writer.mjs && node --check server/exclusive-file-lock.mjs && node --check server/operations-repository.mjs && node --check server/agent.mjs && node --check server/config.mjs && node --check server/security.mjs && node --check scripts/configure_server.mjs && node --import tsx -e \"import('./server/operations-service.ts')\""
   },
   "dependencies": {
     "@noble/hashes": "1.8.0",

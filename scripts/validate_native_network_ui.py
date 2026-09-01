@@ -80,7 +80,18 @@ with sync_playwright() as playwright:
                     "enabled": True,
                     "model": "gpt-5.6-terra",
                     "defaultModel": "gpt-5.6-terra",
+                    "defaultReasoningEffort": "medium",
                     "allowedModels": ["gpt-5.6-terra"],
+                    "models": [{
+                        "id": "gpt-5.6-terra",
+                        "label": "GPT-5.6 Terra",
+                        "family": "GPT-5.6",
+                        "reasoningEfforts": [
+                            "none", "low", "medium", "high", "xhigh", "max"
+                        ],
+                        "defaultReasoningEffort": "medium",
+                        "recommended": True,
+                    }],
                     "reasoningEffort": "low",
                     "updatedAt": None,
                 },

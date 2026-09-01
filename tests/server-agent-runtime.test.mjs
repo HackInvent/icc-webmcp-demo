@@ -27,10 +27,14 @@ describe("persisted agent configuration and bounded execution log", () => {
     const config = parsedServerConfig();
     config.storage.agentRuntimePath = path.join(directory, "agent-runtime.json");
     const store = new AgentRuntimeStore(config);
-    const requestModels = [];
+    const requestConfigurations = [];
     let requestNumber = 0;
     const fetchImpl = vi.fn(async (_url, options) => {
-      requestModels.push(JSON.parse(options.body).model);
+      const requestBody = JSON.parse(options.body);
+      requestConfigurations.push({
+        model: requestBody.model,
+        reasoningEffort: requestBody.reasoning?.effort ?? null,
+      });
       requestNumber += 1;
       if (requestNumber === 1) {
         return jsonResponse({
@@ -59,7 +63,7 @@ describe("persisted agent configuration and bounded execution log", () => {
         prompt: "Inspect.",
         tools: [TEST_WEBMCP_TOOL],
       });
-      await store.updateModel("gpt-5.6-sol");
+      await store.updateConfiguration("gpt-5.6-sol", "max");
       await service.turn("session-stable", {
         runId: first.runId,
         toolOutputs: [{ callId: "call-stable-model", output: "{}" }],
@@ -69,14 +73,18 @@ describe("persisted agent configuration and bounded execution log", () => {
         tools: [TEST_WEBMCP_TOOL],
       });
 
-      expect(requestModels).toEqual([
-        "gpt-5.6-terra",
-        "gpt-5.6-terra",
-        "gpt-5.6-sol",
+      expect(requestConfigurations).toEqual([
+        { model: "gpt-5.6-terra", reasoningEffort: "low" },
+        { model: "gpt-5.6-terra", reasoningEffort: "low" },
+        { model: "gpt-5.6-sol", reasoningEffort: "max" },
       ]);
       expect(store.list(10)).toEqual(expect.arrayContaining([
         expect.objectContaining({ outcome: "tool_calls", toolNames: [TEST_WEBMCP_TOOL.name] }),
-        expect.objectContaining({ outcome: "completed", model: "gpt-5.6-sol" }),
+        expect.objectContaining({
+          outcome: "completed",
+          model: "gpt-5.6-sol",
+          reasoningEffort: "max",
+        }),
       ]));
     } finally {
       await store.close();
@@ -143,6 +151,13 @@ describe("persisted agent configuration and bounded execution log", () => {
           model: "gpt-5.6-terra",
           defaultModel: "gpt-5.6-terra",
           allowedModels: ["gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna"],
+          reasoningEffort: "low",
+          models: expect.arrayContaining([
+            expect.objectContaining({
+              id: "gpt-5.6-terra",
+              reasoningEfforts: ["none", "low", "medium", "high", "xhigh", "max"],
+            }),
+          ]),
         },
         log: { count: 0, downloadUrl: "/api/agent/log/download" },
       });
@@ -182,6 +197,18 @@ describe("persisted agent configuration and bounded execution log", () => {
       expect(rejected.status).toBe(400);
       expect(await rejected.json()).toMatchObject({ error: "model_not_allowed" });
 
+      const invalidEffort = await fetch(`${baseUrl}/api/configuration/agent`, {
+        method: "PUT",
+        headers: {
+          ...authenticatedHeaders,
+          Origin: config.application.publicOrigin,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ model: "gpt-5.6-luna", reasoningEffort: "minimal" }),
+      });
+      expect(invalidEffort.status).toBe(400);
+      expect(await invalidEffort.json()).toMatchObject({ error: "reasoning_effort_not_supported" });
+
       const updated = await fetch(`${baseUrl}/api/configuration/agent`, {
         method: "PUT",
         headers: {
@@ -189,13 +216,17 @@ describe("persisted agent configuration and bounded execution log", () => {
           Origin: config.application.publicOrigin,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ model: "gpt-5.6-luna" }),
+        body: JSON.stringify({ model: "gpt-5.6-luna", reasoningEffort: "max" }),
       });
       expect(updated.status).toBe(200);
-      expect(await updated.json()).toMatchObject({ agent: { model: "gpt-5.6-luna" } });
+      expect(await updated.json()).toMatchObject({
+        agent: { model: "gpt-5.6-luna", reasoningEffort: "max" },
+      });
 
       const session = await fetch(`${baseUrl}/api/session`, { headers: authenticatedHeaders });
-      expect(await session.json()).toMatchObject({ agent: { model: "gpt-5.6-luna" } });
+      expect(await session.json()).toMatchObject({
+        agent: { model: "gpt-5.6-luna", reasoningEffort: "max" },
+      });
 
       const agentTurn = await fetch(`${baseUrl}/api/agent/turn`, {
         method: "POST",
@@ -210,7 +241,10 @@ describe("persisted agent configuration and bounded execution log", () => {
         }),
       });
       expect(agentTurn.status).toBe(200);
-      expect(requests[0].model).toBe("gpt-5.6-luna");
+      expect(requests[0]).toMatchObject({
+        model: "gpt-5.6-luna",
+        reasoning: { effort: "max" },
+      });
 
       const logResponse = await fetch(`${baseUrl}/api/agent/log?limit=10`, { headers: authenticatedHeaders });
       const log = await logResponse.json();
@@ -218,6 +252,7 @@ describe("persisted agent configuration and bounded execution log", () => {
       expect(log.entries[0]).toMatchObject({
         category: "generic",
         model: "gpt-5.6-luna",
+        reasoningEffort: "max",
         outcome: "completed",
         inputTokens: 73,
         outputTokens: 19,
@@ -235,10 +270,49 @@ describe("persisted agent configuration and bounded execution log", () => {
       await application.close();
       const restored = new AgentRuntimeStore(config);
       expect(restored.currentModel()).toBe("gpt-5.6-luna");
+      expect(restored.currentReasoningEffort()).toBe("max");
       expect(restored.entryCount()).toBe(1);
       await restored.close();
     } finally {
       await application.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("omits reasoning from OpenAI requests for a configured non-reasoning model", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "paris-icc-agent-non-reasoning-"));
+    const config = parsedServerConfig({
+      openai: {
+        model: "gpt-4.1",
+        allowedModels: ["gpt-4.1"],
+        reasoningEffort: null,
+      },
+    });
+    config.storage.agentRuntimePath = path.join(directory, "agent-runtime.json");
+    let requestBody;
+    const fetchImpl = vi.fn(async (_url, options) => {
+      requestBody = JSON.parse(options.body);
+      return jsonResponse({
+        output: [{
+          type: "message",
+          role: "assistant",
+          content: [{ type: "output_text", text: "Inspection completed." }],
+        }],
+      });
+    });
+    const store = new AgentRuntimeStore(config);
+    const service = new AgentService(config, { fetchImpl, runtimeStore: store });
+
+    try {
+      await service.turn("session-non-reasoning", {
+        prompt: "Inspect.",
+        tools: [TEST_WEBMCP_TOOL],
+      });
+      expect(requestBody.model).toBe("gpt-4.1");
+      expect(requestBody).not.toHaveProperty("reasoning");
+      expect(store.currentReasoningEffort()).toBeNull();
+    } finally {
+      await store.close();
       rmSync(directory, { recursive: true, force: true });
     }
   });

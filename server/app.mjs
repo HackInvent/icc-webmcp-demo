@@ -407,7 +407,7 @@ export function createParisIccServer(config, options = {}) {
         methodAllowed(request, "GET");
         const authenticated = Boolean(authenticate(request, config, sessionCodec));
         sendJson(response, 200, publicRuntimeConfiguration(config, authenticated, {
-          model: agentRuntimeStore.currentModel(),
+          ...agentRuntimeStore.currentSelection(),
         }));
         return;
       }
@@ -480,7 +480,7 @@ export function createParisIccServer(config, options = {}) {
           response,
           200,
           publicRuntimeConfiguration(config, true, {
-            model: agentRuntimeStore.currentModel(),
+            ...agentRuntimeStore.currentSelection(),
           }),
           {
             "Set-Cookie": serializeSessionCookie(
@@ -509,7 +509,6 @@ export function createParisIccServer(config, options = {}) {
         sendJson(response, 200, {
           agent: {
             ...agentRuntimeStore.configuration(),
-            reasoningEffort: config.openai.reasoningEffort,
             maxToolRounds: config.agent.maxToolRounds,
           },
           log: {
@@ -526,23 +525,46 @@ export function createParisIccServer(config, options = {}) {
         enforceSameOrigin(request, config);
         requireSession(request, config, sessionCodec);
         const body = await readJson(request, config.server.maxRequestBodyBytes);
+        const keys = body && typeof body === "object" && !Array.isArray(body)
+          ? Object.keys(body)
+          : [];
         if (
           !body ||
           typeof body !== "object" ||
           Array.isArray(body) ||
-          Object.keys(body).length !== 1 ||
-          typeof body.model !== "string"
+          typeof body.model !== "string" ||
+          keys.length < 1 ||
+          keys.length > 2 ||
+          keys.some((key) => !new Set(["model", "reasoningEffort"]).has(key)) ||
+          ("reasoningEffort" in body && body.reasoningEffort !== null && typeof body.reasoningEffort !== "string")
         ) {
-          throw new HttpError(400, "invalid_agent_configuration", "The request must contain exactly one model identifier.");
+          throw new HttpError(
+            400,
+            "invalid_agent_configuration",
+            "The request must contain a model and may contain its reasoning effort.",
+          );
         }
         if (!config.openai.allowedModels.includes(body.model)) {
           throw new HttpError(400, "model_not_allowed", "The requested model is not allowed by server configuration.");
         }
-        const updated = await agentRuntimeStore.updateModel(body.model);
+        const profile = config.openai.modelProfiles.find((candidate) => candidate.id === body.model);
+        const requestedEffort = "reasoningEffort" in body ? body.reasoningEffort : undefined;
+        const effortIsValid = requestedEffort === undefined || (
+          profile.reasoningEfforts.length === 0
+            ? requestedEffort === null
+            : profile.reasoningEfforts.includes(requestedEffort)
+        );
+        if (!effortIsValid) {
+          throw new HttpError(
+            400,
+            "reasoning_effort_not_supported",
+            "The requested reasoning effort is not supported by the selected model.",
+          );
+        }
+        const updated = await agentRuntimeStore.updateConfiguration(body.model, requestedEffort);
         sendJson(response, 200, {
           agent: {
             ...updated,
-            reasoningEffort: config.openai.reasoningEffort,
             maxToolRounds: config.agent.maxToolRounds,
           },
         });

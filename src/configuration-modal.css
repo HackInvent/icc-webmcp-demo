@@ -63,12 +63,12 @@
 .configuration-state--ready { color: #107353; background: #e7f6ef; border: 1px solid #c4e5d7; }
 .configuration-state--offline { color: #8b5c19; background: #fff7e7; border: 1px solid #ecdab9; }
 
-.configuration-agent-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; padding: 18px; background: #f7faf8; border: 1px solid #dce6e1; border-radius: 12px; }
+.configuration-agent-form { display: grid; grid-template-columns: minmax(260px, 1.25fr) minmax(210px, .75fr) auto; align-items: end; gap: 14px; padding: 18px; background: #f7faf8; border: 1px solid #dce6e1; border-radius: 12px; }
 .configuration-agent-form label { display: grid; gap: 7px; }
 .configuration-agent-form label > span { color: #334d44; font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: .06em; }
 .configuration-agent-form select { width: 100%; min-height: 43px; padding: 0 12px; color: #183b30; background: #fff; border: 1px solid #bdcdc6; border-radius: 9px; font-size: 12px; font-weight: 750; }
 .configuration-agent-form small { color: #71847d; font-size: 9px; }
-.configuration-run-consistency { margin: 2px 0 0; color: #63766f; font-size: 9px; line-height: 1.5; }
+.configuration-run-consistency { grid-column: 1 / -1; margin: 0; padding-top: 2px; color: #63766f; font-size: 10px; line-height: 1.5; }
 .configuration-agent-form .button:disabled, .configuration-transfer-grid .button:disabled { cursor: not-allowed; opacity: .58; }
 
 .configuration-security-note, .configuration-warning, .configuration-feedback { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; padding: 12px 13px; border-radius: 10px; font-size: 10px; line-height: 1.55; }

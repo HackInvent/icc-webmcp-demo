@@ -211,9 +211,7 @@ def main() -> None:
             assert configuration_modal.get_by_role(
                 "tab", name="Simulator configuration", exact=True
             ).count() == 1
-            assert configuration_modal.get_by_role(
-                "tab", name="Agent log", exact=True
-            ).count() == 1
+            assert configuration_modal.locator("#configuration-tab-log").count() == 1
 
             configuration_model_select = configuration_modal.get_by_test_id(
                 "configuration-agent-model"
@@ -221,13 +219,35 @@ def main() -> None:
             configuration_model_select.wait_for(state="visible")
             configuration_model = configuration_model_select.input_value()
             assert configuration_model
+            assert configuration_model_select.locator("option").count() == 21
+
+            reasoning_select = configuration_modal.get_by_test_id(
+                "configuration-agent-reasoning-effort"
+            )
+            reasoning_select.wait_for(state="visible")
+            assert reasoning_select.locator("option").count() == 6
+            assert reasoning_select.input_value() == "low"
+
+            configuration_model_select.select_option("gpt-5.5-pro")
+            assert reasoning_select.locator("option").count() == 3
+            assert reasoning_select.input_value() == "high"
+
+            configuration_model_select.select_option("gpt-5-pro")
+            assert reasoning_select.locator("option").count() == 1
+            assert reasoning_select.input_value() == "high"
+
+            configuration_model_select.select_option("gpt-4.1")
+            assert reasoning_select.is_disabled()
+            assert reasoning_select.locator("option").count() == 1
+            assert reasoning_select.input_value() == ""
+
+            configuration_model_select.select_option(configuration_model)
+            reasoning_select.select_option("low")
             assert configuration_modal.get_by_text(
                 "API key remains on the server", exact=True
             ).is_visible()
 
-            configuration_modal.get_by_role(
-                "tab", name="Agent log", exact=True
-            ).click()
+            configuration_modal.locator("#configuration-tab-log").click()
             configuration_modal.get_by_role(
                 "heading", name="Agent execution log", exact=True
             ).wait_for(state="visible")

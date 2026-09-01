@@ -160,7 +160,9 @@
         },
         "reasoningEffort": {
           "enum": [
+            null,
             "none",
+            "minimal",
             "low",
             "medium",
             "high",
@@ -185,7 +187,7 @@
         "allowedModels": {
           "type": "array",
           "minItems": 1,
-          "maxItems": 12,
+          "maxItems": 32,
           "uniqueItems": true,
           "items": {
             "type": "string",

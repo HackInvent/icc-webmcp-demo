@@ -220,10 +220,12 @@ mandatory before an abandoned-baggage station can be reopened.
 
 ### Configure the agent and move a baseline
 
-- Open **Configuration** in the header. In **Agent**, select one of the models
-  allowlisted by the private server JSON and choose **Apply model**. The setting
-  applies to subsequent runs and reports; an already-started multi-round WebMCP
-  run retains its original model. The API key remains on the server.
+- Open **Configuration** in the header. In **Agent**, select a model, choose one
+  of the reasoning efforts supported by that model, and select **Apply
+  configuration**. The pair applies to subsequent runs and reports; an
+  already-started multi-round WebMCP run retains its original model and effort.
+  Non-reasoning models show that the setting is not applicable. The API key
+  remains on the server.
 - In **Simulator configuration**, **Export JSON** downloads the current native
   and detailed simulation state, including explicit occurrence times for every
   incident.
@@ -232,8 +234,9 @@ mandatory before an abandoned-baggage station can be reopened.
   **Install imported baseline**. The accepted import becomes the new simulation
   **Reset** baseline for the current authenticated operations workspace.
 - In **Agent log**, refresh the newest-first execution trace or download its
-  versioned JSON form. It records model, outcome, duration, tool names and token
-  counts, but never prompts, tool arguments or outputs, or credentials.
+  versioned JSON form. It records model, reasoning effort when applicable,
+  outcome, duration, tool names and token counts, but never prompts, tool
+  arguments or outputs, or credentials.
 - Treat exported JSON as scenario input, not as a railway record or live snapshot.
 
 Import does not replace the D-1 schedule CSV. Schedule plans are managed separately

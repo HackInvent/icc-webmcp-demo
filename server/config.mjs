@@ -1,16 +1,14 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import {
+  configuredOpenAiAgentModels,
+  defaultReasoningEffortFor,
+  openAiAgentModelProfile,
+  supportsReasoningEffort,
+} from "./openai-model-catalog.mjs";
 import { hashAccessCode } from "./security.mjs";
 
 const ENV_REFERENCE = /\$\{([A-Z][A-Z0-9_]*)\}/g;
-const ALLOWED_REASONING_EFFORTS = new Set([
-  "none",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-  "max",
-]);
 
 export class ConfigurationError extends Error {
   constructor(message) {
@@ -124,8 +122,8 @@ function parsePresets(value) {
 
 function parseAllowedModels(value, defaultModel) {
   const source = value ?? [defaultModel];
-  if (!Array.isArray(source) || source.length < 1 || source.length > 12) {
-    configurationError("openai.allowedModels", "must contain between 1 and 12 model identifiers");
+  if (!Array.isArray(source) || source.length < 1 || source.length > 32) {
+    configurationError("openai.allowedModels", "must contain between 1 and 32 model identifiers");
   }
   const models = source.map((item, index) =>
     stringAt(item, `openai.allowedModels[${index}]`, { max: 100 })
@@ -136,6 +134,14 @@ function parseAllowedModels(value, defaultModel) {
   if (!models.includes(defaultModel)) {
     configurationError("openai.allowedModels", "must include openai.model");
   }
+  models.forEach((model, index) => {
+    if (!openAiAgentModelProfile(model)) {
+      configurationError(
+        "openai.allowedModels[" + index + "]",
+        "is not a current OpenAI model compatible with this agent workflow",
+      );
+    }
+  });
   return models;
 }
 
@@ -180,16 +186,21 @@ export function parseServerConfig(rawConfiguration, options = {}) {
   if (openaiEnabled && openaiApiKey.length < 20) {
     configurationError("openai.apiKey", "is required when OpenAI is enabled");
   }
-  const reasoningEffort = stringAt(
-    openai.reasoningEffort ?? "low",
-    "openai.reasoningEffort",
-    { max: 10 },
-  );
-  if (!ALLOWED_REASONING_EFFORTS.has(reasoningEffort)) {
-    configurationError("openai.reasoningEffort", "is not supported");
-  }
   const defaultOpenAiModel = stringAt(openai.model ?? "gpt-5.6-terra", "openai.model", { max: 100 });
   const allowedOpenAiModels = parseAllowedModels(openai.allowedModels, defaultOpenAiModel);
+  const modelDefaultReasoningEffort = defaultReasoningEffortFor(defaultOpenAiModel);
+  const reasoningEffort = openai.reasoningEffort === undefined || openai.reasoningEffort === null
+    ? modelDefaultReasoningEffort
+    : stringAt(openai.reasoningEffort, "openai.reasoningEffort", { max: 10 });
+  if (
+    (reasoningEffort !== null && !supportsReasoningEffort(defaultOpenAiModel, reasoningEffort)) ||
+    (reasoningEffort === null && modelDefaultReasoningEffort !== null)
+  ) {
+    configurationError(
+      "openai.reasoningEffort",
+      "is not supported by " + defaultOpenAiModel,
+    );
+  }
   const primEnabled = booleanAt(prim.enabled, "prim.enabled");
   const primApiKey = optionalString(prim.apiKey, "prim.apiKey", { max: 500 });
   if (primEnabled && primApiKey.length < 8) {
@@ -234,6 +245,7 @@ export function parseServerConfig(rawConfiguration, options = {}) {
       apiKey: openaiApiKey,
       model: defaultOpenAiModel,
       allowedModels: allowedOpenAiModels,
+      modelProfiles: configuredOpenAiAgentModels(allowedOpenAiModels),
       reasoningEffort,
       maxOutputTokens: integerAt(openai.maxOutputTokens ?? 1_800, "openai.maxOutputTokens", 256, 16_000),
       timeoutMs: integerAt(openai.timeoutMs ?? 45_000, "openai.timeoutMs", 5_000, 120_000),
@@ -317,6 +329,9 @@ export function resolveConfigPath(argv = process.argv.slice(2), environment = pr
 
 export function publicRuntimeConfiguration(config, authenticated, options = {}) {
   const effectiveModel = options.model ?? config.openai.model;
+  const effectiveReasoningEffort = options.reasoningEffort !== undefined
+    ? options.reasoningEffort
+    : config.openai.reasoningEffort;
   return {
     authenticated,
     application: {
@@ -327,6 +342,7 @@ export function publicRuntimeConfiguration(config, authenticated, options = {}) 
     agent: {
       enabled: config.openai.enabled,
       model: config.openai.enabled ? effectiveModel : null,
+      reasoningEffort: config.openai.enabled ? effectiveReasoningEffort : null,
       maxToolRounds: config.agent.maxToolRounds,
       presets: config.agent.presets,
     },

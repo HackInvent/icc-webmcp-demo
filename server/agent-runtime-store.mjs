@@ -3,9 +3,11 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const SCHEMA_VERSION = "paris-icc-agent-runtime.v1";
+const SCHEMA_VERSION = "paris-icc-agent-runtime.v2";
+const READABLE_SCHEMA_VERSIONS = new Set(["paris-icc-agent-runtime.v1", SCHEMA_VERSION]);
 const CATEGORIES = new Set(["generic", "incident", "report"]);
 const OUTCOMES = new Set(["completed", "tool_calls", "failed"]);
+const REASONING_EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
 function boundedString(value, maximum = 160) {
   return typeof value === "string" && value.length > 0
@@ -26,6 +28,9 @@ function safePersistedEntry(raw) {
   const outcome = OUTCOMES.has(raw.outcome) ? raw.outcome : null;
   const timestamp = boundedString(raw.timestamp, 40);
   const model = boundedString(raw.model, 100);
+  const reasoningEffort = REASONING_EFFORTS.has(raw.reasoningEffort)
+    ? raw.reasoningEffort
+    : undefined;
   if (!category || !outcome || !timestamp || !model) return null;
   const toolNames = Array.isArray(raw.toolNames)
     ? [...new Set(raw.toolNames
@@ -37,6 +42,7 @@ function safePersistedEntry(raw) {
     timestamp,
     category,
     model,
+    ...(reasoningEffort ? { reasoningEffort } : {}),
     outcome,
     durationMs: boundedInteger(raw.durationMs, 86_400_000) ?? 0,
     ...(boundedString(raw.runId, 100) ? { runId: boundedString(raw.runId, 100) } : {}),
@@ -60,10 +66,17 @@ export class AgentRuntimeStore {
     this.path = config.storage.agentRuntimePath;
     this.enabled = config.openai.enabled;
     this.defaultModel = config.openai.model;
+    this.defaultReasoningEffort = config.openai.reasoningEffort;
     this.allowedModels = Object.freeze([...config.openai.allowedModels]);
+    this.models = Object.freeze(config.openai.modelProfiles.map((profile) => Object.freeze({
+      ...profile,
+      reasoningEfforts: Object.freeze([...profile.reasoningEfforts]),
+    })));
+    this.modelById = new Map(this.models.map((profile) => [profile.id, profile]));
     this.maximumEntries = config.agent.logMaxEntries;
     this.now = options.now ?? (() => Date.now());
     this.model = this.defaultModel;
+    this.reasoningEffort = this.defaultReasoningEffort;
     this.updatedAt = new Date(this.now()).toISOString();
     this.entries = [];
     this.mutationQueue = Promise.resolve();
@@ -78,8 +91,17 @@ export class AgentRuntimeStore {
     if (!existsSync(this.path)) return;
     try {
       const parsed = JSON.parse(readFileSync(this.path, "utf8"));
-      if (parsed?.schemaVersion !== SCHEMA_VERSION) return;
+      if (!READABLE_SCHEMA_VERSIONS.has(parsed?.schemaVersion)) return;
       if (this.allowedModels.includes(parsed.model)) this.model = parsed.model;
+      const profile = this.modelById.get(this.model);
+      const persistedEffort = parsed.reasoningEffort === null ? null : boundedString(parsed.reasoningEffort, 10);
+      if (this.#supportsEffort(profile, persistedEffort)) {
+        this.reasoningEffort = persistedEffort;
+      } else if (profile?.reasoningEfforts.includes(this.defaultReasoningEffort)) {
+        this.reasoningEffort = this.defaultReasoningEffort;
+      } else {
+        this.reasoningEffort = profile?.defaultReasoningEffort ?? null;
+      }
       if (typeof parsed.updatedAt === "string") this.updatedAt = parsed.updatedAt;
       if (Array.isArray(parsed.entries)) {
         this.entries = parsed.entries
@@ -96,36 +118,75 @@ export class AgentRuntimeStore {
     return this.model;
   }
 
+  currentReasoningEffort() {
+    return this.reasoningEffort;
+  }
+
+  currentSelection() {
+    return { model: this.model, reasoningEffort: this.reasoningEffort };
+  }
+
   configuration() {
     return {
       enabled: this.enabled,
       model: this.model,
+      reasoningEffort: this.reasoningEffort,
       defaultModel: this.defaultModel,
+      defaultReasoningEffort: this.defaultReasoningEffort,
       allowedModels: [...this.allowedModels],
+      models: this.models.map((profile) => ({
+        ...profile,
+        reasoningEfforts: [...profile.reasoningEfforts],
+      })),
       updatedAt: this.updatedAt,
     };
   }
 
-  async updateModel(model) {
+  #supportsEffort(profile, reasoningEffort) {
+    if (!profile) return false;
+    return profile.reasoningEfforts.length === 0
+      ? reasoningEffort === null
+      : typeof reasoningEffort === "string" && profile.reasoningEfforts.includes(reasoningEffort);
+  }
+
+  async updateConfiguration(model, requestedReasoningEffort) {
     if (!this.allowedModels.includes(model)) {
       const error = new Error("The requested agent model is not allowed by server configuration.");
       error.code = "model_not_allowed";
       throw error;
     }
+    const profile = this.modelById.get(model);
+    const reasoningEffort = requestedReasoningEffort === undefined
+      ? (this.#supportsEffort(profile, this.reasoningEffort)
+          ? this.reasoningEffort
+          : profile.defaultReasoningEffort)
+      : requestedReasoningEffort;
+    if (!this.#supportsEffort(profile, reasoningEffort)) {
+      const error = new Error("The requested reasoning effort is not supported by the selected model.");
+      error.code = "reasoning_effort_not_supported";
+      throw error;
+    }
     return this.#mutate(async () => {
       const previousModel = this.model;
+      const previousReasoningEffort = this.reasoningEffort;
       const previousUpdatedAt = this.updatedAt;
       this.model = model;
+      this.reasoningEffort = reasoningEffort;
       this.updatedAt = new Date(this.now()).toISOString();
       try {
         await this.#persist();
       } catch (error) {
         this.model = previousModel;
+        this.reasoningEffort = previousReasoningEffort;
         this.updatedAt = previousUpdatedAt;
         throw error;
       }
       return this.configuration();
     });
+  }
+
+  async updateModel(model) {
+    return this.updateConfiguration(model, undefined);
   }
 
   async record(raw) {
@@ -135,6 +196,7 @@ export class AgentRuntimeStore {
       timestamp,
       category: raw?.category,
       model: raw?.model,
+      reasoningEffort: raw?.reasoningEffort,
       outcome: raw?.outcome,
       durationMs: raw?.durationMs,
       runId: raw?.runId,
@@ -173,6 +235,7 @@ export class AgentRuntimeStore {
       schemaVersion: "paris-icc-agent-log.v1",
       exportedAt: new Date(this.now()).toISOString(),
       model: this.model,
+      reasoningEffort: this.reasoningEffort,
       entries: this.list(this.maximumEntries),
     };
   }
@@ -189,6 +252,7 @@ export class AgentRuntimeStore {
     const payload = JSON.stringify({
       schemaVersion: SCHEMA_VERSION,
       model: this.model,
+      reasoningEffort: this.reasoningEffort,
       updatedAt: this.updatedAt,
       entries: this.entries,
     }, null, 2) + "\n";

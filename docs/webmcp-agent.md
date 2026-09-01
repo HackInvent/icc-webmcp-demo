@@ -155,14 +155,18 @@ The browser starts `/api/agent/turn` with only the three read-tool definitions a
 
 This design keeps page execution in the browser and keeps OpenAI credentials on the server. Tool output is treated as untrusted operational data, not as model instructions. The server validates the evidence after every round in [`AgentService.#recordIncidentDecisionEvidence`](../server/agent.mjs).
 
-The header **Configuration** modal exposes only models listed in
-`openai.allowedModels`. `PUT /api/configuration/agent` validates the exact model
-server-side and persists it for subsequent runs and report drafts. The model is
-captured when a run starts, so changing the global setting cannot mix models
-inside an active inspect/search/get sequence.
+The header **Configuration** modal exposes only current models listed in
+`openai.allowedModels` that support this complete agent workflow. Capability
+metadata from the server filters reasoning effort to the values accepted by each
+model. `PUT /api/configuration/agent` validates and atomically persists the exact
+model/effort pair for subsequent runs and report drafts. Both values are captured
+when a run starts, so changing the global setting cannot mix configurations
+inside an active inspect/search/get sequence. For non-reasoning GPT-4.1 and
+GPT-4o models, the server omits the reasoning parameter entirely.
 
 Each server call appends a bounded metadata-only entry containing its timestamp,
-category, model, outcome, duration, optional tool names and token counts. The
+category, model, optional reasoning effort, outcome, duration, optional tool
+names and token counts. The
 authenticated **Agent log** view reads `/api/agent/log`; its JSON download is
 served by `/api/agent/log/download`. Prompts, browser tool arguments and outputs,
 model answers, API keys, and server instructions are deliberately excluded.

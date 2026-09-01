@@ -5,6 +5,10 @@ import readline from "node:readline";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { fileURLToPath } from "node:url";
+import {
+  defaultReasoningEffortFor,
+  OPENAI_AGENT_MODEL_IDS,
+} from "../server/openai-model-catalog.mjs";
 import { hashAccessCode } from "../server/security.mjs";
 
 const destination = path.resolve(process.env.PARIS_ICC_CONFIG ?? "config/server.local.json");
@@ -83,6 +87,9 @@ try {
   if (openaiApiKey.length < 20) throw new Error("The OpenAI API key is too short.");
   const defaultModel = "gpt-5.6-terra";
   const model = (await terminal.question(`OpenAI model [${defaultModel}]: `)).trim() || defaultModel;
+  if (!OPENAI_AGENT_MODEL_IDS.includes(model)) {
+    throw new Error("Choose a current OpenAI model supported by the Paris ICC agent workflow.");
+  }
   const enablePrim = (await terminal.question("Enable the optional IDFM PRIM connector? [y/N] "))
     .trim().toLowerCase();
   const primEnabled = enablePrim === "y" || enablePrim === "yes";
@@ -118,8 +125,8 @@ try {
       enabled: true,
       apiKey: openaiApiKey,
       model,
-      allowedModels: [...new Set([model, "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna"])],
-      reasoningEffort: "low",
+      allowedModels: [...OPENAI_AGENT_MODEL_IDS],
+      reasoningEffort: defaultReasoningEffortFor(model),
       maxOutputTokens: 1_800,
       timeoutMs: 45_000,
       baseUrl: "https://api.openai.com/v1",

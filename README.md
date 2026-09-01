@@ -105,7 +105,7 @@ npm run serve
 
 The configuration command asks for an access code and an OpenAI API key. It writes them to the ignored file `config/server.local.json`; the API key is never sent to the browser.
 
-The server listens on `127.0.0.1:8787` by default. The **Configuration** button in the header lets the operator choose an allowed agent model, import or export the simulator baseline, inspect the agent log and download it.
+The server listens on `127.0.0.1:8787` by default. The **Configuration** button in the header lists the current OpenAI models compatible with the full agent workflow and shows only the reasoning efforts supported by each model. The selected model and effort are persisted together. The same workspace also imports or exports the simulator baseline and provides the downloadable agent log.
 
 For an HTTPS deployment, put Nginx in front of the Node process and set `application.publicOrigin` to the public address. The project does not need Docker, systemd or an external database. See [the deployment guide](docs/deployment.md).
 

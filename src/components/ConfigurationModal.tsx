@@ -13,11 +13,22 @@ import { Modal } from "./Modal";
 type ConfigurationTab = "agent" | "simulator" | "log";
 type FeedbackTone = "success" | "error";
 
+interface AgentModelProfile {
+  id: string;
+  label: string;
+  family: string;
+  reasoningEfforts: string[];
+  defaultReasoningEffort: string | null;
+  recommended: boolean;
+}
+
 interface AgentConfiguration {
   enabled: boolean;
   model: string | null;
   defaultModel: string | null;
+  defaultReasoningEffort: string | null;
   allowedModels: string[];
+  models: AgentModelProfile[];
   reasoningEffort: string | null;
   updatedAt: string | null;
 }
@@ -48,6 +59,16 @@ const TABS: ReadonlyArray<{ id: ConfigurationTab; label: string; icon: "radio" |
   { id: "log", label: "Agent log", icon: "activity" },
 ];
 
+const REASONING_EFFORT_LABELS: Record<string, string> = {
+  none: "None — fastest",
+  minimal: "Minimal",
+  low: "Low",
+  medium: "Medium — balanced",
+  high: "High",
+  xhigh: "Extra high",
+  max: "Maximum",
+};
+
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
@@ -76,6 +97,27 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   return await response.json() as T;
 }
 
+function normalizeModelProfile(value: unknown): AgentModelProfile | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const profile = value as Partial<AgentModelProfile>;
+  if (typeof profile.id !== "string" || !profile.id.trim()) return null;
+  const reasoningEfforts = Array.isArray(profile.reasoningEfforts)
+    ? [...new Set(profile.reasoningEfforts.filter((effort): effort is string => typeof effort === "string" && effort.length > 0))]
+    : [];
+  const defaultReasoningEffort = typeof profile.defaultReasoningEffort === "string" &&
+    reasoningEfforts.includes(profile.defaultReasoningEffort)
+    ? profile.defaultReasoningEffort
+    : null;
+  return {
+    id: profile.id,
+    label: typeof profile.label === "string" && profile.label.trim() ? profile.label : profile.id,
+    family: typeof profile.family === "string" && profile.family.trim() ? profile.family : "OpenAI",
+    reasoningEfforts,
+    defaultReasoningEffort,
+    recommended: profile.recommended === true,
+  };
+}
+
 function normalizeAgentConfiguration(
   value: Partial<AgentConfiguration> | undefined,
   fallback: AgentConfiguration,
@@ -84,12 +126,33 @@ function normalizeAgentConfiguration(
   const allowedModels = Array.isArray(value?.allowedModels)
     ? value.allowedModels.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     : fallback.allowedModels;
+  const suppliedModels = Array.isArray(value?.models)
+    ? value.models.map(normalizeModelProfile).filter((profile): profile is AgentModelProfile => Boolean(profile))
+    : [];
+  const fallbackModels = suppliedModels.length > 0 ? suppliedModels : fallback.models;
+  const models = fallbackModels.length > 0
+    ? fallbackModels
+    : [...new Set([...(model ? [model] : []), ...allowedModels])].map((id) => ({
+        id,
+        label: id,
+        family: "OpenAI",
+        reasoningEfforts: typeof value?.reasoningEffort === "string" ? [value.reasoningEffort] : [],
+        defaultReasoningEffort: typeof value?.reasoningEffort === "string" ? value.reasoningEffort : null,
+        recommended: false,
+      }));
+  const reasoningEffort = value && "reasoningEffort" in value
+    ? (typeof value.reasoningEffort === "string" ? value.reasoningEffort : null)
+    : fallback.reasoningEffort;
   return {
     enabled: typeof value?.enabled === "boolean" ? value.enabled : fallback.enabled,
     model,
     defaultModel: typeof value?.defaultModel === "string" ? value.defaultModel : fallback.defaultModel,
-    allowedModels: [...new Set([...(model ? [model] : []), ...allowedModels])],
-    reasoningEffort: typeof value?.reasoningEffort === "string" ? value.reasoningEffort : fallback.reasoningEffort,
+    defaultReasoningEffort: typeof value?.defaultReasoningEffort === "string"
+      ? value.defaultReasoningEffort
+      : fallback.defaultReasoningEffort,
+    allowedModels: [...new Set(models.map((profile) => profile.id))],
+    models,
+    reasoningEffort,
     updatedAt: typeof value?.updatedAt === "string" ? value.updatedAt : fallback.updatedAt,
   };
 }
@@ -135,12 +198,13 @@ export function ConfigurationModal({
   onImportConfiguration,
   onClose,
 }: ConfigurationModalProps) {
-  const { configuration: runtime, updateAgentModel } = useRuntimeConfiguration();
+  const { configuration: runtime, updateAgentConfiguration } = useRuntimeConfiguration();
   const [activeTab, setActiveTab] = useState<ConfigurationTab>("agent");
   const [configuration, setConfiguration] = useState<ConfigurationResponse | null>(null);
   const [configurationLoading, setConfigurationLoading] = useState(true);
   const [configurationError, setConfigurationError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState(runtime.agent.model ?? "");
+  const [selectedReasoningEffort, setSelectedReasoningEffort] = useState(runtime.agent.reasoningEffort ?? "");
   const [savingModel, setSavingModel] = useState(false);
   const [modelFeedback, setModelFeedback] = useState<{ tone: FeedbackTone; message: string } | null>(null);
   const [transferFeedback, setTransferFeedback] = useState<{ tone: FeedbackTone; message: string } | null>(null);
@@ -156,11 +220,25 @@ export function ConfigurationModal({
     enabled: runtime.agent.enabled,
     model: runtime.agent.model,
     defaultModel: runtime.agent.model,
+    defaultReasoningEffort: runtime.agent.reasoningEffort,
     allowedModels: runtime.agent.model ? [runtime.agent.model] : [],
-    reasoningEffort: null,
+    models: runtime.agent.model ? [{
+      id: runtime.agent.model,
+      label: runtime.agent.model,
+      family: "OpenAI",
+      reasoningEfforts: runtime.agent.reasoningEffort ? [runtime.agent.reasoningEffort] : [],
+      defaultReasoningEffort: runtime.agent.reasoningEffort,
+      recommended: false,
+    }] : [],
+    reasoningEffort: runtime.agent.reasoningEffort,
     updatedAt: null,
   };
   const agent = configuration?.agent ?? runtimeFallback;
+  const selectedModelProfile = agent.models.find((profile) => profile.id === selectedModel) ?? null;
+  const selectedEffort = selectedModelProfile?.reasoningEfforts.length
+    ? selectedReasoningEffort
+    : null;
+  const selectionIsUnchanged = selectedModel === agent.model && selectedEffort === agent.reasoningEffort;
   const downloadUrl = configuration?.log.downloadUrl || "/api/agent/log/download";
 
   useEffect(() => {
@@ -171,6 +249,7 @@ export function ConfigurationModal({
         const normalized = normalizeAgentConfiguration(response.agent, runtimeFallback);
         setConfiguration({ ...response, agent: normalized });
         setSelectedModel(normalized.model ?? "");
+        setSelectedReasoningEffort(normalized.reasoningEffort ?? "");
         setConfigurationError(null);
       })
       .catch((error: unknown) => {
@@ -221,24 +300,35 @@ export function ConfigurationModal({
   };
 
   const saveModel = async () => {
-    if (!selectedModel || savingModel || !configuration) return;
+    if (
+      !selectedModel ||
+      !selectedModelProfile ||
+      (selectedModelProfile.reasoningEfforts.length > 0 && !selectedReasoningEffort) ||
+      savingModel ||
+      !configuration
+    ) return;
     setSavingModel(true);
     setModelFeedback(null);
     try {
       const response = await fetchJson<ConfigurationResponse | { agent: AgentConfiguration }>("/api/configuration/agent", {
         method: "PUT",
-        body: JSON.stringify({ model: selectedModel }),
+        body: JSON.stringify({ model: selectedModel, reasoningEffort: selectedEffort }),
       });
       const normalized = normalizeAgentConfiguration(response.agent, agent);
       setConfiguration((current) => current ? { ...current, agent: normalized } : {
         agent: normalized,
         log: { count: 0, downloadUrl: "/api/agent/log/download" },
       });
-      setSelectedModel(normalized.model ?? selectedModel);
-      updateAgentModel(normalized.model ?? selectedModel);
-      setModelFeedback({ tone: "success", message: `${normalized.model ?? selectedModel} will be used for the next agent run.` });
+      const appliedModel = normalized.model ?? selectedModel;
+      setSelectedModel(appliedModel);
+      setSelectedReasoningEffort(normalized.reasoningEffort ?? "");
+      updateAgentConfiguration(appliedModel, normalized.reasoningEffort);
+      setModelFeedback({
+        tone: "success",
+        message: `${appliedModel}${normalized.reasoningEffort ? ` · ${normalized.reasoningEffort} effort` : " · no reasoning effort"} will be used for the next agent run.`,
+      });
     } catch (error) {
-      setModelFeedback({ tone: "error", message: errorMessage(error, "The model could not be updated.") });
+      setModelFeedback({ tone: "error", message: errorMessage(error, "The agent configuration could not be updated.") });
     } finally {
       setSavingModel(false);
     }
@@ -333,7 +423,7 @@ export function ConfigurationModal({
               <span className="configuration-panel__icon"><Icon name="radio" size={20} /></span>
               <div>
                 <h3>Decision-support model</h3>
-                <p>Select the OpenAI model used by the server for subsequent agent turns.</p>
+                <p>Select a compatible OpenAI model and one of the reasoning efforts it supports.</p>
               </div>
               <span className={`configuration-state configuration-state--${agent.enabled ? "ready" : "offline"}`}>
                 <i />{agent.enabled ? "Agent enabled" : "Agent disabled"}
@@ -350,25 +440,72 @@ export function ConfigurationModal({
                     id="configuration-agent-model"
                     data-testid="configuration-agent-model"
                     value={selectedModel}
-                    disabled={!configuration || savingModel || agent.allowedModels.length === 0}
-                    onChange={(event) => setSelectedModel(event.target.value)}
+                    disabled={!configuration || savingModel || agent.models.length === 0}
+                    onChange={(event) => {
+                      const nextModel = event.target.value;
+                      const nextProfile = agent.models.find((profile) => profile.id === nextModel);
+                      setSelectedModel(nextModel);
+                      setSelectedReasoningEffort((current) => nextProfile?.reasoningEfforts.includes(current)
+                        ? current
+                        : nextProfile?.defaultReasoningEffort ?? "");
+                      setModelFeedback(null);
+                    }}
                   >
-                    {agent.allowedModels.length === 0 && <option value="">No server models available</option>}
-                    {agent.allowedModels.map((model) => <option value={model} key={model}>{model}</option>)}
+                    {agent.models.length === 0 && <option value="">No compatible server models available</option>}
+                    {[...new Set(agent.models.map((profile) => profile.family))].map((family) => (
+                      <optgroup label={family} key={family}>
+                        {agent.models.filter((profile) => profile.family === family).map((profile) => (
+                          <option value={profile.id} key={profile.id}>
+                            {profile.label} — {profile.id}{profile.recommended ? " (recommended)" : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
                   </select>
-                  <small>Default: {agent.defaultModel ?? "not configured"}{agent.reasoningEffort ? ` · Reasoning: ${agent.reasoningEffort}` : ""}</small>
-                  <p className="configuration-run-consistency">The selection applies to future runs. A WebMCP run already in progress keeps its original model across every tool round.</p>
+                  <small>Server default: {agent.defaultModel ?? "not configured"}</small>
+                </label>
+                <label htmlFor="configuration-agent-reasoning-effort">
+                  <span>Reasoning effort</span>
+                  <select
+                    id="configuration-agent-reasoning-effort"
+                    data-testid="configuration-agent-reasoning-effort"
+                    value={selectedReasoningEffort}
+                    disabled={!configuration || savingModel || !selectedModelProfile?.reasoningEfforts.length}
+                    onChange={(event) => {
+                      setSelectedReasoningEffort(event.target.value);
+                      setModelFeedback(null);
+                    }}
+                  >
+                    {!selectedModelProfile?.reasoningEfforts.length ? (
+                      <option value="">Not applicable — non-reasoning model</option>
+                    ) : selectedModelProfile.reasoningEfforts.map((effort) => (
+                      <option value={effort} key={effort}>{REASONING_EFFORT_LABELS[effort] ?? effort}</option>
+                    ))}
+                  </select>
+                  <small>
+                    {selectedModelProfile?.reasoningEfforts.length
+                      ? `Model default: ${selectedModelProfile.defaultReasoningEffort ?? "provider default"}`
+                      : "The reasoning parameter is omitted from OpenAI requests."}
+                  </small>
                 </label>
                 <button
                   type="button"
                   className="button button--primary"
                   data-testid="save-agent-model"
-                  disabled={!configuration || !selectedModel || selectedModel === agent.model || savingModel}
+                  disabled={
+                    !configuration ||
+                    !selectedModel ||
+                    !selectedModelProfile ||
+                    (selectedModelProfile.reasoningEfforts.length > 0 && !selectedReasoningEffort) ||
+                    selectionIsUnchanged ||
+                    savingModel
+                  }
                   onClick={() => void saveModel()}
                 >
                   {savingModel ? <span className="configuration-spinner" /> : <Icon name="shield" size={15} />}
-                  {savingModel ? "Applying…" : "Apply model"}
+                  {savingModel ? "Applying…" : "Apply configuration"}
                 </button>
+                <p className="configuration-run-consistency">The selection applies to future runs. A WebMCP run already in progress keeps its original model and effort across every tool round.</p>
               </div>
             )}
 
@@ -508,7 +645,7 @@ export function ConfigurationModal({
                         <tr key={recordText(entry, "id") ?? `${run}-${index}`}>
                           <td><strong>{formatLogTime(entry.timestamp)}</strong><small>{recordText(entry, "id") ?? "recorded"}</small></td>
                           <td><code title={run}>{run}</code><small>{category}{recordText(entry, "entityId") ? ` · ${recordText(entry, "entityId")}` : ""}{recordText(entry, "toolRound") ? ` · round ${recordText(entry, "toolRound")}` : ""}</small></td>
-                          <td><strong>{recordText(entry, "model") ?? "—"}</strong></td>
+                          <td><strong>{recordText(entry, "model") ?? "—"}</strong><small>{recordText(entry, "reasoningEffort") ? `${recordText(entry, "reasoningEffort")} effort` : "No reasoning effort"}</small></td>
                           <td><span className={`configuration-log-status configuration-log-status--${status.toLowerCase().replaceAll("_", "-")}`}>{status}</span></td>
                           <td>{formatDuration(entry.durationMs)}</td>
                           <td>{formatTokens(entry)}</td>

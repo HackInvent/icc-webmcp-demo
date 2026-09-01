@@ -96,6 +96,41 @@ describe("server JSON configuration", () => {
     })).toThrow(/must not contain duplicate/);
   });
 
+  it("validates the configured reasoning effort against the selected model", () => {
+    expect(() => parseServerConfig(rawServerConfig({
+      openai: {
+        model: "gpt-5.5-pro",
+        allowedModels: ["gpt-5.5-pro"],
+        reasoningEffort: "low",
+      },
+    }), {
+      configPath: "/tmp/config.json",
+      environment: {},
+    })).toThrow(/is not supported by gpt-5.5-pro/);
+
+    const nonReasoning = parseServerConfig(rawServerConfig({
+      openai: {
+        model: "gpt-4.1",
+        allowedModels: ["gpt-4.1"],
+        reasoningEffort: null,
+      },
+    }), {
+      configPath: "/tmp/config.json",
+      environment: {},
+    });
+    expect(nonReasoning.openai.reasoningEffort).toBeNull();
+
+    expect(() => parseServerConfig(rawServerConfig({
+      openai: {
+        model: "future-unverified-model",
+        allowedModels: ["future-unverified-model"],
+      },
+    }), {
+      configPath: "/tmp/config.json",
+      environment: {},
+    })).toThrow(/not a current OpenAI model compatible/);
+  });
+
   it("defaults the authenticated operations clock to one real-time second", () => {
     const raw = rawServerConfig();
     delete raw.storage.tickIntervalMs;
