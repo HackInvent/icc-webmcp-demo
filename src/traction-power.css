@@ -93,7 +93,7 @@
   gap: 18px;
   margin-bottom: 10px;
   padding: 11px 14px;
-  background: linear-gradient(90deg, #ffffff, #f6faf8);
+  background: #ffffff;
   border: 1px solid #d8e2de;
   border-radius: 10px;
 }
@@ -157,11 +157,7 @@
   overflow-x: auto;
   padding: 10px 12px 14px;
   color: #1d372e;
-  background:
-    linear-gradient(rgba(31, 56, 48, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(31, 56, 48, 0.025) 1px, transparent 1px),
-    #fbfdfc;
-  background-size: 32px 32px;
+  background: #f7f7f5;
   overscroll-behavior-inline: contain;
 }
 

@@ -3,6 +3,7 @@ import { WebMcpApprovalDialog } from "./components/WebMcpApprovalDialog";
 import { EntityModal } from "./components/EntityModal";
 import { NativeIncidentDecisionModal } from "./components/NativeIncidentDecisionModal";
 import { ConfigurationModal } from "./components/ConfigurationModal";
+import { DataReferenceLinks } from "./components/DataReferenceLinks";
 import { Icon } from "./components/Icon";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
@@ -475,6 +476,7 @@ function App() {
               onReopenCircuit={reopenCircuit}
             />
           )}
+          <DataReferenceLinks page={route.page} />
         </main>
       </div>
 

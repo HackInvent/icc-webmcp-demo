@@ -110,9 +110,7 @@ p {
 
 .app-main {
   min-height: calc(100vh - 76px);
-  background:
-    radial-gradient(circle at 91% 8%, rgba(93, 226, 177, 0.08), transparent 25%),
-    var(--canvas);
+  background: var(--canvas);
 }
 
 .page {
@@ -138,9 +136,7 @@ p {
   height: 100vh;
   overflow: hidden;
   color: #dce9e5;
-  background:
-    linear-gradient(180deg, rgba(93, 226, 177, 0.055), transparent 25%),
-    var(--night);
+  background: var(--night);
   border-right: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -873,12 +869,12 @@ p {
   width: 94px;
   height: 94px;
   content: "";
-  background: radial-gradient(circle, rgba(93, 226, 177, 0.09), transparent 70%);
+  background: rgba(93, 226, 177, 0.08);
 }
 
-.kpi-card--warning::after { background: radial-gradient(circle, rgba(255, 189, 103, 0.15), transparent 70%); }
-.kpi-card--danger::after { background: radial-gradient(circle, rgba(255, 100, 114, 0.12), transparent 70%); }
-.kpi-card--purple::after { background: radial-gradient(circle, rgba(182, 132, 247, 0.13), transparent 70%); }
+.kpi-card--warning::after { background: rgba(255, 189, 103, 0.12); }
+.kpi-card--danger::after { background: rgba(255, 100, 114, 0.1); }
+.kpi-card--purple::after { background: rgba(182, 132, 247, 0.1); }
 
 .kpi-card__top {
   display: flex;
@@ -1019,9 +1015,7 @@ p {
 .regulation-map,
 .power-board {
   color: #d7e6e1;
-  background:
-    radial-gradient(circle at 75% 0, rgba(93, 226, 177, 0.07), transparent 30%),
-    #091613;
+  background: #091613;
   border-color: #17302a;
   box-shadow: 0 16px 36px rgba(4, 18, 14, 0.12);
 }
@@ -1184,9 +1178,7 @@ p {
   margin-bottom: 14px;
   overflow: hidden;
   color: #d9ebe4;
-  background:
-    radial-gradient(circle at 78% -10%, rgba(93, 226, 177, 0.1), transparent 30%),
-    #081512;
+  background: #081512;
   border-color: #17332a;
   box-shadow: 0 16px 36px rgba(4, 18, 14, 0.13);
 }
@@ -1276,11 +1268,7 @@ p {
   width: 100%;
   min-width: 1080px;
   height: auto;
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px),
-    #081512;
-  background-size: 32px 32px;
+  background: #081512;
 }
 
 .ratp-atlas__line {
@@ -2060,7 +2048,7 @@ p {
 .ratp-atlas__legend-zone {
   width: 22px;
   height: 5px;
-  background: linear-gradient(90deg, #e3051b, #ffce00, #5091cb);
+  background: #777b79;
   border-radius: 4px;
 }
 
@@ -2168,7 +2156,7 @@ p {
 .legend-line { width: 15px; height: 3px; border-radius: 2px; }
 .legend-line--occupied { background: var(--blue); }
 .legend-line--free { background: #2d4541; }
-.legend-line--blocked { background: repeating-linear-gradient(90deg, var(--red) 0 3px, transparent 3px 5px); }
+.legend-line--blocked { background: var(--red); }
 
 .right-rail {
   display: grid;
@@ -2483,7 +2471,8 @@ p {
   flex: 0 0 75px;
   width: 75px;
   height: 75px;
-  background: radial-gradient(circle closest-side, #fff 76%, transparent 77% 99%), conic-gradient(var(--mint-dark) 98.4%, #e7eeeb 0);
+  background: #ffffff;
+  border: 7px solid var(--mint-dark);
   border-radius: 50%;
 }
 
@@ -2749,7 +2738,7 @@ p {
 .delay-rows > button > span:nth-child(2) small { color: #8b9894; font-size: 8px; }
 .delay-bar { position: relative; height: 4px; background: #e8eeeb; border-radius: 4px; }
 .delay-bar::after { position: absolute; top: -3px; bottom: -3px; left: 42%; width: 1px; content: ""; background: #c99758; }
-.delay-bar i { display: block; height: 100%; background: linear-gradient(90deg, #5dd9ad, #ffbd67, #ff6472); border-radius: inherit; }
+.delay-bar i { display: block; height: 100%; background: #c57b2c; border-radius: inherit; }
 .delay-bar em { position: absolute; top: 8px; left: 42%; color: #a0aaa7; font-size: 6px; font-style: normal; transform: translateX(-50%); }
 
 /* Power */
@@ -2835,9 +2824,7 @@ p {
   margin-bottom: 18px;
   padding: 22px 24px;
   color: #e6f0ed;
-  background:
-    radial-gradient(circle at 80% 20%, rgba(93, 226, 177, 0.12), transparent 30%),
-    #0a1714;
+  background: #0a1714;
   border-radius: 16px;
 }
 
@@ -5215,7 +5202,7 @@ textarea:focus-visible,
   min-height: 96px;
   margin-bottom: 14px;
   overflow: hidden;
-  background: linear-gradient(135deg, #f4fbf8, #fbfdfc);
+  background: #f5f5f3;
   border: 1px solid #cfe8de;
   border-left: 4px solid #46b88d;
   border-radius: 13px;
@@ -5426,7 +5413,7 @@ textarea:focus-visible,
   align-items: center;
   gap: 12px;
   padding: 13px 16px;
-  background: linear-gradient(90deg, #f3f9f6, #fbfcfc);
+  background: #f4f4f2;
   border-bottom: 1px solid #dce8e3;
 }
 
@@ -6106,7 +6093,7 @@ textarea:focus-visible,
   min-height: 62px;
   padding: 11px 13px;
   color: #29483d;
-  background: linear-gradient(135deg, #f3f9f6 0%, #fbfcfb 100%);
+  background: #f5f5f3;
   border: 1px solid #dce9e3;
   border-radius: 12px;
 }
@@ -6464,7 +6451,7 @@ textarea:focus-visible,
   align-items: center;
   gap: 14px;
   padding: 18px;
-  background: linear-gradient(135deg, #f2faf6, #f8faf9);
+  background: #f5f5f3;
   border: 1px solid #cfe5db;
   border-radius: 13px;
 }

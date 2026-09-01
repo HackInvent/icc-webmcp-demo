@@ -14,6 +14,7 @@ import "./ux-polish.css";
 import "./configuration-modal.css";
 import "./passenger-flow.css";
 import "./traction-power.css";
+import "./data-reference-links.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <RuntimeGate>

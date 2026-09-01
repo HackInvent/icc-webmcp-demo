@@ -11,7 +11,7 @@
 .system-summary-grid span { color: #687a73; font-size: 11px; line-height: 1.4; }
 .tone-online { color: #137357 !important; }.tone-degraded,.tone-recovering { color: #9a5a00 !important; }.tone-offline { color: #ae2e3c !important; }
 .scada-workspace { margin-bottom: 14px; }
-.scada-chain { display: grid; grid-template-columns: minmax(190px, .9fr) 110px minmax(230px, 1fr) 110px minmax(190px, .9fr); align-items: center; gap: 13px; min-height: 390px; padding: 28px; background: linear-gradient(180deg, #f9fbfa, #f2f6f4); }
+.scada-chain { display: grid; grid-template-columns: minmax(190px, .9fr) 110px minmax(230px, 1fr) 110px minmax(190px, .9fr); align-items: center; gap: 13px; min-height: 390px; padding: 28px; background: #f4f4f2; }
 .scada-chain__sources { display: grid; gap: 10px; }
 .system-node { position: relative; display: grid; gap: 7px; min-height: 126px; padding: 17px; color: #375148; background: #fff; border: 1px solid #d9e3df; border-radius: 13px; box-shadow: 0 7px 20px rgba(26, 55, 45, .06); }
 .system-node > svg { color: #176f55; }
@@ -36,7 +36,7 @@
 .bus-service-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
 .bus-service-card > header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:15px 16px; border-bottom:1px solid #e1e8e5; }
 .bus-service-card > header > div { display:grid; gap:4px; }.bus-service-card > header small { color:#6c7f77;font-size:9px;font-weight:850;letter-spacing:.06em }.bus-service-card > header strong { color:#193c30;font-size:15px }
-.bus-service-route { display:grid; grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr); align-items:center; gap:12px; min-height:150px; padding:20px; background:linear-gradient(180deg,#f9fbfa,#f2f6f4); }
+.bus-service-route { display:grid; grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr); align-items:center; gap:12px; min-height:150px; padding:20px; background:#f4f4f2; }
 .bus-service-route > div:not(.bus-service-route__leg) { display:grid; justify-items:center; gap:5px; text-align:center; }.bus-service-route i { width:18px;height:18px;border:4px solid #fff;border-radius:50%;box-shadow:0 0 0 2px #8da59c }.bus-service-route strong { color:#203f35;font-size:13px }.bus-service-route small { color:#73847e;font-size:10px }
 .bus-service-route__leg { display:grid; justify-items:center; gap:4px; color:#177155 }.bus-service-route__leg span { font-size:9px;font-weight:850 }.bus-service-route__leg b { color:#71847d;font-size:23px }
 .bus-service-facts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; margin:0; background:#e3eae7; border-block:1px solid #e3eae7; }.bus-service-facts > div { display:grid; gap:3px; padding:11px; background:#fff }.bus-service-facts dt { color:#74857f;font-size:8.5px;font-weight:800;text-transform:uppercase }.bus-service-facts dd { margin:0;color:#2b4a3f;font-size:11px;font-weight:750 }

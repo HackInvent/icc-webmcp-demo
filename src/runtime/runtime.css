@@ -6,14 +6,12 @@
   overflow: hidden;
   padding: 28px;
   color: #14231f;
-  background:
-    radial-gradient(circle at 16% 10%, rgba(27, 139, 104, 0.12), transparent 30%),
-    radial-gradient(circle at 88% 88%, rgba(58, 112, 196, 0.09), transparent 28%),
-    #eef3f1;
+  background: #f2f2f0;
 }
 
 .access-screen::before,
 .access-screen::after {
+  display: none;
   position: absolute;
   width: 360px;
   height: 360px;
@@ -32,10 +30,10 @@
   width: min(100%, 510px);
   overflow: hidden;
   padding: 34px;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid #cfdbd6;
+  background: #ffffff;
+  border: 1px solid #d7d7d2;
   border-radius: 22px;
-  box-shadow: 0 28px 70px rgba(29, 54, 45, 0.14);
+  box-shadow: 0 10px 30px rgba(24, 24, 22, 0.08);
 }
 
 .access-card__brand {

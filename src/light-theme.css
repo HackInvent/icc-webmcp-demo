@@ -8,24 +8,24 @@
 
 :root {
   color-scheme: light;
-  --ink: #17211f;
-  --muted: #5f6f69;
-  --soft: #7d8a86;
+  --ink: #1f1f1d;
+  --muted: #686864;
+  --soft: #858580;
   --surface: #ffffff;
-  --canvas: #f3f5f4;
-  --border: #d9e0dd;
-  --border-strong: #c5cfcb;
+  --canvas: #f3f3f1;
+  --border: #deded9;
+  --border-strong: #c9c9c3;
   --night: #ffffff;
-  --night-2: #f7f9f8;
-  --night-3: #edf2f0;
+  --night-2: #f7f7f5;
+  --night-3: #ececea;
   --mint: #147d62;
   --mint-dark: #0f6b53;
   --blue: #2563eb;
   --amber: #9a5700;
   --red: #bf3341;
   --purple: #6d3fb3;
-  --shadow: 0 12px 30px rgba(24, 46, 39, 0.08);
-  --light-surface-muted: #f7f9f8;
+  --shadow: 0 8px 24px rgba(24, 24, 22, 0.06);
+  --light-surface-muted: #f7f7f5;
   --light-surface-raised: #ffffff;
   --light-border-subtle: #e7ecea;
   --light-accent-soft: #e9f5f0;
@@ -40,9 +40,7 @@ body {
 }
 
 .app-main {
-  background:
-    radial-gradient(circle at 92% 3%, rgba(20, 125, 98, 0.055), transparent 24%),
-    linear-gradient(180deg, #f7f9f8 0, var(--canvas) 260px);
+  background: var(--canvas);
 }
 
 .panel {
@@ -52,14 +50,14 @@ body {
 
 .button--primary {
   color: #ffffff;
-  background: var(--mint);
-  border-color: #0f6b53;
-  box-shadow: 0 7px 16px rgba(20, 125, 98, 0.16);
+  background: #242422;
+  border-color: #242422;
+  box-shadow: none;
 }
 
 .button--primary:hover {
-  background: #0f6b53;
-  border-color: #0b5944;
+  background: #000000;
+  border-color: #000000;
 }
 
 .button--secondary {
@@ -87,11 +85,9 @@ body {
 .sidebar,
 .sidebar--collapsed {
   color: var(--ink);
-  background:
-    linear-gradient(180deg, rgba(20, 125, 98, 0.035), transparent 210px),
-    #ffffff;
+  background: #ffffff;
   border-right: 1px solid var(--border);
-  box-shadow: 6px 0 24px rgba(31, 54, 47, 0.035);
+  box-shadow: none;
 }
 
 .sidebar__brand {
@@ -270,9 +266,7 @@ body {
 .power-board,
 .detail-map {
   color: var(--ink);
-  background:
-    radial-gradient(circle at 82% -12%, rgba(20, 125, 98, 0.055), transparent 32%),
-    #ffffff;
+  background: #ffffff;
   border-color: var(--border);
   box-shadow: 0 10px 28px rgba(23, 44, 37, 0.065);
 }
@@ -322,11 +316,7 @@ body {
 
 .network-schematic,
 .power-diagram {
-  background:
-    linear-gradient(rgba(31, 56, 48, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(31, 56, 48, 0.02) 1px, transparent 1px),
-    #fafcfb;
-  background-size: 32px 32px;
+  background: #f7f7f5;
 }
 
 .line-caption {
@@ -437,11 +427,9 @@ body {
 
 .detail-hero {
   color: var(--ink);
-  background:
-    radial-gradient(circle at 82% 8%, rgba(20, 125, 98, 0.09), transparent 28%),
-    linear-gradient(135deg, #ffffff, #f3f7f5);
+  background: #ffffff;
   border: 1px solid var(--border);
-  box-shadow: 0 10px 26px rgba(24, 46, 39, 0.06);
+  box-shadow: none;
 }
 
 .detail-hero h1 {

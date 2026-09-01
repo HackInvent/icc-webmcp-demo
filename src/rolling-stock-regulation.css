@@ -586,7 +586,7 @@
 .native-regulation__synoptic-scroll {
   overflow-x: auto;
   overflow-y: hidden;
-  background: linear-gradient(#fbfdfc, #f3f7f5);
+  background: #f5f5f3;
   scrollbar-color: #91aaa0 #e7eeeb;
   scrollbar-width: auto;
 }
