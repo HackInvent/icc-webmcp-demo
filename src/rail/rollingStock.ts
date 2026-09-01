@@ -283,6 +283,17 @@ export function getReferenceCapacity(lineCode: NativeLineCode): number {
   return getRollingStockFamily(assignment.familyId).referenceCapacity * assignment.referenceUnits;
 }
 
+export function getMaximumTrainCapacity(lineCode: NativeLineCode): number {
+  const profile = getRollingStockProfile(lineCode);
+  return profile.assignments.reduce(
+    (maximum, assignment) => Math.max(
+      maximum,
+      getRollingStockFamily(assignment.familyId).referenceCapacity * assignment.referenceUnits,
+    ),
+    0,
+  );
+}
+
 export const DEMO_TRACTION_METHODOLOGY = Object.freeze({
   classification: "DEMO ESTIMATE" as const,
   calibrated: false as const,

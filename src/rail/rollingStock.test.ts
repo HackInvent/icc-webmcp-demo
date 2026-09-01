@@ -5,6 +5,7 @@ import {
   ROLLING_STOCK_FAMILIES,
   ROLLING_STOCK_LINES,
   estimateTractionByLoad,
+  getMaximumTrainCapacity,
   getReferenceCapacity,
 } from "./rollingStock";
 
@@ -31,6 +32,12 @@ describe("rolling-stock reference catalogue", () => {
     expect(getReferenceCapacity("RER_A")).toBe(2610);
     expect(getReferenceCapacity("RER_B")).toBe(1700);
     expect(getReferenceCapacity("RER_D")).toBe(1861);
+  });
+
+  it("returns the maximum configured train capacity for station crowding thresholds", () => {
+    expect(getMaximumTrainCapacity("M4")).toBe(722);
+    expect(getMaximumTrainCapacity("RER_A")).toBe(2610);
+    expect(getMaximumTrainCapacity("RER_C")).toBe(1641);
   });
 
   it("returns an uncalibrated relative index and never fake kWh", () => {

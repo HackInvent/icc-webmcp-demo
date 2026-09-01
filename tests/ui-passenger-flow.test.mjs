@@ -1,10 +1,14 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { buildPassengerFlowView } from "../src/passenger/passengerFlowModel.ts";
+import {
+  buildPassengerFlowView,
+  passengerFlowHeatColor,
+} from "../src/passenger/passengerFlowModel.ts";
 import { PassengerFlowPage } from "../src/pages/PassengerFlowPage.tsx";
 import { NATIVE_STATIONS } from "../src/rail/nativeNetwork.ts";
 import { createNativeSimulationSnapshot } from "../src/rail/nativeSimulation.ts";
+import { getMaximumTrainCapacity } from "../src/rail/rollingStock.ts";
 import { createSimulationState } from "../src/rail/simulation.ts";
 
 function passengerState(lineCode, stationId, waitingPassengers, arrivalsPerSecond) {
@@ -48,8 +52,8 @@ describe("Passenger flow UI audit", () => {
     expect(line.stations.find((item) => item.station.code === interchange.code)?.arrivalsPerSecond).toBe(1.25);
     const lineStation = line.stations.find((item) => item.station.code === interchange.code);
     expect(lineStation?.totalBoarded).toBe(28);
-    expect(lineStation?.referencePlaces).toBeGreaterThan(0);
-    expect(lineStation?.loadPercent).toBeGreaterThan(0);
+    expect(lineStation?.capacityReferencePlaces).toBe(getMaximumTrainCapacity("M1"));
+    expect(lineStation?.loadPercent).toBe(Math.round(240 / getMaximumTrainCapacity("M1") * 100));
     expect(all.totalOnboardPassengers).toBe(0);
 
     const html = renderToStaticMarkup(createElement(PassengerFlowPage, {
@@ -67,5 +71,41 @@ describe("Passenger flow UI audit", () => {
     expect(html.match(/data-testid="passenger-flow-station-marker"/g)).toHaveLength(NATIVE_STATIONS.length);
     expect(html).toContain("ratp-network-native");
     expect(html).toContain("Paris Metro and RER station passenger-pressure heatmap");
+    expect(html).toContain("0% · light green");
+    expect(html).toContain("50% · half train capacity");
+    expect(html).toContain("100% · one train capacity");
+    expect(html).toContain("200% · two train capacities");
+    expect(html).toContain('data-queue-capacity-percent="0"');
+    expect(html).toContain("fill:#b8f3cf");
+    expect(html).toContain('r="5"');
+  });
+
+  it("maps station queues to the exact train-capacity heat anchors", () => {
+    const station = NATIVE_STATIONS.find((candidate) => candidate.lines.includes("M1"));
+    expect(station).toBeDefined();
+    const capacity = getMaximumTrainCapacity("M1");
+    const anchors = [
+      { percent: 0, level: "quiet", color: "#b8f3cf" },
+      { percent: 50, level: "moderate", color: "#f4d35e" },
+      { percent: 100, level: "high", color: "#e63946" },
+      { percent: 200, level: "critical", color: "#111317" },
+    ];
+
+    for (const anchor of anchors) {
+      const initial = createNativeSimulationSnapshot({ scenarioId: "nominal" });
+      const simulation = {
+        ...initial,
+        trains: [],
+        stationPassengers: [passengerState("M1", station.code, capacity * anchor.percent / 100, 0)],
+      };
+      const view = buildPassengerFlowView(simulation, createSimulationState().snapshot, "M1");
+      const stationFlow = view.stations.find((item) => item.station.code === station.code);
+      expect(stationFlow?.capacityReferencePlaces).toBe(capacity);
+      expect(stationFlow?.loadPercent).toBe(anchor.percent);
+      expect(stationFlow?.level).toBe(anchor.level);
+      expect(passengerFlowHeatColor(stationFlow?.loadPercent ?? -1)).toBe(anchor.color);
+    }
+
+    expect(passengerFlowHeatColor(250)).toBe("#111317");
   });
 });

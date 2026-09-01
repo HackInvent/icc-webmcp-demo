@@ -1,7 +1,6 @@
 import type { RailSnapshot } from "../rail/domain";
 import {
   NATIVE_STATIONS,
-  NATIVE_LINE_BY_CODE,
   type NativeLineCode,
   type NativeStation,
 } from "../rail/nativeNetwork";
@@ -9,9 +8,33 @@ import type {
   NativeSimulationSnapshot,
   NativeTrainState,
 } from "../rail/nativeSimulation";
-import { getReferenceCapacity } from "../rail/rollingStock";
+import { getMaximumTrainCapacity } from "../rail/rollingStock";
 
-export type PassengerFlowLevel = "quiet" | "moderate" | "busy" | "high" | "critical";
+export type PassengerFlowLevel = "quiet" | "moderate" | "high" | "critical";
+
+const PASSENGER_HEAT_STOPS = Object.freeze([
+  { percent: 0, color: [184, 243, 207] as const },
+  { percent: 50, color: [244, 211, 94] as const },
+  { percent: 100, color: [230, 57, 70] as const },
+  { percent: 200, color: [17, 19, 23] as const },
+]);
+
+function hexChannel(value: number): string {
+  return Math.round(value).toString(16).padStart(2, "0");
+}
+
+/** Continuous station-queue heat color: green 0%, yellow 50%, red 100%, black 200%. */
+export function passengerFlowHeatColor(loadPercent: number): string {
+  const value = Number.isFinite(loadPercent) ? Math.min(200, Math.max(0, loadPercent)) : 0;
+  const upperIndex = PASSENGER_HEAT_STOPS.findIndex((stop) => value <= stop.percent);
+  const upper = PASSENGER_HEAT_STOPS[upperIndex < 0 ? PASSENGER_HEAT_STOPS.length - 1 : upperIndex];
+  const lower = PASSENGER_HEAT_STOPS[Math.max(0, (upperIndex < 0 ? PASSENGER_HEAT_STOPS.length - 1 : upperIndex) - 1)];
+  if (upper.percent === lower.percent) {
+    return `#${upper.color.map(hexChannel).join("")}`;
+  }
+  const progress = (value - lower.percent) / (upper.percent - lower.percent);
+  return `#${upper.color.map((channel, index) => hexChannel(lower.color[index] + (channel - lower.color[index]) * progress)).join("")}`;
+}
 
 export interface PassengerFlowContribution {
   train: NativeTrainState;
@@ -30,7 +53,7 @@ export interface PassengerFlowStation {
   lastBoarded: number | null;
   lastAlighted: number | null;
   lastExchangeAt: number | null;
-  referencePlaces: number;
+  capacityReferencePlaces: number;
   loadPercent: number;
   level: PassengerFlowLevel;
   serviceCalls: number;
@@ -77,10 +100,9 @@ function normalizeStationName(value: string): string {
 }
 
 function levelFor(loadPercent: number): PassengerFlowLevel {
-  if (loadPercent >= 110) return "critical";
-  if (loadPercent >= 90) return "high";
-  if (loadPercent >= 65) return "busy";
-  if (loadPercent >= 35) return "moderate";
+  if (loadPercent >= 200) return "critical";
+  if (loadPercent >= 100) return "high";
+  if (loadPercent >= 50) return "moderate";
   return "quiet";
 }
 
@@ -101,8 +123,6 @@ function futureStationRecords(simulation: NativeSimulationSnapshot): UnknownReco
 
 interface FuturePassengerFlow {
   passengers: number;
-  referencePlaces: number;
-  loadPercent: number | null;
   arrivalsPerSecond: number | null;
   totalGenerated: number | null;
   totalBoarded: number | null;
@@ -139,14 +159,8 @@ function futureFlowByStation(
     const boarded = finiteNumber(item.lastBoardedPassengers) ?? finiteNumber(item.lastBoarded);
     const alighted = finiteNumber(item.lastAlightedPassengers) ?? finiteNumber(item.lastAlighted);
     const exchangeAt = finiteNumber(item.lastExchangeAt);
-    const explicitLoad = finiteNumber(item.loadPercent) ?? finiteNumber(item.crowdingPercent);
-    const referencePlaces = itemLine && NATIVE_LINE_BY_CODE.has(itemLine as NativeLineCode)
-      ? getReferenceCapacity(itemLine as NativeLineCode)
-      : 0;
     flows.set(key, {
       passengers: (previous?.passengers ?? 0) + Math.max(0, Math.round(passengers)),
-      referencePlaces: (previous?.referencePlaces ?? 0) + referencePlaces,
-      loadPercent: explicitLoad === null ? previous?.loadPercent ?? null : Math.max(previous?.loadPercent ?? 0, explicitLoad),
       arrivalsPerSecond: arrivalRate === null ? previous?.arrivalsPerSecond ?? null : (previous?.arrivalsPerSecond ?? 0) + arrivalRate,
       totalGenerated: totalGenerated === null ? previous?.totalGenerated ?? null : (previous?.totalGenerated ?? 0) + Math.max(0, Math.round(totalGenerated)),
       totalBoarded: totalBoarded === null ? previous?.totalBoarded ?? null : (previous?.totalBoarded ?? 0) + Math.max(0, Math.round(totalBoarded)),
@@ -188,19 +202,17 @@ export function buildPassengerFlowView(
   const stations = visibleStations.map<PassengerFlowStation>((station) => {
     const stationContributions = contributions.get(station.code) ?? [];
     const modelPressure = stationContributions.reduce((sum, item) => sum + item.passengers, 0);
-    const trainReferencePlaces = stationContributions.reduce(
-      (sum, item) => sum + getReferenceCapacity(item.train.lineCode),
+    const future = futureFlows.get(station.code) ?? futureFlows.get(station.svgId);
+    const referenceLines = lineCode === null ? station.lines : [lineCode];
+    const capacityReferencePlaces = [...new Set(referenceLines)].reduce(
+      (sum, referenceLine) => sum + getMaximumTrainCapacity(referenceLine),
       0,
     );
-    const future = futureFlows.get(station.code) ?? futureFlows.get(station.svgId);
-    const referencePlaces = trainReferencePlaces + (future?.referencePlaces ?? 0);
     const queuePassengers = future?.passengers ?? 0;
     const passengerPressure = modelPressure + queuePassengers;
-    const loadPercent = future?.loadPercent !== null && future?.loadPercent !== undefined
-      ? Math.max(0, Math.round(future.loadPercent))
-      : referencePlaces > 0
-        ? Math.round(passengerPressure / referencePlaces * 100)
-        : 0;
+    const loadPercent = capacityReferencePlaces > 0
+      ? Math.round(queuePassengers / capacityReferencePlaces * 100)
+      : 0;
     return {
       station,
       passengerPressure,
@@ -212,7 +224,7 @@ export function buildPassengerFlowView(
       lastBoarded: future?.lastBoarded ?? null,
       lastAlighted: future?.lastAlighted ?? null,
       lastExchangeAt: future?.lastExchangeAt ?? null,
-      referencePlaces,
+      capacityReferencePlaces,
       loadPercent,
       level: levelFor(loadPercent),
       serviceCalls: observationCounts.get(station.code) ?? 0,

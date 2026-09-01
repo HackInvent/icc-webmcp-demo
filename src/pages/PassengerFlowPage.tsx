@@ -3,6 +3,7 @@ import nativeMapUrl from "../../artifacts/ratp-network-native.svg?url";
 import { Icon } from "../components/Icon";
 import {
   buildPassengerFlowView,
+  passengerFlowHeatColor,
   type PassengerFlowLevel,
 } from "../passenger/passengerFlowModel";
 import type { RailSnapshot } from "../rail/domain";
@@ -22,11 +23,10 @@ interface PassengerFlowPageProps {
 }
 
 const LEVEL_LABELS: ReadonlyArray<{ level: PassengerFlowLevel; label: string }> = [
-  { level: "quiet", label: "Quiet <35%" },
-  { level: "moderate", label: "Moderate 35–64%" },
-  { level: "busy", label: "Busy 65–89%" },
-  { level: "high", label: "High 90–109%" },
-  { level: "critical", label: "Critical ≥110%" },
+  { level: "quiet", label: "0% · light green" },
+  { level: "moderate", label: "50% · half train capacity" },
+  { level: "high", label: "100% · one train capacity" },
+  { level: "critical", label: "200% · two train capacities" },
 ];
 
 function formatTime(timestamp: number): string {
@@ -98,7 +98,7 @@ export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlo
         <div>
           <span className="panel__eyebrow">PASSENGER PRESSURE · DISCRETE OPERATIONAL STATE</span>
           <h1>Passenger flow</h1>
-          <p>Station-level pressure derived from modelled queues, trains physically dwelling at platforms and passenger-feed observations.</p>
+          <p>Station waiting queues measured against the maximum configured train capacity per line, with dwelling trains retained as separate operational context.</p>
         </div>
         <div className="passenger-flow-header__time" id="text-text-passenger-flow-time">
           <Icon name="clock" size={16} />
@@ -109,8 +109,8 @@ export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlo
       <section className="passenger-flow-kpis" id="text-text-passenger-flow-kpis" aria-label="Passenger flow summary">
         <article><span>Onboard passengers</span><strong>{view.totalOnboardPassengers.toLocaleString("en-GB")}</strong><small>{lineCode === "ALL" ? "All simulated lines" : `Line ${lineLabel(lineCode)}`}</small></article>
         <article><span>Waiting queue</span><strong>{view.totalQueuePassengers.toLocaleString("en-GB")}</strong><small>{view.activeStationCount} active station estimates</small></article>
-        <article className={view.highPressureStationCount ? "is-alert" : ""}><span>High-pressure stations</span><strong>{view.highPressureStationCount}</strong><small>At or above 90% reference load</small></article>
-        <article><span>Mean active load</span><strong>{view.averageLoadPercent}%</strong><small>Train-based reference capacity</small></article>
+        <article className={view.highPressureStationCount ? "is-alert" : ""}><span>At-capacity stations</span><strong>{view.highPressureStationCount}</strong><small>Waiting queue ≥ maximum train capacity</small></article>
+        <article><span>Mean queue ratio</span><strong>{view.averageLoadPercent}%</strong><small>Waiting queue ÷ train capacity</small></article>
         <article><span>Busiest station</span><strong>{view.busiestStation?.station.name ?? "No active flow"}</strong><small>{view.busiestStation ? `${view.busiestStation.passengerPressure.toLocaleString("en-GB")} passenger pressure` : view.feedStatus}</small></article>
       </section>
 
@@ -166,9 +166,7 @@ export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlo
                 <g className="passenger-flow-heat-layer">
                   {view.stations.map((item) => {
                     const selected = item.station.code === selectedStation?.station.code;
-                    const radius = item.passengerPressure > 0
-                      ? Math.min(17, 5 + Math.sqrt(item.passengerPressure) * 0.38)
-                      : 2.4;
+                    const radius = Math.min(17, 5 + Math.sqrt(item.passengerPressure) * 0.38);
                     return (
                       <circle
                         key={item.station.code}
@@ -176,12 +174,15 @@ export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlo
                         data-testid="passenger-flow-station-marker"
                         data-station-code={item.station.code}
                         data-passenger-pressure={item.passengerPressure}
+                        data-queue-capacity-percent={item.loadPercent}
+                        data-capacity-reference={item.capacityReferencePlaces}
+                        style={{ fill: passengerFlowHeatColor(item.loadPercent) }}
                         cx={item.station.anchor.x}
                         cy={item.station.anchor.y}
                         r={selected ? radius + 3 : radius}
                         role="button"
                         tabIndex={0}
-                        aria-label={`${item.station.name}: ${item.passengerPressure} passenger pressure, ${item.loadPercent}% load`}
+                        aria-label={`${item.station.name}: ${item.queuePassengers} waiting passengers, ${item.loadPercent}% of maximum train capacity`}
                         onClick={() => chooseStation(item.station.code)}
                         onKeyDown={(event) => {
                           if (event.key !== "Enter" && event.key !== " ") return;
@@ -189,7 +190,7 @@ export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlo
                           chooseStation(item.station.code);
                         }}
                       >
-                        <title>{`${item.station.name} · ${item.passengerPressure} pressure · ${item.loadPercent}% · ${item.contributions.length} trains`}</title>
+                        <title>{`${item.station.name} · ${item.queuePassengers} waiting · ${item.loadPercent}% of ${item.capacityReferencePlaces} capacity-reference places · ${item.contributions.length} trains`}</title>
                       </circle>
                     );
                   })}
@@ -202,7 +203,7 @@ export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlo
             <div className="passenger-flow-legend" aria-label="Passenger pressure legend">
               {LEVEL_LABELS.map((item) => <span key={item.level}><i className={`passenger-flow-legend__${item.level}`} />{item.label}</span>)}
             </div>
-            <p><Icon name="shield" size={13} /> Pressure is decision-support evidence, not an access-control or automatic dispatch command.</p>
+            <p><Icon name="shield" size={13} /> Waiting queue ÷ maximum configured train capacity. In all-lines view, one maximum-capacity train is counted per served line. Decision-support evidence only.</p>
           </footer>
         </div>
 
@@ -223,7 +224,8 @@ export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlo
                 <div><dt>Total alighted</dt><dd>{selectedStation.totalAlighted === null ? "—" : selectedStation.totalAlighted.toLocaleString("en-GB")}</dd></div>
                 <div><dt>Last exchange</dt><dd>{selectedStation.lastExchangeAt === null ? "—" : formatTime(selectedStation.lastExchangeAt)}</dd></div>
                 <div><dt>Train pressure</dt><dd>{(selectedStation.passengerPressure - selectedStation.queuePassengers).toLocaleString("en-GB")}</dd></div>
-                <div><dt>Reference load</dt><dd>{selectedStation.loadPercent}%</dd></div>
+                <div><dt>Max train capacity</dt><dd>{selectedStation.capacityReferencePlaces.toLocaleString("en-GB")}</dd></div>
+                <div><dt>Queue / capacity</dt><dd>{selectedStation.loadPercent}%</dd></div>
                 <div><dt>Contributing trains</dt><dd>{selectedStation.contributions.length}</dd></div>
                 <div><dt>Passenger-feed calls</dt><dd>{selectedStation.serviceCalls}</dd></div>
               </dl>
