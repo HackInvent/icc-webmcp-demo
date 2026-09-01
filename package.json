@@ -2,7 +2,7 @@
   "name": "paris-icc-webmcp",
   "private": true,
   "version": "0.1.0",
-  "description": "Federated multimodal railway operations cockpit for Paris",
+  "description": "Network operations support and WebMCP decision workspace for Paris Metro and RER",
   "license": "MIT",
   "author": "Alexandre EL <contact@hackinvent.com>",
   "type": "module",

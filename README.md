@@ -1,6 +1,7 @@
 # Paris ICC - WebMCP Demo
 
-Paris ICC is a browser demo of an operations control room for the Paris Metro and RER network.
+Paris ICC is a browser-based **network operations support tool** for the Paris
+Metro and RER network.
 
 The demo shows how an operator can handle an incident with help from an AI agent. The agent reads the same information as the operator, finds the matching procedure and suggests the next steps. The operator reviews every proposal and remains the only person who can apply an action.
 
