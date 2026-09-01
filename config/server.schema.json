@@ -202,7 +202,8 @@
       "additionalProperties": false,
       "required": [
         "instructions",
-        "presets"
+        "presets",
+        "incidentInstructions"
       ],
       "properties": {
         "instructions": {
@@ -265,6 +266,46 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 2500
+              }
+            }
+          }
+        },
+        "incidentInstructions": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "label",
+              "instruction"
+            ],
+            "properties": {
+              "type": {
+                "enum": [
+                  "infrastructure",
+                  "passenger",
+                  "rolling-stock",
+                  "staff",
+                  "power",
+                  "works",
+                  "external",
+                  "communications",
+                  "security"
+                ]
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "instruction": {
+                "type": "string",
+                "minLength": 40,
+                "maxLength": 6000
               }
             }
           }

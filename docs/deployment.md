@@ -76,6 +76,13 @@ shape is:
     "allowedModels": ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]
   },
   "agent": {
+    "incidentInstructions": [
+      {
+        "type": "infrastructure",
+        "label": "Infrastructure",
+        "instruction": "Prioritise the exact failed asset and protected movement scope..."
+      }
+    ],
     "logMaxEntries": 1000
   },
   "storage": {

@@ -65,6 +65,15 @@ describe("long-list scroll contracts", () => {
     );
     expect(configurationSource).toContain('aria-label="Scrollable agent execution log"');
     expect(configurationSource).toMatch(/configuration-log-table-wrap[\s\S]*?tabIndex=\{0\}/);
+    expect(cssRule(configurationStyles, ".configuration-panel--instructions")).toMatch(
+      /grid-template-rows:\s*auto minmax\(0, 1fr\) auto auto.*overflow:\s*hidden/,
+    );
+    expect(cssRule(configurationStyles, ".configuration-instruction-types")).toMatch(
+      /overflow-y:\s*auto/,
+    );
+    expect(configurationSource).toContain('label: "Agent instruction"');
+    expect(configurationSource).toContain('data-testid="import-agent-instructions-input"');
+    expect(configurationSource).toContain('data-testid="export-agent-instructions"');
   });
 
   it("keeps the other potentially long operational lists reachable", () => {

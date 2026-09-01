@@ -6,6 +6,10 @@ import {
   openAiAgentModelProfile,
   supportsReasoningEffort,
 } from "./openai-model-catalog.mjs";
+import {
+  IncidentInstructionValidationError,
+  parseConfiguredIncidentInstructions,
+} from "./incident-instruction-registry.mjs";
 import { hashAccessCode } from "./security.mjs";
 
 const ENV_REFERENCE = /\$\{([A-Z][A-Z0-9_]*)\}/g;
@@ -118,6 +122,17 @@ function parsePresets(value) {
       prompt: stringAt(preset.prompt, `agent.presets[${index}].prompt`, { max: 2_500 }),
     };
   });
+}
+
+function parseIncidentInstructions(value) {
+  try {
+    return parseConfiguredIncidentInstructions(value);
+  } catch (error) {
+    if (error instanceof IncidentInstructionValidationError) {
+      configurationError(error.path, error.message);
+    }
+    throw error;
+  }
 }
 
 function parseAllowedModels(value, defaultModel) {
@@ -254,6 +269,7 @@ export function parseServerConfig(rawConfiguration, options = {}) {
     agent: {
       instructions: stringAt(agent.instructions, "agent.instructions", { min: 100, max: 20_000 }),
       presets: parsePresets(agent.presets),
+      incidentInstructions: parseIncidentInstructions(agent.incidentInstructions),
       maxPromptCharacters: integerAt(agent.maxPromptCharacters ?? 3_000, "agent.maxPromptCharacters", 200, 12_000),
       maxToolOutputCharacters: integerAt(agent.maxToolOutputCharacters ?? 60_000, "agent.maxToolOutputCharacters", 2_000, 200_000),
       maxToolRounds: integerAt(agent.maxToolRounds ?? 8, "agent.maxToolRounds", 1, 16),

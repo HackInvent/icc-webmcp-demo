@@ -5,6 +5,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { AgentProtocolError, AgentService } from "./agent.mjs";
 import { AgentRuntimeStore } from "./agent-runtime-store.mjs";
+import { IncidentInstructionValidationError } from "./incident-instruction-registry.mjs";
 import {
   createBoundedSseWriter,
   snapshotStreamRevision,
@@ -145,7 +146,7 @@ function authenticate(request, config, sessionCodec) {
 
 function requireSession(request, config, sessionCodec) {
   const session = authenticate(request, config, sessionCodec);
-  if (!session) throw new HttpError(401, "authentication_required", "Enter the access code to continue.");
+  if (!session) throw new HttpError(401, "authentication_required", "Enter the jury access code to continue.");
   return session;
 }
 
@@ -511,12 +512,43 @@ export function createParisIccServer(config, options = {}) {
             ...agentRuntimeStore.configuration(),
             maxToolRounds: config.agent.maxToolRounds,
           },
+          incidentInstructions: agentRuntimeStore.incidentInstructionConfiguration(),
           log: {
             count: agentRuntimeStore.entryCount(),
             retainedEntries: agentRuntimeStore.entryCount(),
             maximumEntries: config.agent.logMaxEntries,
             downloadUrl: "/api/agent/log/download",
           },
+        });
+        return;
+      }
+      if (url.pathname === "/api/configuration/agent-instructions") {
+        methodAllowed(request, "PUT");
+        enforceSameOrigin(request, config);
+        requireSession(request, config, sessionCodec);
+        const body = await readJson(request, config.server.maxRequestBodyBytes);
+        let updated;
+        try {
+          updated = await agentRuntimeStore.replaceIncidentInstructions(body);
+        } catch (error) {
+          if (error instanceof IncidentInstructionValidationError) {
+            throw new HttpError(
+              400,
+              "invalid_incident_instructions",
+              `${error.path}: ${error.message}`,
+            );
+          }
+          throw error;
+        }
+        sendJson(response, 200, { incidentInstructions: updated });
+        return;
+      }
+      if (url.pathname === "/api/configuration/agent-instructions/export") {
+        methodAllowed(request, "GET");
+        requireSession(request, config, sessionCodec);
+        const date = new Date(now()).toISOString().slice(0, 10);
+        sendJson(response, 200, agentRuntimeStore.exportIncidentInstructions(), {
+          "Content-Disposition": `attachment; filename="paris-icc-agent-instructions-${date}.json"`,
         });
         return;
       }

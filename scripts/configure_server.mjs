@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import readline from "node:readline";
@@ -25,6 +25,15 @@ const agentRuntimePath = path.relative(
   path.dirname(destination),
   path.join(projectRoot, "state", "agent-runtime.json"),
 ) || "agent-runtime.json";
+const serverTemplate = JSON.parse(readFileSync(
+  path.join(projectRoot, "config", "server.example.json"),
+  "utf8",
+));
+const initialIncidentInstructions = serverTemplate.agent.incidentInstructions.map((entry) => ({
+  type: entry.type,
+  label: entry.label,
+  instruction: entry.instruction,
+}));
 
 function secretFromEnvironment(name) {
   const value = process.env[name];
@@ -77,10 +86,10 @@ try {
   }
   const defaultOrigin = "https://paris-icc-demo.hackinvent.com";
   const publicOrigin = (await terminal.question(`Public origin [${defaultOrigin}]: `)).trim() || defaultOrigin;
-  const firstCode = secretFromEnvironment("PARIS_ICC_ACCESS_CODE") ?? await hiddenQuestion("Access code (8+ characters): ");
-  if (firstCode.length < 8) throw new Error("The access code must contain at least 8 characters.");
+  const firstCode = secretFromEnvironment("PARIS_ICC_ACCESS_CODE") ?? await hiddenQuestion("Jury access code (8+ characters): ");
+  if (firstCode.length < 8) throw new Error("The jury access code must contain at least 8 characters.");
   if (!secretFromEnvironment("PARIS_ICC_ACCESS_CODE")) {
-    const repeatedCode = await hiddenQuestion("Repeat access code: ");
+    const repeatedCode = await hiddenQuestion("Repeat jury access code: ");
     if (firstCode !== repeatedCode) throw new Error("The access codes do not match.");
   }
   const openaiApiKey = secretFromEnvironment("OPENAI_API_KEY") ?? await hiddenQuestion("OpenAI API key: ");
@@ -157,6 +166,7 @@ try {
           prompt: "Inspect RER A in the current native network, list its active incident and delayed-train evidence, then search and cite the applicable procedure steps. Explain the next non-destructive operator checks and return-to-normal gates. Do not apply anything.",
         },
       ],
+      incidentInstructions: initialIncidentInstructions,
     },
     storage: {
       databasePath,

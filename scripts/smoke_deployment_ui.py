@@ -189,10 +189,10 @@ def main() -> None:
                 wait_until="domcontentloaded",
             )
             assert response is not None and response.ok
-            page.locator("#main-content, #access-code").first.wait_for(
+            page.locator("#main-content, #jury-access-code").first.wait_for(
                 state="visible"
             )
-            access = page.locator("#access-code")
+            access = page.locator("#jury-access-code")
             access_challenge = access.is_visible()
             if access_challenge:
                 assert args.access_code, "WEBMCP_ACCESS_CODE is required."
@@ -224,12 +224,15 @@ def main() -> None:
             configuration_modal = page.get_by_test_id("configuration-modal")
             configuration_modal.wait_for(state="visible")
             assert configuration_trigger.get_attribute("aria-expanded") == "true"
-            assert configuration_modal.get_by_role("tab").count() == 3
+            assert configuration_modal.get_by_role("tab").count() == 4
             assert configuration_modal.get_by_role(
                 "tab", name="Agent", exact=True
             ).get_attribute("aria-selected") == "true"
             assert configuration_modal.get_by_role(
                 "tab", name="Simulator configuration", exact=True
+            ).count() == 1
+            assert configuration_modal.get_by_role(
+                "tab", name="Agent instruction", exact=True
             ).count() == 1
             assert configuration_modal.locator("#configuration-tab-log").count() == 1
 
@@ -266,6 +269,42 @@ def main() -> None:
             assert configuration_modal.get_by_text(
                 "API key remains on the server", exact=True
             ).is_visible()
+
+            configuration_modal.locator(
+                "#configuration-tab-instructions"
+            ).click()
+            configuration_modal.get_by_role(
+                "heading", name="Incident analysis instructions", exact=True
+            ).wait_for(state="visible")
+            assert configuration_modal.locator(
+                ".configuration-instruction-types button"
+            ).count() == 9
+            infrastructure_type = configuration_modal.get_by_test_id(
+                "instruction-type-infrastructure"
+            )
+            infrastructure_type.click()
+            instruction_editor = configuration_modal.get_by_test_id(
+                "configuration-agent-incident-instruction"
+            )
+            instruction_editor.wait_for(state="visible")
+            original_instruction = instruction_editor.input_value()
+            assert len(original_instruction) >= 40
+            save_instructions = configuration_modal.get_by_test_id(
+                "save-agent-instructions"
+            )
+            assert save_instructions.is_disabled()
+            instruction_editor.fill(
+                original_instruction + " Browser smoke edit."
+            )
+            assert save_instructions.is_enabled()
+            instruction_editor.fill(original_instruction)
+            assert save_instructions.is_disabled()
+            assert configuration_modal.get_by_test_id(
+                "export-agent-instructions"
+            ).get_attribute("href") == "/api/configuration/agent-instructions/export"
+            assert configuration_modal.get_by_test_id(
+                "import-agent-instructions-input"
+            ).count() == 1
 
             configuration_modal.locator("#configuration-tab-log").click()
             configuration_modal.get_by_role(
@@ -832,8 +871,9 @@ def main() -> None:
                 "chatLauncherAbsent": True,
                 "chatPanelAbsent": True,
                 "configurationModalVerified": True,
-                "configurationTabCount": 3,
+                "configurationTabCount": 4,
                 "configurationModel": configuration_model,
+                "configurationAgentInstructionsVisible": True,
                 "configurationAgentLogVisible": True,
                 "configurationAgentLogDownloadVisible": True,
                 "agentTurnIntercepted": intercepted["turn"],

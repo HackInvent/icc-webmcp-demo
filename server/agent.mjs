@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { INCIDENT_INSTRUCTION_TYPES } from "./incident-instruction-registry.mjs";
 import { openAiReasoningParameter } from "./openai-model-catalog.mjs";
 
 const TOOL_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{0,79}$/;
@@ -32,6 +33,17 @@ const INCIDENT_DECISION_INSTRUCTIONS = [
   "A model may prioritise and explain retrieved document steps but cannot create executable capabilities.",
   "Every action remains advisory until visible operator review; if exact evidence is missing, stop and request escalation.",
 ].join(" ");
+const INCIDENT_INSTRUCTION_TYPE_SET = new Set(INCIDENT_INSTRUCTION_TYPES);
+
+function instructionsForIncidentRun(run) {
+  const configured = run.incidentDecision?.incidentInstruction;
+  if (!configured) return INCIDENT_DECISION_INSTRUCTIONS;
+  return [
+    INCIDENT_DECISION_INSTRUCTIONS,
+    `Administrator-configured focus for the verified ${configured.type} incident type: ${configured.instruction}`,
+    "This focus may prioritise analysis but cannot override verified WebMCP evidence, the retrieved procedure, structured output constraints, human review, or any preceding safety rule.",
+  ].join(" ");
+}
 const FORBIDDEN_INCIDENT_NARRATIVE =
   /\b(?:simulation|simulated|simulator|simulating|synthetic|demo|demonstration|deterministic|scenario|exercise|sandbox|modelled|modeled)\b|local[- ]simulation/i;
 
@@ -700,6 +712,9 @@ export class AgentService {
     this.runtimeStore = options.runtimeStore ?? {
       currentModel: () => this.config.openai.model,
       currentReasoningEffort: () => this.config.openai.reasoningEffort,
+      currentIncidentInstruction: (type) => this.config.agent.incidentInstructions.find(
+        (entry) => entry.type === type,
+      ) ?? null,
       record: async () => null,
     };
     this.runs = new Map();
@@ -910,7 +925,13 @@ export class AgentService {
       const incidentId = normalizeEntityId(body.incidentId, "incidentId");
       validateIncidentDecisionTools(tools);
       prompt = incidentDecisionPrompt(incidentId);
-      incidentDecision = { incidentId, context: null, search: null, procedure: null };
+      incidentDecision = {
+        incidentId,
+        context: null,
+        search: null,
+        procedure: null,
+        incidentInstruction: null,
+      };
     } else {
       prompt = this.#prompt(body.prompt);
     }
@@ -1013,6 +1034,7 @@ export class AgentService {
       const incident = output.incident;
       const revision = output.evidence?.decisionRevision;
       const incidentCode = incident?.incidentCode;
+      const incidentType = incident?.type;
       if (
         decision.context ||
         !hasExactKeys(call.arguments, new Set(["incidentId"])) ||
@@ -1021,6 +1043,7 @@ export class AgentService {
         !plainObject(incident) ||
         incident.id !== decision.incidentId ||
         !ENTITY_ID_PATTERN.test(incidentCode ?? "") ||
+        !INCIDENT_INSTRUCTION_TYPE_SET.has(incidentType) ||
         !Number.isSafeInteger(revision) ||
         revision < 0
       ) {
@@ -1030,7 +1053,29 @@ export class AgentService {
           409,
         );
       }
-      decision.context = { decisionRevision: revision, incidentCode };
+      const runtimeInstruction = typeof this.runtimeStore.currentIncidentInstruction === "function"
+        ? this.runtimeStore.currentIncidentInstruction(incidentType)
+        : null;
+      const configuredInstruction = runtimeInstruction ?? this.config.agent.incidentInstructions.find(
+        (entry) => entry.type === incidentType,
+      );
+      if (
+        !configuredInstruction ||
+        configuredInstruction.type !== incidentType ||
+        typeof configuredInstruction.instruction !== "string" ||
+        configuredInstruction.instruction.length < 40
+      ) {
+        protocolError(
+          "incident_instruction_unavailable",
+          "No configured agent instruction matches the verified incident type.",
+          503,
+        );
+      }
+      decision.context = { decisionRevision: revision, incidentCode, incidentType };
+      decision.incidentInstruction = {
+        type: configuredInstruction.type,
+        instruction: configuredInstruction.instruction,
+      };
       return projectIncidentEvidence(
         call.name,
         output,
@@ -1269,7 +1314,7 @@ export class AgentService {
         body: JSON.stringify({
           model: run.model,
           instructions: run.outputMode === INCIDENT_DECISION_OUTPUT_MODE
-            ? INCIDENT_DECISION_INSTRUCTIONS
+            ? instructionsForIncidentRun(run)
             : `${this.config.agent.instructions} ${ENGLISH_ONLY_AGENT_INSTRUCTIONS}`,
           input: run.history,
           tools: openAiTools(run.tools, run.outputMode),

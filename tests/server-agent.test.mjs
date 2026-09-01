@@ -449,6 +449,42 @@ describe("server-side OpenAI agent loop", () => {
     expect(service.publicStats()).toEqual({ activeRuns: 0 });
   });
 
+  it("pins the edited instruction selected from the WebMCP-verified incident type", async () => {
+    const requests = [];
+    const editedInstruction = "CUSTOM-INFRASTRUCTURE-FOCUS: prioritise the verified failed asset, protected movement scope, and grounded maintenance evidence.";
+    const config = parsedServerConfig();
+    const runtimeStore = {
+      currentModel: () => config.openai.model,
+      currentReasoningEffort: () => config.openai.reasoningEffort,
+      currentIncidentInstruction: (type) => ({
+        type,
+        label: "Infrastructure",
+        instruction: editedInstruction,
+      }),
+      record: async () => null,
+    };
+    const service = new AgentService(config, {
+      runtimeStore,
+      fetchImpl: incidentFetch({
+        output: [{
+          type: "message",
+          role: "assistant",
+          content: [{ type: "output_text", text: JSON.stringify(incidentRecommendation()) }],
+        }],
+      }, requests),
+    });
+
+    await advanceIncidentRun(service);
+
+    expect(requests).toHaveLength(4);
+    expect(requests[0].instructions).not.toContain(editedInstruction);
+    for (const request of requests.slice(1)) {
+      expect(request.instructions).toContain("verified infrastructure incident type");
+      expect(request.instructions).toContain(editedInstruction);
+      expect(request.instructions).toContain("cannot override verified WebMCP evidence");
+    }
+  });
+
   it("requires exactly the three read-only incident procedure tools and rejects write tools", async () => {
     const service = new AgentService(parsedServerConfig(), { fetchImpl: vi.fn() });
     await expect(service.turn("session-incident", {

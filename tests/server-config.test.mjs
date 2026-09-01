@@ -68,7 +68,7 @@ describe("server JSON configuration", () => {
   it("accepts a plaintext access code from a private JSON without publishing it", () => {
     const config = parseServerConfig(rawServerConfig({
       auth: {
-        accessCode: "editable-test-code",
+        accessCode: "editable-jury-code",
         accessCodeHash: undefined,
       },
     }), {
@@ -76,8 +76,8 @@ describe("server JSON configuration", () => {
       environment: {},
     });
 
-    expect(verifyAccessCode("editable-test-code", config.auth.accessCodeHash)).toBe(true);
-    expect(JSON.stringify(publicRuntimeConfiguration(config, false))).not.toContain("editable-test-code");
+    expect(verifyAccessCode("editable-jury-code", config.auth.accessCodeHash)).toBe(true);
+    expect(JSON.stringify(publicRuntimeConfiguration(config, false))).not.toContain("editable-jury-code");
   });
 
   it("requires a unique model allowlist containing the configured default", () => {
@@ -129,6 +129,41 @@ describe("server JSON configuration", () => {
       configPath: "/tmp/config.json",
       environment: {},
     })).toThrow(/not a current OpenAI model compatible/);
+  });
+
+  it("loads one complete and unique instruction for every incident type", () => {
+    const config = parseServerConfig(rawServerConfig(), {
+      configPath: "/tmp/config.json",
+      environment: {},
+    });
+    expect(config.agent.incidentInstructions.map((entry) => entry.type)).toEqual([
+      "infrastructure",
+      "passenger",
+      "rolling-stock",
+      "staff",
+      "power",
+      "works",
+      "external",
+      "communications",
+      "security",
+    ]);
+
+    const incomplete = rawServerConfig();
+    incomplete.agent.incidentInstructions = incomplete.agent.incidentInstructions.slice(0, 8);
+    expect(() => parseServerConfig(incomplete, {
+      configPath: "/tmp/config.json",
+      environment: {},
+    })).toThrow(/must contain exactly 9 incident types/);
+
+    const duplicate = rawServerConfig();
+    duplicate.agent.incidentInstructions[8] = {
+      ...duplicate.agent.incidentInstructions[8],
+      type: "infrastructure",
+    };
+    expect(() => parseServerConfig(duplicate, {
+      configPath: "/tmp/config.json",
+      environment: {},
+    })).toThrow(/must be unique/);
   });
 
   it("defaults the authenticated operations clock to one real-time second", () => {

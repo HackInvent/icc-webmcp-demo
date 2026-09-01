@@ -155,6 +155,16 @@ The browser starts `/api/agent/turn` with only the three read-tool definitions a
 
 This design keeps page execution in the browser and keeps OpenAI credentials on the server. Tool output is treated as untrusted operational data, not as model instructions. The server validates the evidence after every round in [`AgentService.#recordIncidentDecisionEvidence`](../server/agent.mjs).
 
+The same inspection also returns the verified incident type. The server then
+selects its effective instruction from the persistent incident-instruction
+registry and pins that text into every remaining OpenAI round for the run. The
+first round cannot guess a type, and an edited instruction cannot replace the
+forced inspect/search/get sequence, retrieved procedure, structured output
+validation, or human approval rules. Initial values are loaded from
+`agent.incidentInstructions` in `server.local.json`; authenticated edits use
+`PUT /api/configuration/agent-instructions` and the versioned import/export
+contract `paris-icc-agent-instructions.v1`.
+
 The header **Configuration** modal exposes only current models listed in
 `openai.allowedModels` that support this complete agent workflow. Capability
 metadata from the server filters reasoning effort to the values accepted by each

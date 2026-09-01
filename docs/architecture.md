@@ -141,7 +141,7 @@ and drops heartbeats while backpressured.
 | WebMCP approval UI | Browser | Inline in the incident modal for procedure steps and shared dialog elsewhere; unfinished approval never survives reload. |
 | Incident recommendation cache | Browser | Ephemeral; regenerated from current persisted evidence. |
 | OpenAI agent run history | `AgentService` | Server memory with TTL; operational state remains durable if a run expires. |
-| Effective agent model and execution metadata log | `AgentRuntimeStore` | Atomically persisted in a private bounded JSON sidecar; the browser receives no prompt, tool payload, API key, or server instruction. |
+| Effective agent model, incident instruction overrides and execution metadata log | `AgentRuntimeStore` | Atomically persisted in a private bounded JSON sidecar. Initial incident instructions come from the private server JSON; exports contain only the nine safe instruction entries, never credentials or agent evidence. |
 | PRIM passenger evidence | Optional server proxy/browser cache | Read-only evidence, separate from railway state. |
 
 A new authenticated session receives a separate workspace. Refreshing with the
@@ -253,8 +253,10 @@ the lower-level technical history.
 | `/api/operations/events` | `GET` | Yes | Unbuffered SSE snapshot stream with 15-second heartbeats. |
 | `/api/operations/commands` | `POST` | Yes | Same-origin, revision-bound idempotent mutation. |
 | `/api/operations/audit?after=N` | `GET` | Yes | Up to 100 ordered persisted events after sequence N. |
-| `/api/configuration` | `GET` | Yes | Safe effective model metadata, allowlist, and retained agent-log count. |
+| `/api/configuration` | `GET` | Yes | Safe effective model metadata, incident-instruction registry, allowlist, and retained agent-log count. |
 | `/api/configuration/agent` | `PUT` | Yes | Same-origin update of the exact allowlisted model for future runs. |
+| `/api/configuration/agent-instructions` | `PUT` | Yes | Same-origin, complete and versioned replacement of all nine incident instructions. |
+| `/api/configuration/agent-instructions/export` | `GET` | Yes | Credential-free JSON attachment of the saved incident instructions. |
 | `/api/agent/turn` | `POST` | Yes | One bounded agent turn. |
 | `/api/agent/reset` | `POST` | Yes | Clears an in-memory agent run. |
 | `/api/agent/log` | `GET` | Yes | Newest-first bounded metadata-only agent execution log. |

@@ -1,11 +1,27 @@
 import { parseServerConfig } from "../server/config.mjs";
 import { hashAccessCode } from "../server/security.mjs";
 
-export const TEST_ACCESS_CODE = "test-code-123";
+export const TEST_ACCESS_CODE = "jury-code-123";
 export const TEST_ACCESS_HASH = hashAccessCode(TEST_ACCESS_CODE, {
   N: 1_024,
   salt: Buffer.from("0123456789abcdef"),
 });
+
+export const TEST_INCIDENT_INSTRUCTIONS = [
+  ["infrastructure", "Infrastructure"],
+  ["passenger", "Passenger event"],
+  ["rolling-stock", "Rolling stock"],
+  ["staff", "Staff and crew"],
+  ["power", "Traction power"],
+  ["works", "Engineering works"],
+  ["external", "External event"],
+  ["communications", "Supervision communications"],
+  ["security", "Security"],
+].map(([type, label]) => ({
+  type,
+  label,
+  instruction: `Apply the configured ${label.toLowerCase()} focus after verified WebMCP classification and remain bound to the retrieved procedure.`,
+}));
 
 export function rawServerConfig(overrides = {}) {
   return {
@@ -59,6 +75,7 @@ export function rawServerConfig(overrides = {}) {
         label: "Prepare brief",
         prompt: "Inspect the current network and prepare a brief.",
       }],
+      incidentInstructions: TEST_INCIDENT_INSTRUCTIONS.map((entry) => ({ ...entry })),
       ...overrides.agent,
     },
     storage: {

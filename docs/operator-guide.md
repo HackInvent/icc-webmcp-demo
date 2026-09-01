@@ -226,6 +226,13 @@ mandatory before an abandoned-baggage station can be reopened.
   already-started multi-round WebMCP run retains its original model and effort.
   Non-reasoning models show that the setting is not applicable. The API key
   remains on the server.
+- In **Agent instruction**, select one of the nine incident types and edit its
+  analysis focus. **Save instructions** persists the complete registry on the
+  server. **Restore this server default** or **Restore all defaults** loads the
+  values from `server.local.json` into the editor; save to apply them. **Export
+  saved JSON** and **Import JSON** move only the versioned instruction registry,
+  never credentials. The imported file is reviewed in the editor before it is
+  saved.
 - In **Simulator configuration**, **Export JSON** downloads the current native
   and detailed simulation state, including explicit occurrence times for every
   incident.

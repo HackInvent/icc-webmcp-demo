@@ -14,7 +14,7 @@
     "maxRequestBodyBytes": 262144
   },
   "auth": {
-    "accessCode": "CHANGE_ME_ACCESS_CODE",
+    "accessCode": "CHANGE_ME_JURY_CODE",
     "sessionSecret": "${PARIS_ICC_SESSION_SECRET}",
     "cookieName": "paris_icc_session",
     "sessionTtlMinutes": 480,
@@ -77,6 +77,53 @@
         "id": "rer-a",
         "label": "Analyse RER A disruption",
         "prompt": "Inspect RER A in the current native network, list its active incident and delayed-train evidence, then search and cite the applicable procedure steps. Explain the next non-destructive operator checks and return-to-normal gates. Do not apply anything."
+      }
+    ],
+    "incidentInstructions": [
+      {
+        "type": "infrastructure",
+        "label": "Infrastructure",
+        "instruction": "Prioritise the exact failed asset and geographic scope, movement protection, affected and approaching trains, and a grounded maintenance dispatch. Separate observed state from unknown field evidence, and use only the retrieved procedure to define recovery and return-to-normal gates."
+      },
+      {
+        "type": "passenger",
+        "label": "Passenger event",
+        "instruction": "Prioritise immediate passenger exposure, train and platform loading, access constraints, and the safest service disposition supported by current evidence. Explain passenger-information and connection-protection needs without inventing crowding, clearance, or authority reports."
+      },
+      {
+        "type": "rolling-stock",
+        "label": "Rolling stock",
+        "instruction": "Prioritise the affected train's exact operational location, passenger load, movement protection, evacuation constraints, and maintenance or towing evidence. Do not infer that a train can move, be evacuated, or return to service without the retrieved procedure and recorded clearance."
+      },
+      {
+        "type": "staff",
+        "label": "Staff and crew",
+        "instruction": "Prioritise safe operational coverage, qualified relief availability, duty and service impacts, and reversible resource options. Use only bounded operational evidence, avoid unnecessary personal data, and keep every recommendation within the retrieved procedure and current decision revision."
+      },
+      {
+        "type": "power",
+        "label": "Traction power",
+        "instruction": "Prioritise the exact electrical section, observed voltage and isolation state, trains exposed to the affected scope, and traction-maintenance coordination. Never infer that equipment is safe, isolated, energised, or cleared; require the evidence and authority named by the retrieved procedure."
+      },
+      {
+        "type": "works",
+        "label": "Engineering works",
+        "instruction": "Prioritise possession limits, blocked operating scope, approaching movements, accountable engineering coordination, and the required handback evidence. Never infer clearance from elapsed time; recommend only the protection, mitigation, recovery, and verification steps present in the retrieved procedure."
+      },
+      {
+        "type": "external",
+        "label": "External event",
+        "instruction": "Prioritise the verified geographic and temporal scope, affected services, external-authority evidence, and reversible operating mitigations. Clearly distinguish reported facts from unknowns and do not claim clearance or normal operation until the retrieved procedure's evidence gates are satisfied."
+      },
+      {
+        "type": "communications",
+        "label": "Supervision communications",
+        "instruction": "Prioritise the failed link between field systems, train supervision, ATS, and passenger-information systems; distinguish degraded communication from total loss. Identify affected lines and dispatch the grounded maintenance role without treating missing telemetry as proof of a safe field state."
+      },
+      {
+        "type": "security",
+        "label": "Security",
+        "instruction": "Prioritise passenger protection, the excluded station or train scope, police or security coordination, and service continuity around that scope. For abandoned baggage, do not infer clearance or permit passage or stopping until the retrieved procedure and recorded authority evidence support it."
       }
     ],
     "logMaxEntries": 1000

@@ -6,7 +6,12 @@ import { describe, expect, it, vi } from "vitest";
 import { AgentRuntimeStore } from "../server/agent-runtime-store.mjs";
 import { AgentService } from "../server/agent.mjs";
 import { createParisIccServer } from "../server/app.mjs";
-import { parsedServerConfig, TEST_ACCESS_CODE, TEST_WEBMCP_TOOL } from "./server-fixture.mjs";
+import {
+  parsedServerConfig,
+  TEST_ACCESS_CODE,
+  TEST_INCIDENT_INSTRUCTIONS,
+  TEST_WEBMCP_TOOL,
+} from "./server-fixture.mjs";
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -133,6 +138,18 @@ describe("persisted agent configuration and bounded execution log", () => {
         body: JSON.stringify({ model: "gpt-5.6-sol" }),
       });
       expect(anonymousUpdate.status).toBe(401);
+      const anonymousInstructionUpdate = await fetch(`${baseUrl}/api/configuration/agent-instructions`, {
+        method: "PUT",
+        headers: {
+          Origin: config.application.publicOrigin,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          schemaVersion: "paris-icc-agent-instructions.v1",
+          instructions: TEST_INCIDENT_INSTRUCTIONS.map(({ type, instruction }) => ({ type, instruction })),
+        }),
+      });
+      expect(anonymousInstructionUpdate.status).toBe(401);
 
       const login = await fetch(`${baseUrl}/api/auth/login`, {
         method: "POST",
@@ -146,7 +163,8 @@ describe("persisted agent configuration and bounded execution log", () => {
       const authenticatedHeaders = { Cookie: cookie };
 
       const initial = await fetch(`${baseUrl}/api/configuration`, { headers: authenticatedHeaders });
-      expect(await initial.json()).toMatchObject({
+      const initialConfiguration = await initial.json();
+      expect(initialConfiguration).toMatchObject({
         agent: {
           model: "gpt-5.6-terra",
           defaultModel: "gpt-5.6-terra",
@@ -159,8 +177,74 @@ describe("persisted agent configuration and bounded execution log", () => {
             }),
           ]),
         },
+        incidentInstructions: {
+          schemaVersion: "paris-icc-agent-instructions.v1",
+          instructions: expect.arrayContaining([
+            expect.objectContaining({
+              type: "infrastructure",
+              label: "Infrastructure",
+              modified: false,
+            }),
+          ]),
+        },
         log: { count: 0, downloadUrl: "/api/agent/log/download" },
       });
+
+      const invalidInstructionImport = await fetch(`${baseUrl}/api/configuration/agent-instructions`, {
+        method: "PUT",
+        headers: {
+          ...authenticatedHeaders,
+          Origin: config.application.publicOrigin,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          schemaVersion: "paris-icc-agent-instructions.v1",
+          instructions: [{ type: "infrastructure", instruction: "Incomplete instruction registry that must be rejected by the server." }],
+        }),
+      });
+      expect(invalidInstructionImport.status).toBe(400);
+      expect(await invalidInstructionImport.json()).toMatchObject({ error: "invalid_incident_instructions" });
+
+      const editedInstruction = "PERSISTED-INFRASTRUCTURE-INSTRUCTION: focus on exact asset evidence, movement protection, and maintenance dispatch.";
+      const instructionTransfer = {
+        schemaVersion: "paris-icc-agent-instructions.v1",
+        instructions: config.agent.incidentInstructions.map(({ type, instruction }) => ({
+          type,
+          instruction: type === "infrastructure" ? editedInstruction : instruction,
+        })),
+      };
+      const instructionUpdate = await fetch(`${baseUrl}/api/configuration/agent-instructions`, {
+        method: "PUT",
+        headers: {
+          ...authenticatedHeaders,
+          Origin: config.application.publicOrigin,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(instructionTransfer),
+      });
+      expect(instructionUpdate.status).toBe(200);
+      expect(await instructionUpdate.json()).toMatchObject({
+        incidentInstructions: {
+          instructions: expect.arrayContaining([
+            expect.objectContaining({
+              type: "infrastructure",
+              instruction: editedInstruction,
+              modified: true,
+            }),
+          ]),
+        },
+      });
+
+      const instructionDownload = await fetch(
+        `${baseUrl}/api/configuration/agent-instructions/export`,
+        { headers: authenticatedHeaders },
+      );
+      expect(instructionDownload.status).toBe(200);
+      expect(instructionDownload.headers.get("content-disposition"))
+        .toMatch(/attachment; filename="paris-icc-agent-instructions-/);
+      const exportedInstructions = await instructionDownload.json();
+      expect(exportedInstructions).toEqual(instructionTransfer);
+      expect(JSON.stringify(exportedInstructions)).not.toContain(config.openai.apiKey);
 
       const crossOrigin = await fetch(`${baseUrl}/api/configuration/agent`, {
         method: "PUT",
@@ -268,9 +352,28 @@ describe("persisted agent configuration and bounded execution log", () => {
       expect(downloaded).not.toContain(config.openai.apiKey);
 
       await application.close();
+      const persistedRuntime = JSON.parse(readFileSync(config.storage.agentRuntimePath, "utf8"));
+      expect(persistedRuntime).toMatchObject({
+        schemaVersion: "paris-icc-agent-runtime.v4",
+        incidentInstructionOverrides: [{
+          type: "infrastructure",
+          instruction: editedInstruction,
+        }],
+      });
+      expect(persistedRuntime).not.toHaveProperty("incidentInstructions");
+      const updatedPassengerDefault = "UPDATED-SERVER-JSON-DEFAULT: prioritise verified passenger exposure, platform load, and safe service evidence.";
+      config.agent.incidentInstructions = config.agent.incidentInstructions.map((entry) => entry.type === "passenger"
+        ? { ...entry, instruction: updatedPassengerDefault }
+        : entry);
       const restored = new AgentRuntimeStore(config);
       expect(restored.currentModel()).toBe("gpt-5.6-luna");
       expect(restored.currentReasoningEffort()).toBe("max");
+      expect(restored.currentIncidentInstruction("infrastructure")).toMatchObject({
+        instruction: editedInstruction,
+      });
+      expect(restored.currentIncidentInstruction("passenger")).toMatchObject({
+        instruction: updatedPassengerDefault,
+      });
       expect(restored.entryCount()).toBe(1);
       await restored.close();
     } finally {

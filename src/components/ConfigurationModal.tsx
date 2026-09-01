@@ -10,8 +10,42 @@ import { useRuntimeConfiguration } from "../runtime/RuntimeGate";
 import { Icon } from "./Icon";
 import { Modal } from "./Modal";
 
-type ConfigurationTab = "agent" | "simulator" | "log";
+type ConfigurationTab = "agent" | "instructions" | "simulator" | "log";
 type FeedbackTone = "success" | "error";
+
+const INCIDENT_INSTRUCTION_SCHEMA_VERSION = "paris-icc-agent-instructions.v1";
+const INCIDENT_INSTRUCTION_TYPES = [
+  "infrastructure",
+  "passenger",
+  "rolling-stock",
+  "staff",
+  "power",
+  "works",
+  "external",
+  "communications",
+  "security",
+] as const;
+
+type IncidentInstructionType = typeof INCIDENT_INSTRUCTION_TYPES[number];
+
+interface AgentIncidentInstruction {
+  type: IncidentInstructionType;
+  label: string;
+  instruction: string;
+  defaultInstruction: string;
+  modified: boolean;
+}
+
+interface AgentInstructionConfiguration {
+  schemaVersion: string;
+  updatedAt: string | null;
+  instructions: AgentIncidentInstruction[];
+}
+
+interface AgentInstructionTransfer {
+  schemaVersion: typeof INCIDENT_INSTRUCTION_SCHEMA_VERSION;
+  instructions: Array<Pick<AgentIncidentInstruction, "type" | "instruction">>;
+}
 
 interface AgentModelProfile {
   id: string;
@@ -35,6 +69,7 @@ interface AgentConfiguration {
 
 interface ConfigurationResponse {
   agent: AgentConfiguration;
+  incidentInstructions: AgentInstructionConfiguration | null;
   log: {
     count: number;
     downloadUrl: string;
@@ -53,8 +88,9 @@ interface ConfigurationModalProps {
   onClose: () => void;
 }
 
-const TABS: ReadonlyArray<{ id: ConfigurationTab; label: string; icon: "radio" | "settings" | "activity" }> = [
+const TABS: ReadonlyArray<{ id: ConfigurationTab; label: string; icon: "radio" | "shield" | "settings" | "activity" }> = [
   { id: "agent", label: "Agent", icon: "radio" },
+  { id: "instructions", label: "Agent instruction", icon: "shield" },
   { id: "simulator", label: "Simulator configuration", icon: "settings" },
   { id: "log", label: "Agent log", icon: "activity" },
 ];
@@ -157,6 +193,87 @@ function normalizeAgentConfiguration(
   };
 }
 
+function isIncidentInstructionType(value: unknown): value is IncidentInstructionType {
+  return typeof value === "string" && (INCIDENT_INSTRUCTION_TYPES as readonly string[]).includes(value);
+}
+
+function normalizeIncidentInstructionConfiguration(value: unknown): AgentInstructionConfiguration | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Partial<AgentInstructionConfiguration>;
+  if (candidate.schemaVersion !== INCIDENT_INSTRUCTION_SCHEMA_VERSION || !Array.isArray(candidate.instructions)) return null;
+  const byType = new Map<IncidentInstructionType, AgentIncidentInstruction>();
+  for (const raw of candidate.instructions) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const item = raw as Partial<AgentIncidentInstruction>;
+    if (
+      !isIncidentInstructionType(item.type) ||
+      typeof item.label !== "string" || !item.label.trim() ||
+      typeof item.instruction !== "string" || item.instruction.trim().length < 40 || item.instruction.trim().length > 6_000 ||
+      typeof item.defaultInstruction !== "string" || item.defaultInstruction.trim().length < 40 ||
+      typeof item.modified !== "boolean" ||
+      byType.has(item.type)
+    ) return null;
+    byType.set(item.type, {
+      type: item.type,
+      label: item.label.trim(),
+      instruction: item.instruction.trim(),
+      defaultInstruction: item.defaultInstruction.trim(),
+      modified: item.modified,
+    });
+  }
+  if (byType.size !== INCIDENT_INSTRUCTION_TYPES.length) return null;
+  return {
+    schemaVersion: candidate.schemaVersion,
+    updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : null,
+    instructions: INCIDENT_INSTRUCTION_TYPES.map((type) => byType.get(type) as AgentIncidentInstruction),
+  };
+}
+
+function parseAgentInstructionTransfer(source: string): AgentInstructionTransfer {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(source);
+  } catch {
+    throw new Error("The selected file is not valid JSON.");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("The instruction file must be a JSON object.");
+  }
+  const value = parsed as Partial<AgentInstructionTransfer>;
+  const keys = Object.keys(value);
+  if (
+    keys.length !== 2 ||
+    !keys.includes("schemaVersion") ||
+    !keys.includes("instructions") ||
+    value.schemaVersion !== INCIDENT_INSTRUCTION_SCHEMA_VERSION ||
+    !Array.isArray(value.instructions) ||
+    value.instructions.length !== INCIDENT_INSTRUCTION_TYPES.length
+  ) {
+    throw new Error(`Expected a complete ${INCIDENT_INSTRUCTION_SCHEMA_VERSION} file.`);
+  }
+  const byType = new Map<IncidentInstructionType, string>();
+  for (const raw of value.instructions) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Every instruction entry must be an object.");
+    const entry = raw as Partial<Pick<AgentIncidentInstruction, "type" | "instruction">>;
+    const entryKeys = Object.keys(entry);
+    const instruction = typeof entry.instruction === "string" ? entry.instruction.trim() : "";
+    if (
+      entryKeys.length !== 2 || !entryKeys.includes("type") || !entryKeys.includes("instruction") ||
+      !isIncidentInstructionType(entry.type) || byType.has(entry.type) ||
+      instruction.length < 40 || instruction.length > 6_000
+    ) throw new Error("Every incident type must have one instruction between 40 and 6,000 characters.");
+    byType.set(entry.type, instruction);
+  }
+  if (byType.size !== INCIDENT_INSTRUCTION_TYPES.length) throw new Error("The instruction file is incomplete.");
+  return {
+    schemaVersion: INCIDENT_INSTRUCTION_SCHEMA_VERSION,
+    instructions: INCIDENT_INSTRUCTION_TYPES.map((type) => ({
+      type,
+      instruction: byType.get(type) as string,
+    })),
+  };
+}
+
 function recordText(entry: Record<string, unknown>, ...keys: string[]): string | null {
   for (const key of keys) {
     const value = entry[key];
@@ -207,6 +324,10 @@ export function ConfigurationModal({
   const [selectedReasoningEffort, setSelectedReasoningEffort] = useState(runtime.agent.reasoningEffort ?? "");
   const [savingModel, setSavingModel] = useState(false);
   const [modelFeedback, setModelFeedback] = useState<{ tone: FeedbackTone; message: string } | null>(null);
+  const [selectedInstructionType, setSelectedInstructionType] = useState<IncidentInstructionType>("infrastructure");
+  const [instructionDrafts, setInstructionDrafts] = useState<Record<IncidentInstructionType, string> | null>(null);
+  const [savingInstructions, setSavingInstructions] = useState(false);
+  const [instructionFeedback, setInstructionFeedback] = useState<{ tone: FeedbackTone; message: string } | null>(null);
   const [transferFeedback, setTransferFeedback] = useState<{ tone: FeedbackTone; message: string } | null>(null);
   const [importing, setImporting] = useState(false);
   const [pendingImport, setPendingImport] = useState<{ fileName: string; configuration: ParsedSimulationConfiguration } | null>(null);
@@ -214,6 +335,7 @@ export function ConfigurationModal({
   const [logLoading, setLogLoading] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const instructionImportInputRef = useRef<HTMLInputElement>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const runtimeFallback: AgentConfiguration = {
@@ -240,6 +362,17 @@ export function ConfigurationModal({
     : null;
   const selectionIsUnchanged = selectedModel === agent.model && selectedEffort === agent.reasoningEffort;
   const downloadUrl = configuration?.log.downloadUrl || "/api/agent/log/download";
+  const instructionConfiguration = configuration?.incidentInstructions ?? null;
+  const selectedInstruction = instructionConfiguration?.instructions.find(
+    (entry) => entry.type === selectedInstructionType,
+  ) ?? null;
+  const currentInstructionDraft = instructionDrafts?.[selectedInstructionType] ?? "";
+  const instructionChangesPending = Boolean(instructionConfiguration && instructionDrafts &&
+    instructionConfiguration.instructions.some((entry) => instructionDrafts[entry.type].trim() !== entry.instruction));
+  const instructionDraftIsValid = Boolean(instructionDrafts && INCIDENT_INSTRUCTION_TYPES.every((type) => {
+    const instruction = instructionDrafts[type].trim();
+    return instruction.length >= 40 && instruction.length <= 6_000;
+  }));
 
   useEffect(() => {
     const controller = new AbortController();
@@ -247,9 +380,13 @@ export function ConfigurationModal({
     void fetchJson<ConfigurationResponse>("/api/configuration", { signal: controller.signal })
       .then((response) => {
         const normalized = normalizeAgentConfiguration(response.agent, runtimeFallback);
-        setConfiguration({ ...response, agent: normalized });
+        const normalizedInstructions = normalizeIncidentInstructionConfiguration(response.incidentInstructions);
+        setConfiguration({ ...response, agent: normalized, incidentInstructions: normalizedInstructions });
         setSelectedModel(normalized.model ?? "");
         setSelectedReasoningEffort(normalized.reasoningEffort ?? "");
+        setInstructionDrafts(normalizedInstructions
+          ? Object.fromEntries(normalizedInstructions.instructions.map((entry) => [entry.type, entry.instruction])) as Record<IncidentInstructionType, string>
+          : null);
         setConfigurationError(null);
       })
       .catch((error: unknown) => {
@@ -317,6 +454,7 @@ export function ConfigurationModal({
       const normalized = normalizeAgentConfiguration(response.agent, agent);
       setConfiguration((current) => current ? { ...current, agent: normalized } : {
         agent: normalized,
+        incidentInstructions: null,
         log: { count: 0, downloadUrl: "/api/agent/log/download" },
       });
       const appliedModel = normalized.model ?? selectedModel;
@@ -331,6 +469,68 @@ export function ConfigurationModal({
       setModelFeedback({ tone: "error", message: errorMessage(error, "The agent configuration could not be updated.") });
     } finally {
       setSavingModel(false);
+    }
+  };
+
+  const saveInstructions = async () => {
+    if (!instructionDrafts || !instructionDraftIsValid || !instructionChangesPending || savingInstructions) return;
+    setSavingInstructions(true);
+    setInstructionFeedback(null);
+    const payload: AgentInstructionTransfer = {
+      schemaVersion: INCIDENT_INSTRUCTION_SCHEMA_VERSION,
+      instructions: INCIDENT_INSTRUCTION_TYPES.map((type) => ({
+        type,
+        instruction: instructionDrafts[type].trim(),
+      })),
+    };
+    try {
+      const response = await fetchJson<{ incidentInstructions: AgentInstructionConfiguration }>(
+        "/api/configuration/agent-instructions",
+        { method: "PUT", body: JSON.stringify(payload) },
+      );
+      const normalized = normalizeIncidentInstructionConfiguration(response.incidentInstructions);
+      if (!normalized) throw new Error("The server returned an invalid instruction registry.");
+      setConfiguration((current) => current ? { ...current, incidentInstructions: normalized } : current);
+      setInstructionDrafts(Object.fromEntries(
+        normalized.instructions.map((entry) => [entry.type, entry.instruction]),
+      ) as Record<IncidentInstructionType, string>);
+      setInstructionFeedback({
+        tone: "success",
+        message: "All incident instructions were saved. New incident analyses will use the instruction matched to verified WebMCP evidence.",
+      });
+    } catch (error) {
+      setInstructionFeedback({ tone: "error", message: errorMessage(error, "The incident instructions could not be saved.") });
+    } finally {
+      setSavingInstructions(false);
+    }
+  };
+
+  const restoreInstructionDefaults = () => {
+    if (!instructionConfiguration) return;
+    setInstructionDrafts(Object.fromEntries(
+      instructionConfiguration.instructions.map((entry) => [entry.type, entry.defaultInstruction]),
+    ) as Record<IncidentInstructionType, string>);
+    setInstructionFeedback({
+      tone: "success",
+      message: "Server JSON defaults loaded into the editor. Save them to replace the persisted overrides.",
+    });
+  };
+
+  const importInstructions = async (file: File) => {
+    setInstructionFeedback(null);
+    try {
+      const imported = parseAgentInstructionTransfer(await file.text());
+      setInstructionDrafts(Object.fromEntries(
+        imported.instructions.map((entry) => [entry.type, entry.instruction]),
+      ) as Record<IncidentInstructionType, string>);
+      setInstructionFeedback({
+        tone: "success",
+        message: `${file.name} loaded into the editor. Review the instructions, then save to apply them.`,
+      });
+    } catch (error) {
+      setInstructionFeedback({ tone: "error", message: errorMessage(error, "The instruction file could not be imported.") });
+    } finally {
+      if (instructionImportInputRef.current) instructionImportInputRef.current.value = "";
     }
   };
 
@@ -525,6 +725,150 @@ export function ConfigurationModal({
               <Icon name="shield" size={17} />
               <div><strong>API key remains on the server</strong><p>The browser only receives safe model metadata. OpenAI credentials are never exposed in this page or exported configuration.</p></div>
             </div>
+          </section>
+        )}
+
+        {activeTab === "instructions" && (
+          <section id="configuration-panel-instructions" role="tabpanel" aria-labelledby="configuration-tab-instructions" className="configuration-panel configuration-panel--instructions">
+            <header className="configuration-panel__header" id="text-text-configuration-agent-instructions-introduction">
+              <span className="configuration-panel__icon"><Icon name="shield" size={20} /></span>
+              <div>
+                <h3>Incident analysis instructions</h3>
+                <p>Edit the focus applied after WebMCP verifies the selected incident type. Retrieved procedures and operator approval remain authoritative.</p>
+              </div>
+              <span className="configuration-state configuration-state--ready"><i />9 incident types</span>
+            </header>
+
+            {configurationLoading ? (
+              <div className="configuration-loading" role="status"><span className="configuration-spinner" />Loading incident instructions…</div>
+            ) : !instructionConfiguration || !instructionDrafts ? (
+              <div className="configuration-log-empty configuration-log-empty--error" role="alert">
+                <Icon name="alert" size={22} />
+                <strong>Incident instructions unavailable</strong>
+                <span>The server did not return a complete versioned instruction registry.</span>
+              </div>
+            ) : (
+              <>
+                <div className="configuration-instruction-workspace" id="text-text-configuration-agent-instruction-editor">
+                  <aside className="configuration-instruction-types" aria-label="Incident types">
+                    {instructionConfiguration.instructions.map((entry) => {
+                      const custom = instructionDrafts[entry.type].trim() !== entry.defaultInstruction;
+                      return (
+                        <button
+                          key={entry.type}
+                          type="button"
+                          className={selectedInstructionType === entry.type ? "is-active" : ""}
+                          aria-pressed={selectedInstructionType === entry.type}
+                          data-testid={`instruction-type-${entry.type}`}
+                          onClick={() => setSelectedInstructionType(entry.type)}
+                        >
+                          <span>{entry.label}</span>
+                          <small>{entry.type}</small>
+                          <b className={custom ? "is-custom" : ""}>{custom ? "Custom" : "Default"}</b>
+                        </button>
+                      );
+                    })}
+                  </aside>
+                  <article className="configuration-instruction-editor">
+                    <header>
+                      <div>
+                        <span>Verified incident type</span>
+                        <h4>{selectedInstruction?.label}</h4>
+                      </div>
+                      <code>{selectedInstructionType}</code>
+                    </header>
+                    <label htmlFor="configuration-agent-incident-instruction">
+                      <span>Agent instruction</span>
+                      <textarea
+                        id="configuration-agent-incident-instruction"
+                        data-testid="configuration-agent-incident-instruction"
+                        value={currentInstructionDraft}
+                        maxLength={6_000}
+                        spellCheck
+                        onChange={(event) => {
+                          const instruction = event.target.value;
+                          setInstructionDrafts((current) => current ? {
+                            ...current,
+                            [selectedInstructionType]: instruction,
+                          } : current);
+                          setInstructionFeedback(null);
+                        }}
+                      />
+                    </label>
+                    <div className="configuration-instruction-editor__meta">
+                      <p>The server pins this instruction after the read-only incident inspection returns <code>{selectedInstructionType}</code>. It applies to the remaining procedure search and recommendation rounds.</p>
+                      <span className={currentInstructionDraft.trim().length < 40 ? "is-invalid" : ""}>{currentInstructionDraft.length.toLocaleString("en-GB")} / 6,000</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="button button--secondary configuration-instruction-reset-one"
+                      disabled={currentInstructionDraft === selectedInstruction?.defaultInstruction}
+                      onClick={() => {
+                        if (!selectedInstruction) return;
+                        setInstructionDrafts((current) => current ? {
+                          ...current,
+                          [selectedInstructionType]: selectedInstruction.defaultInstruction,
+                        } : current);
+                        setInstructionFeedback(null);
+                      }}
+                    >
+                      <Icon name="reset" size={15} /> Restore this server default
+                    </button>
+                  </article>
+                </div>
+
+                <div className="configuration-instruction-actions" id="text-text-configuration-agent-instruction-actions">
+                  <button type="button" className="button button--secondary" onClick={restoreInstructionDefaults}>
+                    <Icon name="reset" size={15} /> Restore all defaults
+                  </button>
+                  <button type="button" className="button button--secondary" onClick={() => instructionImportInputRef.current?.click()}>
+                    <Icon name="arrow" size={15} /> Import JSON
+                  </button>
+                  <input
+                    ref={instructionImportInputRef}
+                    className="configuration-file-input"
+                    type="file"
+                    accept="application/json,.json"
+                    aria-label="Import agent incident instructions JSON"
+                    data-testid="import-agent-instructions-input"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) void importInstructions(file);
+                    }}
+                  />
+                  <a
+                    className="button button--secondary"
+                    href="/api/configuration/agent-instructions/export"
+                    download
+                    data-testid="export-agent-instructions"
+                  >
+                    <Icon name="external" size={15} /> Export saved JSON
+                  </a>
+                  <button
+                    type="button"
+                    className="button button--primary configuration-instruction-save"
+                    data-testid="save-agent-instructions"
+                    disabled={!instructionChangesPending || !instructionDraftIsValid || savingInstructions}
+                    onClick={() => void saveInstructions()}
+                  >
+                    {savingInstructions ? <span className="configuration-spinner" /> : <Icon name="shield" size={15} />}
+                    {savingInstructions ? "Saving…" : "Save instructions"}
+                  </button>
+                </div>
+                {instructionChangesPending && !instructionDraftIsValid && (
+                  <div className="configuration-feedback configuration-feedback--error" role="alert">
+                    <Icon name="alert" size={16} />
+                    <span>Every incident type needs an instruction between 40 and 6,000 characters before the registry can be saved.</span>
+                  </div>
+                )}
+                {instructionFeedback && (
+                  <div className={`configuration-feedback configuration-feedback--${instructionFeedback.tone}`} role={instructionFeedback.tone === "error" ? "alert" : "status"}>
+                    <Icon name={instructionFeedback.tone === "error" ? "alert" : "shield"} size={16} />
+                    <span>{instructionFeedback.message}</span>
+                  </div>
+                )}
+              </>
+            )}
           </section>
         )}
 

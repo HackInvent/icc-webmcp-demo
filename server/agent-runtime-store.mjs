@@ -2,9 +2,20 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import {
+  INCIDENT_INSTRUCTION_SCHEMA_VERSION,
+  incidentInstructionTransfer,
+  parseIncidentInstructionOverrides,
+  parseIncidentInstructionTransfer,
+} from "./incident-instruction-registry.mjs";
 
-const SCHEMA_VERSION = "paris-icc-agent-runtime.v2";
-const READABLE_SCHEMA_VERSIONS = new Set(["paris-icc-agent-runtime.v1", SCHEMA_VERSION]);
+const SCHEMA_VERSION = "paris-icc-agent-runtime.v4";
+const READABLE_SCHEMA_VERSIONS = new Set([
+  "paris-icc-agent-runtime.v1",
+  "paris-icc-agent-runtime.v2",
+  "paris-icc-agent-runtime.v3",
+  SCHEMA_VERSION,
+]);
 const CATEGORIES = new Set(["generic", "incident", "report"]);
 const OUTCOMES = new Set(["completed", "tool_calls", "failed"]);
 const REASONING_EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhigh", "max"]);
@@ -73,6 +84,10 @@ export class AgentRuntimeStore {
       reasoningEfforts: Object.freeze([...profile.reasoningEfforts]),
     })));
     this.modelById = new Map(this.models.map((profile) => [profile.id, profile]));
+    this.defaultIncidentInstructions = Object.freeze(config.agent.incidentInstructions.map((entry) => Object.freeze({
+      ...entry,
+    })));
+    this.incidentInstructions = this.defaultIncidentInstructions.map((entry) => ({ ...entry }));
     this.maximumEntries = config.agent.logMaxEntries;
     this.now = options.now ?? (() => Date.now());
     this.model = this.defaultModel;
@@ -103,6 +118,27 @@ export class AgentRuntimeStore {
         this.reasoningEffort = profile?.defaultReasoningEffort ?? null;
       }
       if (typeof parsed.updatedAt === "string") this.updatedAt = parsed.updatedAt;
+      const hasLegacyCompleteInstructions = parsed.schemaVersion === "paris-icc-agent-runtime.v3" &&
+        Array.isArray(parsed.incidentInstructions);
+      const hasInstructionOverrides = parsed.schemaVersion === SCHEMA_VERSION &&
+        Array.isArray(parsed.incidentInstructionOverrides);
+      if (hasLegacyCompleteInstructions || hasInstructionOverrides) {
+        try {
+          const restored = hasLegacyCompleteInstructions
+            ? parseIncidentInstructionTransfer({
+                schemaVersion: INCIDENT_INSTRUCTION_SCHEMA_VERSION,
+                instructions: parsed.incidentInstructions,
+              })
+            : parseIncidentInstructionOverrides(parsed.incidentInstructionOverrides);
+          const restoredByType = new Map(restored.map((entry) => [entry.type, entry.instruction]));
+          this.incidentInstructions = this.defaultIncidentInstructions.map((entry) => ({
+            ...entry,
+            instruction: restoredByType.get(entry.type) ?? entry.instruction,
+          }));
+        } catch (error) {
+          console.warn(`[agent-runtime] Ignoring invalid incident instructions at ${this.path}: ${error instanceof Error ? error.message : "unknown error"}`);
+        }
+      }
       if (Array.isArray(parsed.entries)) {
         this.entries = parsed.entries
           .map(safePersistedEntry)
@@ -140,6 +176,28 @@ export class AgentRuntimeStore {
       })),
       updatedAt: this.updatedAt,
     };
+  }
+
+  incidentInstructionConfiguration() {
+    const defaults = new Map(this.defaultIncidentInstructions.map((entry) => [entry.type, entry.instruction]));
+    return {
+      schemaVersion: INCIDENT_INSTRUCTION_SCHEMA_VERSION,
+      updatedAt: this.updatedAt,
+      instructions: this.incidentInstructions.map((entry) => ({
+        ...entry,
+        defaultInstruction: defaults.get(entry.type),
+        modified: entry.instruction !== defaults.get(entry.type),
+      })),
+    };
+  }
+
+  currentIncidentInstruction(type) {
+    const entry = this.incidentInstructions.find((candidate) => candidate.type === type);
+    return entry ? { type: entry.type, label: entry.label, instruction: entry.instruction } : null;
+  }
+
+  exportIncidentInstructions() {
+    return incidentInstructionTransfer(this.incidentInstructions);
   }
 
   #supportsEffort(profile, reasoningEffort) {
@@ -187,6 +245,28 @@ export class AgentRuntimeStore {
 
   async updateModel(model) {
     return this.updateConfiguration(model, undefined);
+  }
+
+  async replaceIncidentInstructions(rawConfiguration) {
+    const validated = parseIncidentInstructionTransfer(rawConfiguration);
+    const instructionsByType = new Map(validated.map((entry) => [entry.type, entry.instruction]));
+    return this.#mutate(async () => {
+      const previousInstructions = this.incidentInstructions;
+      const previousUpdatedAt = this.updatedAt;
+      this.incidentInstructions = this.defaultIncidentInstructions.map((entry) => ({
+        ...entry,
+        instruction: instructionsByType.get(entry.type),
+      }));
+      this.updatedAt = new Date(this.now()).toISOString();
+      try {
+        await this.#persist();
+      } catch (error) {
+        this.incidentInstructions = previousInstructions;
+        this.updatedAt = previousUpdatedAt;
+        throw error;
+      }
+      return this.incidentInstructionConfiguration();
+    });
   }
 
   async record(raw) {
@@ -249,11 +329,15 @@ export class AgentRuntimeStore {
   }
 
   async #persist() {
+    const defaults = new Map(this.defaultIncidentInstructions.map((entry) => [entry.type, entry.instruction]));
     const payload = JSON.stringify({
       schemaVersion: SCHEMA_VERSION,
       model: this.model,
       reasoningEffort: this.reasoningEffort,
       updatedAt: this.updatedAt,
+      incidentInstructionOverrides: this.incidentInstructions
+        .filter((entry) => entry.instruction !== defaults.get(entry.type))
+        .map(({ type, instruction }) => ({ type, instruction })),
       entries: this.entries,
     }, null, 2) + "\n";
     const directory = path.dirname(this.path);
