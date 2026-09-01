@@ -628,7 +628,13 @@ export function ConfigurationModal({
                 <Icon name="activity" size={23} /><strong>No agent turn recorded yet</strong><span>Run a decision-support analysis; its trace will appear here.</span>
               </div>
             ) : (
-              <div className="configuration-log-table-wrap" id="text-text-configuration-agent-log-table">
+              <div
+                className="configuration-log-table-wrap"
+                id="text-text-configuration-agent-log-table"
+                role="region"
+                aria-label="Scrollable agent execution log"
+                tabIndex={0}
+              >
                 <table className="configuration-log-table">
                   <caption className="sr-only">Agent execution log, most recent first</caption>
                   <thead><tr><th>Recorded</th><th>Run / operation</th><th>Model</th><th>Outcome</th><th>Duration</th><th>Tokens in / out</th><th>Detail</th></tr></thead>

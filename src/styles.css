@@ -3253,6 +3253,16 @@ p {
   min-width: 830px;
 }
 
+.schedule-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.schedule-table thead th:last-child {
+  z-index: 3;
+}
+
 .schedule-table th,
 .schedule-table td {
   padding-right: 9px;

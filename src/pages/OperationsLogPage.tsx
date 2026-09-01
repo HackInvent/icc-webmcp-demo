@@ -117,7 +117,12 @@ export function OperationsLogPage({ shift }: { shift: ShiftWorkspaceSnapshot }) 
             </button>
           ))}
         </nav>
-        <div className="operations-log__table-wrap">
+        <div
+          className="operations-log__table-wrap"
+          role="region"
+          aria-label="Scrollable operations log"
+          tabIndex={0}
+        >
           <table className="operations-log__table">
             <thead>
               <tr>

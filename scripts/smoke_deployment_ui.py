@@ -84,9 +84,29 @@ def wait_for_webmcp(page, timeout_ms: int = 15_000) -> None:
 def main() -> None:
     args = parse_args()
     errors: list[str] = []
-    intercepted = {"turn": 0, "reset": 0, "report": 0}
+    intercepted = {"turn": 0, "reset": 0, "report": 0, "log": 0}
 
     def intercept_agent(route: Route) -> None:
+        if "/api/agent/log?" in route.request.url:
+            intercepted["log"] += 1
+            entries = [{
+                "id": f"LOG-SCROLL-{index:03d}",
+                "timestamp": f"2026-08-30T08:{index % 60:02d}:00.000Z",
+                "category": "incident" if index % 2 else "generic",
+                "model": "gpt-5.6-terra",
+                "reasoningEffort": "low",
+                "outcome": "completed",
+                "durationMs": 750 + index,
+                "runId": f"RUN-SCROLL-{index:03d}",
+                "inputTokens": 100 + index,
+                "outputTokens": 20 + index,
+            } for index in range(40)]
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps({"entries": entries, "total": len(entries)}),
+            )
+            return
         if route.request.url.endswith("/api/agent/turn"):
             intercepted["turn"] += 1
             # Valid HTTP but deliberately incomplete evidence: this forces the
@@ -262,6 +282,28 @@ def main() -> None:
             assert download_agent_log.is_enabled()
             assert download_agent_log.get_attribute("href") == "/api/agent/log/download"
             assert download_agent_log.get_attribute("download") is not None
+            log_table_wrap = configuration_modal.locator(
+                ".configuration-log-table-wrap"
+            )
+            log_rows = log_table_wrap.locator("tbody tr")
+            assert log_rows.count() == 40
+            scroll_metrics = log_table_wrap.evaluate(
+                """element => ({
+                    clientHeight: element.clientHeight,
+                    scrollHeight: element.scrollHeight,
+                    overflowY: getComputedStyle(element).overflowY,
+                })"""
+            )
+            assert scroll_metrics["overflowY"] in ("auto", "scroll")
+            assert scroll_metrics["scrollHeight"] > scroll_metrics["clientHeight"]
+            log_table_wrap.evaluate(
+                "element => { element.scrollTop = element.scrollHeight; }"
+            )
+            assert log_table_wrap.evaluate("element => element.scrollTop") > 0
+            assert log_table_wrap.locator("thead th").first.evaluate(
+                "element => getComputedStyle(element).position"
+            ) == "sticky"
+            assert intercepted["log"] >= 1
             assert intercepted["turn"] == 0
 
             configuration_modal.locator(
