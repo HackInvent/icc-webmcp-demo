@@ -78,6 +78,10 @@ describe("Passenger flow UI audit", () => {
     expect(html).toContain('data-queue-capacity-percent="0"');
     expect(html).toContain("fill:#b8f3cf");
     expect(html).toContain('r="5"');
+    expect(html).toContain('data-pan-enabled="true"');
+    expect(html).toContain('data-pan-state="idle"');
+    expect(html).toContain("Drag to pan the map when zoomed");
+    expect(html).toContain('draggable="false"');
   });
 
   it("maps station queues to the exact train-capacity heat anchors", () => {

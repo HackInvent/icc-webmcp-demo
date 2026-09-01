@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import nativeMapUrl from "../../artifacts/ratp-network-native.svg?url";
 import { Icon } from "../components/Icon";
 import {
@@ -21,6 +27,18 @@ interface PassengerFlowPageProps {
   simulation: NativeSimulationSnapshot;
   detailedSnapshot: RailSnapshot;
 }
+
+interface PassengerMapDragState {
+  pointerId: number;
+  startClientX: number;
+  startClientY: number;
+  startScrollLeft: number;
+  startScrollTop: number;
+  moved: boolean;
+}
+
+const PASSENGER_MAP_DRAG_THRESHOLD_PX = 4;
+const PASSENGER_MAP_CLICK_SUPPRESSION_MS = 300;
 
 const LEVEL_LABELS: ReadonlyArray<{ level: PassengerFlowLevel; label: string }> = [
   { level: "quiet", label: "0% · light green" },
@@ -70,6 +88,9 @@ export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlo
   const [selectedStationCode, setSelectedStationCode] = useState<string | null>(null);
   const [selectedTrainId, setSelectedTrainId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [isMapDragging, setIsMapDragging] = useState(false);
+  const mapDragRef = useRef<PassengerMapDragState | null>(null);
+  const suppressMapClickUntilRef = useRef(0);
   const view = useMemo(
     () => buildPassengerFlowView(simulation, detailedSnapshot, lineCode === "ALL" ? null : lineCode),
     [detailedSnapshot, lineCode, simulation],
@@ -90,6 +111,49 @@ export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlo
   const chooseStation = (stationCode: string) => {
     setSelectedStationCode(stationCode);
     setSelectedTrainId(null);
+  };
+
+  const startMapDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary || event.button !== 0) return;
+    const map = event.currentTarget;
+    suppressMapClickUntilRef.current = 0;
+    mapDragRef.current = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startScrollLeft: map.scrollLeft,
+      startScrollTop: map.scrollTop,
+      moved: false,
+    };
+  };
+
+  const moveMapDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = mapDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - drag.startClientX;
+    const deltaY = event.clientY - drag.startClientY;
+    if (!drag.moved && Math.hypot(deltaX, deltaY) >= PASSENGER_MAP_DRAG_THRESHOLD_PX) {
+      drag.moved = true;
+      setIsMapDragging(true);
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    if (!drag.moved) return;
+    event.preventDefault();
+    event.currentTarget.scrollLeft = drag.startScrollLeft - deltaX;
+    event.currentTarget.scrollTop = drag.startScrollTop - deltaY;
+  };
+
+  const finishMapDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = mapDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (drag.moved) {
+      suppressMapClickUntilRef.current = Date.now() + PASSENGER_MAP_CLICK_SUPPRESSION_MS;
+    }
+    mapDragRef.current = null;
+    setIsMapDragging(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   };
 
   return (
@@ -154,9 +218,27 @@ export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlo
             </div>
           </div>
 
-          <div className="passenger-flow-map" id="text-text-passenger-flow-map" data-testid="passenger-flow-map">
+          <div
+            className={`passenger-flow-map${isMapDragging ? " is-dragging" : ""}`}
+            id="text-text-passenger-flow-map"
+            data-testid="passenger-flow-map"
+            data-pan-enabled="true"
+            data-pan-state={isMapDragging ? "dragging" : "idle"}
+            role="region"
+            aria-label="Interactive passenger heatmap. Drag to pan the map when zoomed."
+            onPointerDown={startMapDrag}
+            onPointerMove={moveMapDrag}
+            onPointerUp={finishMapDrag}
+            onPointerCancel={finishMapDrag}
+            onLostPointerCapture={finishMapDrag}
+            onClickCapture={(event) => {
+              if (Date.now() >= suppressMapClickUntilRef.current) return;
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+          >
             <div className="passenger-flow-map__surface" style={{ width: `${zoom * 100}%` }}>
-              <img src={nativeMapUrl} alt="" aria-hidden="true" />
+              <img src={nativeMapUrl} alt="" aria-hidden="true" draggable={false} />
               <svg
                 viewBox={`${NATIVE_NETWORK_BOUNDS.minX} ${NATIVE_NETWORK_BOUNDS.minY} ${NATIVE_NETWORK_BOUNDS.width} ${NATIVE_NETWORK_BOUNDS.height}`}
                 role="img"
