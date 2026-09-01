@@ -1,0 +1,183 @@
+.operations-log-page,
+.shift-report-page { max-width: 1760px; }
+
+.operations-log-summary,
+.shift-report__meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.operations-log-summary article,
+.shift-report__meta > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 13px 14px;
+  background: #fff;
+  border: 1px solid #dce5e1;
+  border-radius: 10px;
+}
+
+.operations-log-summary small,
+.shift-report__meta small { color: #75857f; font-size: 7px; font-weight: 850; letter-spacing: .09em; }
+.operations-log-summary strong,
+.shift-report__meta strong { overflow: hidden; color: #193c30; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.operations-log-summary span { color: #6e7d78; font-size: 8px; }
+.operations-log { overflow: hidden; }
+
+.operations-log__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 15px 16px;
+  border-bottom: 1px solid #e1e8e5;
+}
+
+.operations-log__toolbar > div { display: grid; gap: 3px; }
+.operations-log__toolbar small { color: #698078; font-size: 7px; font-weight: 850; letter-spacing: .09em; }
+.operations-log__toolbar h2 { font-size: 13px; }
+
+.operations-log__search {
+  display: flex;
+  align-items: center;
+  width: min(320px, 40vw);
+  height: 35px;
+  gap: 7px;
+  padding: 0 10px;
+  color: #6a7e76;
+  background: #f7faf8;
+  border: 1px solid #dce5e1;
+  border-radius: 8px;
+}
+
+.operations-log__search input { width: 100%; min-width: 0; color: #24473a; background: transparent; border: 0; outline: 0; font-size: 9px; }
+
+.operations-log__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px;
+  background: #fafcfb;
+  border-bottom: 1px solid #e5ebe8;
+}
+
+.operations-log__filters button { min-height: 28px; padding: 0 10px; color: #65766f; background: #fff; border: 1px solid #dce5e1; border-radius: 7px; font-size: 8px; font-weight: 750; }
+.operations-log__filters button.active { color: #fff; background: #245f4c; border-color: #245f4c; }
+.operations-log__table-wrap { overflow-x: auto; }
+.operations-log__table { width: 100%; min-width: 1050px; border-collapse: collapse; table-layout: fixed; }
+
+.operations-log__table th { padding: 9px 11px; color: #73847e; background: #f5f8f7; border-bottom: 1px solid #dfe7e4; font-size: 7px; font-weight: 850; text-align: left; letter-spacing: .06em; text-transform: uppercase; }
+.operations-log__table th:nth-child(1) { width: 145px; }
+.operations-log__table th:nth-child(2) { width: 34%; }
+.operations-log__table th:nth-child(3) { width: 150px; }
+.operations-log__table th:nth-child(4) { width: 190px; }
+.operations-log__table th:nth-child(5) { width: 90px; }
+.operations-log__table th:nth-child(6) { width: 90px; }
+.operations-log__table td { padding: 11px; vertical-align: top; border-bottom: 1px solid #e7ecea; font-size: 8px; }
+.operations-log__table tbody tr:hover { background: #f8fbf9; }
+.operations-log__table td > strong,
+.operations-log__table td > time,
+.operations-log__table td > small,
+.operations-log__table td > code { display: block; }
+.operations-log__table td > strong { color: #294a3f; font-size: 9px; }
+.operations-log__table td > p { margin: 3px 0 5px; color: #5d7069; line-height: 1.5; }
+.operations-log__table td > small { margin-top: 4px; color: #82908b; font-size: 7px; line-height: 1.4; }
+.operations-log__table code { color: #6b8078; font-size: 7px; }
+
+.operations-log__actor { display: inline-flex; padding: 4px 7px; color: #50665e; background: #eef3f1; border-radius: 6px; font-size: 7px; font-weight: 800; text-transform: uppercase; }
+.operations-log__actor--operator { color: #76580f; background: #fff5d6; }
+.operations-log__actor--agent { color: #61488a; background: #f1eafd; }
+.operations-log__empty { display: grid; place-items: center; gap: 5px; padding: 40px; color: #71817c; text-align: center; }
+.operations-log__empty span { font-size: 8px; }
+
+.shift-report__header-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.shift-report__agent-button,
+.shift-report__freeze-button { gap: 7px; }
+.button.shift-report__freeze-button { color: #fff; background: #a82e3c; border-color: #922634; }
+.button.shift-report__freeze-button:hover:not(:disabled) { background: #8f2330; }
+
+.shift-report__agent-status { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 10px 12px; color: #315e4e; background: #eef8f4; border: 1px solid #cfe5dc; border-radius: 9px; font-size: 8px; }
+.shift-report-editor { overflow: hidden; background: #e9eeeb; }
+
+.shift-report-toolbar {
+  position: sticky;
+  top: 75px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 48px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, .98);
+  border-bottom: 1px solid #d6e0dc;
+}
+
+.shift-report-toolbar button { display: grid; place-items: center; min-width: 30px; height: 30px; padding: 0 8px; color: #3e554d; background: #fff; border: 1px solid #d8e2de; border-radius: 6px; font-size: 9px; }
+.shift-report-toolbar button:hover:not(:disabled) { color: #174e3b; background: #edf7f2; border-color: #a9cdbf; }
+.shift-report-toolbar > span { width: 1px; height: 22px; margin: 0 3px; background: #dce5e1; }
+.shift-report-toolbar > small { margin-left: auto; color: #74857f; font-size: 7px; font-weight: 750; }
+
+.shift-report-document {
+  width: min(920px, calc(100% - 48px));
+  min-height: 1120px;
+  margin: 24px auto 36px;
+  padding: 70px 76px;
+  color: #1c2723;
+  background: #fff;
+  border: 1px solid #d7dfdc;
+  border-radius: 3px;
+  box-shadow: 0 10px 30px rgba(31, 49, 43, .1);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11px;
+  line-height: 1.62;
+  outline: none;
+}
+
+.shift-report-document:focus { border-color: #72aa96; box-shadow: 0 0 0 3px rgba(34, 129, 95, .1), 0 10px 30px rgba(31, 49, 43, .1); }
+.shift-report-editor--frozen .shift-report-document { background: #fbfcfb; border-color: #b8d5ca; }
+.shift-report-document h1 { margin: 0 0 20px; padding-bottom: 12px; color: #17392e; border-bottom: 2px solid #204f3f; font-size: 24px; }
+.shift-report-document h2 { margin: 25px 0 9px; color: #21483a; font-size: 16px; }
+.shift-report-document h3 { margin: 18px 0 7px; font-size: 13px; }
+.shift-report-document p { margin: 7px 0; }
+.shift-report-document blockquote { margin: 12px 0; padding: 8px 12px; color: #50645c; background: #f4f7f5; border-left: 3px solid #6d9c89; }
+.shift-report-document table { width: 100%; margin: 12px 0; border-collapse: collapse; font-size: 8px; }
+.shift-report-document th,
+.shift-report-document td { padding: 6px; vertical-align: top; border: 1px solid #cfdad5; text-align: left; }
+.shift-report-document th { background: #edf3f0; }
+
+@media (max-width: 1050px) {
+  .operations-log-summary,
+  .shift-report__meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .operations-log-summary,
+  .shift-report__meta { grid-template-columns: 1fr; }
+  .operations-log__toolbar { align-items: stretch; flex-direction: column; }
+  .operations-log__search { width: 100%; }
+  .shift-report__header-actions { align-items: stretch; flex-direction: column; width: 100%; }
+  .shift-report-document { width: calc(100% - 16px); min-height: 900px; margin: 8px auto 18px; padding: 34px 24px; }
+  .shift-report-toolbar { top: 102px; }
+  .shift-report-toolbar > small { width: 100%; margin: 4px 0 0; }
+}
+
+@media print {
+  @page { size: A4 portrait; margin: 14mm; }
+  body:has(.shift-report-page) .sidebar,
+  body:has(.shift-report-page) .topbar,
+  body:has(.shift-report-page) .page-header,
+  body:has(.shift-report-page) .shift-report__meta,
+  body:has(.shift-report-page) .shift-report__agent-status,
+  body:has(.shift-report-page) .shift-report-toolbar,
+  body:has(.shift-report-page) .toast { display: none !important; }
+  body:has(.shift-report-page) .app-shell,
+  body:has(.shift-report-page) .app-workspace,
+  body:has(.shift-report-page) .app-main { display: block; min-height: 0; background: #fff; }
+  body:has(.shift-report-page) .shift-report-page { max-width: none; padding: 0; }
+  body:has(.shift-report-page) .shift-report-editor { overflow: visible; background: #fff; border: 0; box-shadow: none; }
+  body:has(.shift-report-page) .shift-report-document { width: 100%; min-height: 0; margin: 0; padding: 0; border: 0; box-shadow: none; font-size: 9pt; }
+}

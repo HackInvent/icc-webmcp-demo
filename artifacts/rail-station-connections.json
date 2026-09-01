@@ -1,0 +1,1348 @@
+{
+  "schema": "paris-icc-rail-station-connections-v2",
+  "generatedAt": "2026-08-29T15:27:27.479Z",
+  "source": {
+    "authority": "Ile-de-France Mobilites",
+    "gtfs": {
+      "dataset": "Planned timetables in GTFS format",
+      "url": "https://eu.ftp.opendatasoft.com/stif/GTFS/IDFM-gtfs.zip",
+      "zipSha256": "65bc30078a0ca8ec865602bf84959068089d29d641d5ba78db66bd09538d57cf",
+      "files": {
+        "stops": {
+          "bytes": 5039248,
+          "sha256": "de9bcb2b0f291917c73bb4603c6f60d5eef9555daf18afd5285b55600956a9d7"
+        },
+        "transfers": {
+          "bytes": 5569573,
+          "sha256": "a86548d39141c474e646e0338b26e7526a459bda87bb013f3cd581666ecc5e97"
+        },
+        "pathways": {
+          "bytes": 551949,
+          "sha256": "f27da66f50cab557b92929a725d4df16b788b68c4aaa3dfc7ffa4265b6513a33"
+        }
+      }
+    },
+    "references": {
+      "idfmPublicWay": {
+        "authority": "Ile-de-France Mobilites",
+        "title": "Regles de correspondances et correspondances par la voie publique",
+        "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+        "pageUpdatedAt": "2026-02-20"
+      },
+      "idfmPublicWayDecision": {
+        "authority": "Ile-de-France Mobilites",
+        "title": "Deliberation 20251017-192 - ajout de nouvelles correspondances par la voie publique",
+        "url": "https://www.iledefrance-mobilites.fr/medias/portail-idfm/aSQ1g2GnmrmGqKoq_RAA166-1.pdf",
+        "decisionDate": "2025-10-17",
+        "effectiveFrom": "2026-04-01",
+        "pages": [
+          57,
+          58
+        ]
+      },
+      "ratpNetworkPlan": {
+        "authority": "RATP",
+        "title": "Plan Paris schematique",
+        "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+        "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+      },
+      "ratpCluny": {
+        "authority": "RATP",
+        "title": "Cluny - La Sorbonne, correspondance avec Saint-Michel - Notre-Dame",
+        "url": "https://www.ratp.fr/en/decouvrir/coulisses/au-quotidien/un-jour-une-station-cluny-la-sorbonne-tout-feu-tout-flamme",
+        "pageUpdatedAt": "2026-07-10"
+      }
+    }
+  },
+  "policy": {
+    "selection": "Explicit documented allow-list: reciprocal GTFS pairs plus three public-way pairs explicitly enacted by IDFM for April 2026.",
+    "rejection": "Unselected GTFS cross-station pairs are walking-proximity routing candidates, not inferred rail dependencies.",
+    "categories": {
+      "interchange-complex": "Documented station complex or internal passenger corridor.",
+      "public-way-authorized": "Connection listed by IDFM as a correspondence through public space.",
+      "mapped-walking-link": "Walking link represented on the RATP plan; fare continuity is deliberately not inferred."
+    },
+    "timeModel": "Rounded GTFS median when present; otherwise a labelled geodesic walking estimate at 1.2 m/s plus 120 seconds of station access.",
+    "documentaryWalkingModel": {
+      "walkingSpeedMetersPerSecond": 1.2,
+      "stationAccessPenaltySeconds": 120,
+      "minimumSeconds": 180,
+      "roundingSeconds": 5
+    }
+  },
+  "counts": {
+    "stationConnectionCount": 28,
+    "selectedWithReciprocalGtfsEvidence": 25,
+    "selectedWithOfficialDocumentaryEvidence": 3,
+    "categoryCounts": {
+      "interchange-complex": 8,
+      "public-way-authorized": 16,
+      "mapped-walking-link": 4
+    },
+    "gtfsTransferRowsInsideGraph": 44008,
+    "gtfsSameStationTransferRows": 39804,
+    "gtfsCrossStationTransferRows": 4204,
+    "gtfsCrossStationPairCount": 184,
+    "gtfsCrossStationPathwayPairCount": 2,
+    "deliberatelyExcludedGtfsCrossStationPairCount": 159
+  },
+  "validation": {
+    "verdict": "pass",
+    "checks": {
+      "topologyCountsMatch": true,
+      "selectedConnectionCountExact": true,
+      "selectedIdsUnique": true,
+      "allEndpointsInTopology": true,
+      "reciprocalGtfsSelectionExact": true,
+      "officialDocumentarySelectionExact": true,
+      "undocumentedChateauLandonShortcutRejected": true,
+      "onlyTwoCrossStationPathwayPairs": true,
+      "noUnfilteredGtfsProximityImport": true
+    }
+  },
+  "connections": [
+    {
+      "id": "station-connection:473829--73844",
+      "category": "mapped-walking-link",
+      "fromStationId": "IDFM:473829",
+      "toStationId": "IDFM:73844",
+      "fromStationName": "Bir-Hakeim",
+      "toStationName": "Champ de Mars Tour Eiffel",
+      "fromLineCodes": [
+        "M6"
+      ],
+      "toLineCodes": [
+        "RER_C"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 415,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 12,
+          "directionCount": 2,
+          "minimumSeconds": 320,
+          "medianSeconds": 413.5,
+          "maximumSeconds": 494
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:474149--71359",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:474149",
+      "toStationId": "IDFM:71359",
+      "fromStationName": "Château Landon",
+      "toStationName": "Gare de l'Est",
+      "fromLineCodes": [
+        "M7"
+      ],
+      "toLineCodes": [
+        "M4",
+        "M5",
+        "M7"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 445,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 8,
+          "directionCount": 2,
+          "minimumSeconds": 397,
+          "medianSeconds": 445.5,
+          "maximumSeconds": 451
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:474150--71229",
+      "category": "mapped-walking-link",
+      "fromStationId": "IDFM:474150",
+      "toStationId": "IDFM:71229",
+      "fromStationName": "La Muette",
+      "toStationName": "Boulainvilliers",
+      "fromLineCodes": [
+        "M9"
+      ],
+      "toLineCodes": [
+        "RER_C"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 430,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 32,
+          "directionCount": 2,
+          "minimumSeconds": 300,
+          "medianSeconds": 428.5,
+          "maximumSeconds": 501
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:474151--71264",
+      "category": "interchange-complex",
+      "fromStationId": "IDFM:474151",
+      "toStationId": "IDFM:71264",
+      "fromStationName": "Châtelet - Les Halles",
+      "toStationName": "Châtelet",
+      "fromLineCodes": [
+        "RER_A",
+        "RER_B",
+        "RER_D"
+      ],
+      "toLineCodes": [
+        "M1",
+        "M11",
+        "M14",
+        "M4",
+        "M7"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 420,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 20,
+          "directionCount": 2,
+          "minimumSeconds": 360,
+          "medianSeconds": 420,
+          "maximumSeconds": 600
+        },
+        "gtfsPathways": {
+          "rowCount": 11,
+          "bidirectionalRowCount": 11,
+          "modes": [
+            "1"
+          ],
+          "minimumSeconds": 194,
+          "maximumSeconds": 675
+        },
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:474151--73794",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:474151",
+      "toStationId": "IDFM:73794",
+      "fromStationName": "Châtelet - Les Halles",
+      "toStationName": "Les Halles",
+      "fromLineCodes": [
+        "RER_A",
+        "RER_B",
+        "RER_D"
+      ],
+      "toLineCodes": [
+        "M4"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 300,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 4,
+          "directionCount": 2,
+          "minimumSeconds": 300,
+          "medianSeconds": 300,
+          "maximumSeconds": 300
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:474152--71321",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:474152",
+      "toStationId": "IDFM:71321",
+      "fromStationName": "Porte Dauphine",
+      "toStationName": "Avenue Foch",
+      "fromLineCodes": [
+        "M2"
+      ],
+      "toLineCodes": [
+        "RER_C"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 360,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 12,
+          "directionCount": 2,
+          "minimumSeconds": 180,
+          "medianSeconds": 357.5,
+          "maximumSeconds": 361
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:478733--71359",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:478733",
+      "toStationId": "IDFM:71359",
+      "fromStationName": "Magenta",
+      "toStationName": "Gare de l'Est",
+      "fromLineCodes": [
+        "RER_E"
+      ],
+      "toLineCodes": [
+        "M4",
+        "M5",
+        "M7"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 545,
+      "evidence": {
+        "selectionBasis": "official-documentary",
+        "gtfsTransfers": null,
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": {
+          "method": "geodesic-walking-plus-station-access",
+          "distanceMeters": 510,
+          "walkingSpeedMetersPerSecond": 1.2,
+          "stationAccessPenaltySeconds": 120,
+          "minimumSeconds": 180,
+          "roundingSeconds": 5,
+          "estimatedTransferSeconds": 545
+        },
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "idfmPublicWayDecision",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Deliberation 20251017-192 - ajout de nouvelles correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/medias/portail-idfm/aSQ1g2GnmrmGqKoq_RAA166-1.pdf",
+            "decisionDate": "2025-10-17",
+            "effectiveFrom": "2026-04-01",
+            "pages": [
+              57,
+              58
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:478733--71363",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:478733",
+      "toStationId": "IDFM:71363",
+      "fromStationName": "Magenta",
+      "toStationName": "Poissonnière",
+      "fromLineCodes": [
+        "RER_E"
+      ],
+      "toLineCodes": [
+        "M7"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 825,
+      "evidence": {
+        "selectionBasis": "official-documentary",
+        "gtfsTransfers": null,
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": {
+          "method": "geodesic-walking-plus-station-access",
+          "distanceMeters": 844,
+          "walkingSpeedMetersPerSecond": 1.2,
+          "stationAccessPenaltySeconds": 120,
+          "minimumSeconds": 180,
+          "roundingSeconds": 5,
+          "estimatedTransferSeconds": 825
+        },
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "idfmPublicWayDecision",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Deliberation 20251017-192 - ajout de nouvelles correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/medias/portail-idfm/aSQ1g2GnmrmGqKoq_RAA166-1.pdf",
+            "decisionDate": "2025-10-17",
+            "effectiveFrom": "2026-04-01",
+            "pages": [
+              57,
+              58
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:478733--71410",
+      "category": "interchange-complex",
+      "fromStationId": "IDFM:478733",
+      "toStationId": "IDFM:71410",
+      "fromStationName": "Magenta",
+      "toStationName": "Gare du Nord",
+      "fromLineCodes": [
+        "RER_E"
+      ],
+      "toLineCodes": [
+        "M4",
+        "M5",
+        "RER_B",
+        "RER_D"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 350,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 38,
+          "directionCount": 2,
+          "minimumSeconds": 224,
+          "medianSeconds": 351,
+          "maximumSeconds": 486
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:478926--482368",
+      "category": "interchange-complex",
+      "fromStationId": "IDFM:478926",
+      "toStationId": "IDFM:482368",
+      "fromStationName": "Auber",
+      "toStationName": "Havre-Caumartin",
+      "fromLineCodes": [
+        "RER_A"
+      ],
+      "toLineCodes": [
+        "M3",
+        "M9"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 390,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 82,
+          "directionCount": 2,
+          "minimumSeconds": 312,
+          "medianSeconds": 389,
+          "maximumSeconds": 491
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:478926--71337",
+      "category": "interchange-complex",
+      "fromStationId": "IDFM:478926",
+      "toStationId": "IDFM:71337",
+      "fromStationName": "Auber",
+      "toStationName": "Opéra",
+      "fromLineCodes": [
+        "RER_A"
+      ],
+      "toLineCodes": [
+        "M3",
+        "M7",
+        "M8"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 405,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 104,
+          "directionCount": 2,
+          "minimumSeconds": 226,
+          "medianSeconds": 403.5,
+          "maximumSeconds": 497
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:478926--71370",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:478926",
+      "toStationId": "IDFM:71370",
+      "fromStationName": "Auber",
+      "toStationName": "Saint-Lazare",
+      "fromLineCodes": [
+        "RER_A"
+      ],
+      "toLineCodes": [
+        "M12",
+        "M13",
+        "M14",
+        "M3"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 450,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 2,
+          "directionCount": 2,
+          "minimumSeconds": 448,
+          "medianSeconds": 448,
+          "maximumSeconds": 448
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:478926--73688",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:478926",
+      "toStationId": "IDFM:73688",
+      "fromStationName": "Auber",
+      "toStationName": "Haussmann Saint-Lazare",
+      "fromLineCodes": [
+        "RER_A"
+      ],
+      "toLineCodes": [
+        "RER_E"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 400,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 4,
+          "directionCount": 2,
+          "minimumSeconds": 380,
+          "medianSeconds": 400,
+          "maximumSeconds": 420
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:482368--71337",
+      "category": "interchange-complex",
+      "fromStationId": "IDFM:482368",
+      "toStationId": "IDFM:71337",
+      "fromStationName": "Havre-Caumartin",
+      "toStationName": "Opéra",
+      "fromLineCodes": [
+        "M3",
+        "M9"
+      ],
+      "toLineCodes": [
+        "M3",
+        "M7",
+        "M8"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 455,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 22,
+          "directionCount": 2,
+          "minimumSeconds": 412,
+          "medianSeconds": 456,
+          "maximumSeconds": 501
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:482368--71370",
+      "category": "interchange-complex",
+      "fromStationId": "IDFM:482368",
+      "toStationId": "IDFM:71370",
+      "fromStationName": "Havre-Caumartin",
+      "toStationName": "Saint-Lazare",
+      "fromLineCodes": [
+        "M3",
+        "M9"
+      ],
+      "toLineCodes": [
+        "M12",
+        "M13",
+        "M14",
+        "M3"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 445,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 328,
+          "directionCount": 2,
+          "minimumSeconds": 197,
+          "medianSeconds": 443.5,
+          "maximumSeconds": 501
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:482368--73688",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:482368",
+      "toStationId": "IDFM:73688",
+      "fromStationName": "Havre-Caumartin",
+      "toStationName": "Haussmann Saint-Lazare",
+      "fromLineCodes": [
+        "M3",
+        "M9"
+      ],
+      "toLineCodes": [
+        "RER_E"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 385,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 22,
+          "directionCount": 2,
+          "minimumSeconds": 309,
+          "medianSeconds": 383,
+          "maximumSeconds": 540
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:488087--70945",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:488087",
+      "toStationId": "IDFM:70945",
+      "fromStationName": "Nanterre-La-Folie",
+      "toStationName": "Nanterre - Préfecture",
+      "fromLineCodes": [
+        "RER_E"
+      ],
+      "toLineCodes": [
+        "RER_A"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 430,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 4,
+          "directionCount": 2,
+          "minimumSeconds": 420,
+          "medianSeconds": 431.5,
+          "maximumSeconds": 443
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:490784--72206",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:490784",
+      "toStationId": "IDFM:72206",
+      "fromStationName": "Saint-Denis - Pleyel",
+      "toStationName": "Stade de France Saint-Denis",
+      "fromLineCodes": [
+        "M14"
+      ],
+      "toLineCodes": [
+        "RER_D"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 660,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 12,
+          "directionCount": 2,
+          "minimumSeconds": 660,
+          "medianSeconds": 660,
+          "maximumSeconds": 960
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:492980--71290",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:492980",
+      "toStationId": "IDFM:71290",
+      "fromStationName": "Pont de l'Alma",
+      "toStationName": "Alma - Marceau",
+      "fromLineCodes": [
+        "RER_C"
+      ],
+      "toLineCodes": [
+        "M9"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 440,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 4,
+          "directionCount": 2,
+          "minimumSeconds": 406,
+          "medianSeconds": 437.5,
+          "maximumSeconds": 468
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:71269--71270",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:71269",
+      "toStationId": "IDFM:71270",
+      "fromStationName": "Musée d'Orsay",
+      "toStationName": "Solférino",
+      "fromLineCodes": [
+        "RER_C"
+      ],
+      "toLineCodes": [
+        "M12"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 460,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 26,
+          "directionCount": 2,
+          "minimumSeconds": 292,
+          "medianSeconds": 458,
+          "maximumSeconds": 540
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:71286--71292",
+      "category": "mapped-walking-link",
+      "fromStationId": "IDFM:71286",
+      "toStationId": "IDFM:71292",
+      "fromStationName": "Avenue Henri Martin",
+      "toStationName": "Rue de la Pompe",
+      "fromLineCodes": [
+        "RER_C"
+      ],
+      "toLineCodes": [
+        "M9"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 470,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 6,
+          "directionCount": 2,
+          "minimumSeconds": 471,
+          "medianSeconds": 472,
+          "maximumSeconds": 484
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:71359--71410",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:71359",
+      "toStationId": "IDFM:71410",
+      "fromStationName": "Gare de l'Est",
+      "toStationName": "Gare du Nord",
+      "fromLineCodes": [
+        "M4",
+        "M5",
+        "M7"
+      ],
+      "toLineCodes": [
+        "M4",
+        "M5",
+        "RER_B",
+        "RER_D"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 460,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 4,
+          "directionCount": 2,
+          "minimumSeconds": 446,
+          "medianSeconds": 458,
+          "maximumSeconds": 470
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:71363--71410",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:71363",
+      "toStationId": "IDFM:71410",
+      "fromStationName": "Poissonnière",
+      "toStationName": "Gare du Nord",
+      "fromLineCodes": [
+        "M7"
+      ],
+      "toLineCodes": [
+        "M4",
+        "M5",
+        "RER_B",
+        "RER_D"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 700,
+      "evidence": {
+        "selectionBasis": "official-documentary",
+        "gtfsTransfers": null,
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": {
+          "method": "geodesic-walking-plus-station-access",
+          "distanceMeters": 698,
+          "walkingSpeedMetersPerSecond": 1.2,
+          "stationAccessPenaltySeconds": 120,
+          "minimumSeconds": 180,
+          "roundingSeconds": 5,
+          "estimatedTransferSeconds": 700
+        },
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "idfmPublicWayDecision",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Deliberation 20251017-192 - ajout de nouvelles correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/medias/portail-idfm/aSQ1g2GnmrmGqKoq_RAA166-1.pdf",
+            "decisionDate": "2025-10-17",
+            "effectiveFrom": "2026-04-01",
+            "pages": [
+              57,
+              58
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:71370--73688",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:71370",
+      "toStationId": "IDFM:73688",
+      "fromStationName": "Saint-Lazare",
+      "toStationName": "Haussmann Saint-Lazare",
+      "fromLineCodes": [
+        "M12",
+        "M13",
+        "M14",
+        "M3"
+      ],
+      "toLineCodes": [
+        "RER_E"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 420,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 44,
+          "directionCount": 2,
+          "minimumSeconds": 302,
+          "medianSeconds": 420,
+          "maximumSeconds": 497
+        },
+        "gtfsPathways": {
+          "rowCount": 4,
+          "bidirectionalRowCount": 4,
+          "modes": [
+            "1"
+          ],
+          "minimumSeconds": 180,
+          "maximumSeconds": 352
+        },
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:71370--73690",
+      "category": "public-way-authorized",
+      "fromStationId": "IDFM:71370",
+      "toStationId": "IDFM:73690",
+      "fromStationName": "Saint-Lazare",
+      "toStationName": "Saint-Augustin",
+      "fromLineCodes": [
+        "M12",
+        "M13",
+        "M14",
+        "M3"
+      ],
+      "toLineCodes": [
+        "M9"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 470,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 160,
+          "directionCount": 2,
+          "minimumSeconds": 260,
+          "medianSeconds": 468,
+          "maximumSeconds": 600
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "idfmPublicWay",
+            "authority": "Ile-de-France Mobilites",
+            "title": "Regles de correspondances et correspondances par la voie publique",
+            "url": "https://www.iledefrance-mobilites.fr/correspondance-voie-publique",
+            "pageUpdatedAt": "2026-02-20"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:71410--71434",
+      "category": "interchange-complex",
+      "fromStationId": "IDFM:71410",
+      "toStationId": "IDFM:71434",
+      "fromStationName": "Gare du Nord",
+      "toStationName": "La Chapelle",
+      "fromLineCodes": [
+        "M4",
+        "M5",
+        "RER_B",
+        "RER_D"
+      ],
+      "toLineCodes": [
+        "M2"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 540,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 22,
+          "directionCount": 2,
+          "minimumSeconds": 459,
+          "medianSeconds": 540,
+          "maximumSeconds": 720
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:71637--73626",
+      "category": "mapped-walking-link",
+      "fromStationId": "IDFM:71637",
+      "toStationId": "IDFM:73626",
+      "fromStationName": "Quai de la Rapée",
+      "toStationName": "Gare de Lyon",
+      "fromLineCodes": [
+        "M5"
+      ],
+      "toLineCodes": [
+        "M1",
+        "M14",
+        "RER_A",
+        "RER_D"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 395,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 32,
+          "directionCount": 2,
+          "minimumSeconds": 306,
+          "medianSeconds": 396.5,
+          "maximumSeconds": 491
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    },
+    {
+      "id": "station-connection:73619--73620",
+      "category": "interchange-complex",
+      "fromStationId": "IDFM:73619",
+      "toStationId": "IDFM:73620",
+      "fromStationName": "Cluny - La Sorbonne",
+      "toStationName": "Saint-Michel Notre-Dame",
+      "fromLineCodes": [
+        "M10"
+      ],
+      "toLineCodes": [
+        "M4",
+        "RER_B",
+        "RER_C"
+      ],
+      "bidirectional": true,
+      "estimatedTransferSeconds": 420,
+      "evidence": {
+        "selectionBasis": "reciprocal-gtfs",
+        "gtfsTransfers": {
+          "rowCount": 48,
+          "directionCount": 2,
+          "minimumSeconds": 251,
+          "medianSeconds": 419,
+          "maximumSeconds": 471
+        },
+        "gtfsPathways": null,
+        "documentaryTransferEstimate": null,
+        "references": [
+          {
+            "key": "ratpCluny",
+            "authority": "RATP",
+            "title": "Cluny - La Sorbonne, correspondance avec Saint-Michel - Notre-Dame",
+            "url": "https://www.ratp.fr/en/decouvrir/coulisses/au-quotidien/un-jour-une-station-cluny-la-sorbonne-tout-feu-tout-flamme",
+            "pageUpdatedAt": "2026-07-10"
+          },
+          {
+            "key": "ratpNetworkPlan",
+            "authority": "RATP",
+            "title": "Plan Paris schematique",
+            "url": "https://www.ratp.fr/informer/picts/plans/pdf/reseaux/metro.pdf",
+            "edition": "PLAN_PARIS_SCHEMATIQUE_SANS_CARROYAGE_01_2026"
+          }
+        ]
+      }
+    }
+  ]
+}

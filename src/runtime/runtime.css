@@ -1,0 +1,92 @@
+.access-screen {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  overflow: hidden;
+  padding: 28px;
+  color: #14231f;
+  background:
+    radial-gradient(circle at 16% 10%, rgba(27, 139, 104, 0.12), transparent 30%),
+    radial-gradient(circle at 88% 88%, rgba(58, 112, 196, 0.09), transparent 28%),
+    #eef3f1;
+}
+
+.access-screen::before,
+.access-screen::after {
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  content: "";
+  border: 1px solid rgba(19, 111, 83, 0.08);
+  border-radius: 50%;
+  box-shadow: 0 0 0 64px rgba(19, 111, 83, 0.025), 0 0 0 128px rgba(19, 111, 83, 0.018);
+}
+
+.access-screen::before { top: -190px; right: -130px; }
+.access-screen::after { bottom: -230px; left: -160px; }
+
+.access-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 510px);
+  overflow: hidden;
+  padding: 34px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #cfdbd6;
+  border-radius: 22px;
+  box-shadow: 0 28px 70px rgba(29, 54, 45, 0.14);
+}
+
+.access-card__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e2e9e6;
+}
+
+.access-card__mark {
+  position: relative;
+  display: grid;
+  width: 43px;
+  height: 43px;
+  place-items: center;
+  color: #073a2c;
+  background: #5de2b1;
+  border-radius: 13px 13px 13px 4px;
+}
+
+.access-card__mark b { position: absolute; top: 5px; left: 8px; font-size: 13px; }
+.access-card__mark small { position: absolute; right: 5px; bottom: 5px; font-size: 9px; font-weight: 900; }
+.access-card__brand > div { display: grid; gap: 2px; }
+.access-card__brand strong { font-size: 16px; }
+.access-card__brand span { color: #72827d; font-size: 11px; }
+
+.access-card__intro { display: grid; gap: 12px; padding: 28px 0 24px; }
+.access-card__eyebrow { display: flex; align-items: center; gap: 8px; color: #137052; font-size: 10px; font-weight: 850; letter-spacing: 0.13em; }
+.access-card__eyebrow i { width: 7px; height: 7px; background: #23b483; border-radius: 50%; box-shadow: 0 0 0 4px rgba(35, 180, 131, 0.1); }
+.access-card h1 { color: #172823; font-size: clamp(25px, 5vw, 32px); line-height: 1.12; letter-spacing: -0.04em; }
+.access-card__intro p,
+.access-card--error > p { color: #667772; font-size: 14px; line-height: 1.65; }
+.access-card form { display: grid; gap: 11px; }
+.access-card label { color: #3b5049; font-size: 11px; font-weight: 750; }
+.access-card__input { display: flex; align-items: center; height: 50px; gap: 10px; padding: 0 14px; color: #74857f; background: #f7faf8; border: 1px solid #cbd8d3; border-radius: 11px; }
+.access-card__input:focus-within { border-color: #218c6a; box-shadow: 0 0 0 3px rgba(33, 140, 106, 0.11); }
+.access-card__input input { width: 100%; color: #1e312a; background: transparent; border: 0; outline: 0; font-size: 14px; }
+.access-card form .button { justify-content: center; min-height: 48px; margin-top: 5px; }
+.access-card form .button:disabled { cursor: wait; opacity: 0.58; }
+.access-card__error { display: flex; align-items: center; gap: 7px; color: #b52a3c; font-size: 11px; }
+.access-card footer { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 25px; padding-top: 19px; color: #74837e; border-top: 1px solid #e6ece9; }
+.access-card footer span { display: inline-flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 700; }
+.access-loading { position: relative; z-index: 1; display: grid; justify-items: center; gap: 13px; color: #486058; }
+.access-loading > span,
+.access-card__error-icon { display: grid; width: 52px; height: 52px; place-items: center; color: #167455; background: #e1f2ec; border: 1px solid #c8e5da; border-radius: 16px; }
+.access-card--error { display: grid; justify-items: start; gap: 15px; }
+.access-card--error .access-card__error-icon { color: #b82c42; background: #fff0f2; border-color: #f1cbd2; }
+
+@media (max-width: 560px) {
+  .access-screen { padding: 14px; }
+  .access-card { padding: 25px 21px; border-radius: 18px; }
+  .access-card footer { display: grid; }
+}

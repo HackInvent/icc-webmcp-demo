@@ -1,0 +1,44 @@
+/* SCADA, bus continuity and rolling-stock operational pages. */
+.operational-system-page { max-width: 1800px; }
+.line-tab-strip { display: flex; gap: 7px; margin-bottom: 14px; padding: 6px; overflow-x: auto; background: #fff; border: 1px solid #dce4e1; border-radius: 12px; scrollbar-width: thin; }
+.line-tab-strip button { display: inline-flex; align-items: center; flex: 0 0 auto; min-height: 40px; gap: 7px; padding: 0 11px; color: #53665f; background: #f8faf9; border: 1px solid transparent; border-radius: 8px; font-size: 11px; font-weight: 700; }
+.line-tab-strip button span { display: grid; place-items: center; min-width: 25px; height: 25px; padding-inline: 4px; border: 2px solid currentColor; border-radius: 7px; font-size: 9px; font-weight: 900; }
+.line-tab-strip button.active { color: #173b30; background: #edf6f2; box-shadow: 0 2px 8px rgba(22, 77, 58, .08); }
+.system-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.system-summary-grid article { display: grid; gap: 5px; min-height: 100px; padding: 14px; background: #fff; border: 1px solid #dce4e1; border-radius: 12px; }
+.system-summary-grid small { color: #6d7f78; font-size: 9px; font-weight: 850; letter-spacing: .08em; }
+.system-summary-grid strong { color: #183b30; font-size: 16px; }
+.system-summary-grid span { color: #687a73; font-size: 11px; line-height: 1.4; }
+.tone-online { color: #137357 !important; }.tone-degraded,.tone-recovering { color: #9a5a00 !important; }.tone-offline { color: #ae2e3c !important; }
+.scada-workspace { margin-bottom: 14px; }
+.scada-chain { display: grid; grid-template-columns: minmax(190px, .9fr) 110px minmax(230px, 1fr) 110px minmax(190px, .9fr); align-items: center; gap: 13px; min-height: 390px; padding: 28px; background: linear-gradient(180deg, #f9fbfa, #f2f6f4); }
+.scada-chain__sources { display: grid; gap: 10px; }
+.system-node { position: relative; display: grid; gap: 7px; min-height: 126px; padding: 17px; color: #375148; background: #fff; border: 1px solid #d9e3df; border-radius: 13px; box-shadow: 0 7px 20px rgba(26, 55, 45, .06); }
+.system-node > svg { color: #176f55; }
+.system-node small { color: #648077; font-size: 9px; font-weight: 900; letter-spacing: .1em; }
+.system-node strong { color: #183b30; font-size: 15px; }
+.system-node p { color: #61736c; font-size: 11px; line-height: 1.45; }
+.system-node > span { justify-self: start; padding: 4px 7px; color: #17664e; background: #e7f4ee; border-radius: 999px; font-size: 9px; font-weight: 850; text-transform: uppercase; }
+.system-node--primary { min-height: 190px; align-content: center; border-color: #8fc7b3; box-shadow: 0 10px 30px rgba(20, 125, 98, .12); }
+.system-node--degraded,.system-node--recovering { border-color: #e2ba72; background: #fffaf0; }.system-node--degraded > span,.system-node--recovering > span { color: #875500; background: #fff0cc; }
+.system-node--offline { border-color: #e2a5ad; background: #fff5f6; }.system-node--offline > span { color: #a32636; background: #fce4e7; }
+.system-link { display: grid; justify-items: center; gap: 8px; color: #668078; text-align: center; }
+.system-link span { font-size: 9px; line-height: 1.35; }.system-link svg { color: #177256; }
+.system-link--degraded svg,.system-link--recovering svg { color: #b16a05; }.system-link--offline svg { color: #ba3544; }
+.system-status { padding: 6px 10px; border-radius: 999px; font-size: 10px; font-weight: 900; text-transform: uppercase; }.system-status--online { color:#12664d;background:#e4f4ed }.system-status--degraded,.system-status--recovering { color:#855200;background:#fff0ce }.system-status--offline { color:#a52a39;background:#fbe6e9 }
+.operational-alert { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 15px; padding: 18px; color: #8f2937; background: #fff7f8; }
+.operational-alert > div { display: grid; gap: 5px; }.operational-alert strong { color: #4d252b; font-size: 15px; }.operational-alert p { color: #6d5559; font-size: 12px; line-height: 1.5; }.operational-alert code { font-size: 10px; }
+.operational-empty { display: grid; place-items: center; gap: 7px; min-height: 150px; padding: 24px; color: #587168; text-align: center; }.operational-empty strong { color:#21463a;font-size:14px }.operational-empty span { font-size: 11px; }
+
+@media (max-width: 1200px) { .system-summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }.scada-chain { grid-template-columns: 1fr; min-height:0; }.system-link { transform: rotate(90deg); }.system-link span { display:none; } }
+@media (max-width: 720px) { .system-summary-grid { grid-template-columns: 1fr; }.scada-chain { padding: 14px; }.operational-alert { grid-template-columns: 1fr; }.operational-alert .button { width:100%; } }
+
+.bus-service-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+.bus-service-card > header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:15px 16px; border-bottom:1px solid #e1e8e5; }
+.bus-service-card > header > div { display:grid; gap:4px; }.bus-service-card > header small { color:#6c7f77;font-size:9px;font-weight:850;letter-spacing:.06em }.bus-service-card > header strong { color:#193c30;font-size:15px }
+.bus-service-route { display:grid; grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr); align-items:center; gap:12px; min-height:150px; padding:20px; background:linear-gradient(180deg,#f9fbfa,#f2f6f4); }
+.bus-service-route > div:not(.bus-service-route__leg) { display:grid; justify-items:center; gap:5px; text-align:center; }.bus-service-route i { width:18px;height:18px;border:4px solid #fff;border-radius:50%;box-shadow:0 0 0 2px #8da59c }.bus-service-route strong { color:#203f35;font-size:13px }.bus-service-route small { color:#73847e;font-size:10px }
+.bus-service-route__leg { display:grid; justify-items:center; gap:4px; color:#177155 }.bus-service-route__leg span { font-size:9px;font-weight:850 }.bus-service-route__leg b { color:#71847d;font-size:23px }
+.bus-service-facts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; margin:0; background:#e3eae7; border-block:1px solid #e3eae7; }.bus-service-facts > div { display:grid; gap:3px; padding:11px; background:#fff }.bus-service-facts dt { color:#74857f;font-size:8.5px;font-weight:800;text-transform:uppercase }.bus-service-facts dd { margin:0;color:#2b4a3f;font-size:11px;font-weight:750 }
+.bus-service-card > footer { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 15px; }.bus-service-card > footer > span { display:inline-flex;align-items:center;gap:6px;color:#62766e;font-size:10px }.bus-proposals { margin-top:14px }.planning-disclaimer { margin-top:12px;color:#687a73;font-size:11px;line-height:1.5 }
+@media (max-width:1050px){.bus-service-grid{grid-template-columns:1fr}}@media(max-width:620px){.bus-service-route{grid-template-columns:1fr}.bus-service-facts{grid-template-columns:repeat(2,1fr)}.bus-service-card>footer{align-items:stretch;flex-direction:column}.bus-service-card>footer .button{width:100%}}

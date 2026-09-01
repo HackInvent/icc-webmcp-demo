@@ -1,0 +1,576 @@
+/*
+ * Paris ICC light control-room theme.
+ *
+ * This file is intentionally loaded after styles.css. It centralises the
+ * light visual system without coupling the application shell to the detailed
+ * native-network SVG renderer.
+ */
+
+:root {
+  color-scheme: light;
+  --ink: #17211f;
+  --muted: #5f6f69;
+  --soft: #7d8a86;
+  --surface: #ffffff;
+  --canvas: #f3f5f4;
+  --border: #d9e0dd;
+  --border-strong: #c5cfcb;
+  --night: #ffffff;
+  --night-2: #f7f9f8;
+  --night-3: #edf2f0;
+  --mint: #147d62;
+  --mint-dark: #0f6b53;
+  --blue: #2563eb;
+  --amber: #9a5700;
+  --red: #bf3341;
+  --purple: #6d3fb3;
+  --shadow: 0 12px 30px rgba(24, 46, 39, 0.08);
+  --light-surface-muted: #f7f9f8;
+  --light-surface-raised: #ffffff;
+  --light-border-subtle: #e7ecea;
+  --light-accent-soft: #e9f5f0;
+  --light-danger-soft: #fdecee;
+  --light-warning-soft: #fff4e4;
+  --light-info-soft: #edf4ff;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+.app-main {
+  background:
+    radial-gradient(circle at 92% 3%, rgba(20, 125, 98, 0.055), transparent 24%),
+    linear-gradient(180deg, #f7f9f8 0, var(--canvas) 260px);
+}
+
+.panel {
+  border-color: var(--border);
+  box-shadow: 0 1px 2px rgba(21, 39, 34, 0.035);
+}
+
+.button--primary {
+  color: #ffffff;
+  background: var(--mint);
+  border-color: #0f6b53;
+  box-shadow: 0 7px 16px rgba(20, 125, 98, 0.16);
+}
+
+.button--primary:hover {
+  background: #0f6b53;
+  border-color: #0b5944;
+}
+
+.button--secondary {
+  color: #334a43;
+  background: #ffffff;
+  border-color: var(--border-strong);
+}
+
+.button--secondary:hover {
+  background: #f6f9f7;
+  border-color: #aebdb7;
+}
+
+.page-header__eyebrow,
+.panel__eyebrow {
+  color: #126b53;
+}
+
+.page-header h1 {
+  color: #17211f;
+}
+
+/* Application navigation */
+
+.sidebar,
+.sidebar--collapsed {
+  color: var(--ink);
+  background:
+    linear-gradient(180deg, rgba(20, 125, 98, 0.035), transparent 210px),
+    #ffffff;
+  border-right: 1px solid var(--border);
+  box-shadow: 6px 0 24px rgba(31, 54, 47, 0.035);
+}
+
+.sidebar__brand {
+  border-bottom-color: var(--border);
+}
+
+.brand-mark {
+  color: #ffffff;
+  background: var(--mint);
+  box-shadow: 0 8px 18px rgba(20, 125, 98, 0.18);
+}
+
+.sidebar__brand strong {
+  color: #1d302a;
+}
+
+.sidebar__brand small {
+  color: #71817b;
+}
+
+.sidebar__scope > span,
+.sidebar__eyebrow {
+  color: #73817c;
+}
+
+.scope-selector {
+  color: #2f4941;
+  background: #f7f9f8;
+  border-color: var(--border);
+}
+
+.scope-selector__dot,
+.live-dot {
+  background: var(--mint);
+  box-shadow: 0 0 0 4px rgba(20, 125, 98, 0.1);
+}
+
+.sidebar__nav {
+  scrollbar-color: #c4cfca transparent;
+}
+
+.nav-item {
+  color: #52645e;
+}
+
+.nav-item:hover {
+  color: #203a31;
+  background: #f3f7f5;
+}
+
+.nav-item--active {
+  color: #0c5f49;
+  background: var(--light-accent-soft);
+}
+
+.nav-item--active::before {
+  background: var(--mint);
+  box-shadow: none;
+}
+
+.nav-item__icon {
+  color: #62756e;
+  background: #f1f4f3;
+  border: 1px solid transparent;
+}
+
+.nav-item:hover .nav-item__icon {
+  color: #2d5d4d;
+  background: #ffffff;
+  border-color: #dde5e1;
+}
+
+.nav-item--active .nav-item__icon {
+  color: #0e6c52;
+  background: #dff1e9;
+  border-color: #cbe7dc;
+}
+
+.nav-item__copy small {
+  color: #7a8984;
+}
+
+.nav-item--active .nav-item__copy small {
+  color: #52776a;
+}
+
+.nav-item__badge--warning {
+  color: #805000;
+  background: #fff0d8;
+}
+
+.nav-item__badge--danger {
+  color: #a32634;
+  background: #fde7ea;
+}
+
+.sidebar__bottom {
+  border-top-color: var(--border);
+}
+
+.safety-card {
+  color: #345b4d;
+  background: #edf7f3;
+  border-color: #cfe9df;
+}
+
+.safety-card svg {
+  color: #0f6b53;
+}
+
+.safety-card span {
+  color: #668078;
+}
+
+.collapse-button {
+  color: #667771;
+}
+
+.collapse-button:hover {
+  color: #1f4035;
+  background: #f2f6f4;
+}
+
+/* Top command bar */
+
+.topbar {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom-color: var(--border);
+  box-shadow: 0 1px 8px rgba(24, 44, 38, 0.045);
+}
+
+.global-search {
+  color: #6f807a;
+  background: #f6f8f7;
+  border-color: #dce4e0;
+}
+
+.global-search:focus-within {
+  background: #ffffff;
+  border-color: #97b7aa;
+  box-shadow: 0 0 0 3px rgba(20, 125, 98, 0.1);
+}
+
+.source-chip {
+  color: #28483d;
+  background: #f7faf8;
+  border-color: var(--border);
+}
+
+.source-chip:hover {
+  background: #f0f6f3;
+  border-color: #c4d7cf;
+}
+
+.speed-control {
+  background: #f2f5f3;
+  border-color: var(--border);
+}
+
+.speed-control button:hover,
+.speed-control button.active {
+  color: #184d3c;
+  background: #ffffff;
+  box-shadow: 0 2px 7px rgba(22, 45, 37, 0.08);
+}
+
+.operational-clock {
+  border-left-color: var(--border);
+}
+
+/* Legacy operational diagrams that remain outside the native atlas. */
+
+.network-panel,
+.regulation-map,
+.power-board,
+.detail-map {
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 82% -12%, rgba(20, 125, 98, 0.055), transparent 32%),
+    #ffffff;
+  border-color: var(--border);
+  box-shadow: 0 10px 28px rgba(23, 44, 37, 0.065);
+}
+
+.network-panel .panel__header,
+.regulation-map .panel__header,
+.power-board .panel__header,
+.detail-map .panel__header {
+  border-color: var(--border);
+}
+
+.network-panel .panel__header h2,
+.regulation-map .panel__header h2,
+.power-board .panel__header h2,
+.detail-map .panel__header h2 {
+  color: #1b2d27;
+}
+
+.network-panel .panel__eyebrow,
+.regulation-map .panel__eyebrow,
+.power-board .panel__eyebrow,
+.detail-map .panel__eyebrow {
+  color: #126b53;
+}
+
+.line-filter {
+  background: #f3f6f4;
+  border-color: var(--border);
+}
+
+.line-filter button {
+  color: #667873;
+}
+
+.line-filter button:hover {
+  color: #27463b;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.line-filter button.active {
+  color: #173f32;
+  background: #ffffff;
+  box-shadow:
+    inset 0 -2px 0 var(--line-color, var(--mint)),
+    0 1px 3px rgba(28, 50, 43, 0.08);
+}
+
+.network-schematic,
+.power-diagram {
+  background:
+    linear-gradient(rgba(31, 56, 48, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 56, 48, 0.02) 1px, transparent 1px),
+    #fafcfb;
+  background-size: 32px 32px;
+}
+
+.line-caption {
+  fill: #63756f;
+}
+
+.circuit__base {
+  stroke: #d9e2de;
+}
+
+.circuit:hover .circuit__base {
+  stroke: #afc0b9;
+}
+
+.circuit__label {
+  fill: #556c64;
+}
+
+.circuit__label--blocked {
+  fill: #ad2635;
+}
+
+.station line {
+  stroke: #b5c3be;
+}
+
+.station circle {
+  fill: #ffffff;
+  stroke: #667c74;
+}
+
+.station text {
+  fill: #50635d;
+}
+
+.train-marker rect {
+  fill: #ffffff;
+  filter: drop-shadow(0 2px 3px rgba(24, 48, 39, 0.15));
+}
+
+.train-marker text {
+  fill: #172b24;
+}
+
+.schematic-legend {
+  color: #5f716a;
+  background: #fbfcfc;
+  border-top-color: var(--border);
+}
+
+.legend-dot--moving {
+  background: var(--mint);
+  box-shadow: 0 0 0 3px rgba(20, 125, 98, 0.1);
+}
+
+.legend-line--free {
+  background: #9aaba4;
+}
+
+.substation-box {
+  fill: #ffffff;
+  stroke: #c7d2ce;
+}
+
+.power-node:hover .substation-box {
+  stroke: #5f897a;
+}
+
+.power-bus {
+  stroke: #849991;
+}
+
+.power-link {
+  stroke: #b0beb9;
+}
+
+.power-title {
+  fill: #203b31;
+}
+
+.power-subtitle {
+  fill: #677b74;
+}
+
+.power-status {
+  fill: #405b52;
+}
+
+.power-node > circle:first-of-type {
+  fill: #ffffff;
+}
+
+.power-node > rect:not(.substation-box) {
+  fill: #f4f7f5;
+  stroke: #cbd5d1;
+}
+
+.circuit:focus-visible .circuit__base {
+  stroke: #2563eb;
+}
+
+.train-marker:focus-visible rect,
+.power-node:focus-visible .substation-box {
+  stroke: #2563eb;
+}
+
+/* Entity detail hero */
+
+.detail-hero {
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 82% 8%, rgba(20, 125, 98, 0.09), transparent 28%),
+    linear-gradient(135deg, #ffffff, #f3f7f5);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 26px rgba(24, 46, 39, 0.06);
+}
+
+.detail-hero h1 {
+  color: #17211f;
+}
+
+.detail-hero p {
+  color: #61746d;
+}
+
+.detail-hero .page-header__eyebrow {
+  color: #126b53;
+}
+
+/* Generic light surfaces for the native renderer owned by the network module. */
+
+.native-network-panel {
+  color: var(--ink);
+  background: #ffffff;
+  border-color: var(--border);
+  box-shadow: 0 12px 30px rgba(24, 48, 39, 0.075);
+}
+
+.native-map-shell,
+.native-map-toolbar,
+.native-map-sidebar,
+.native-map-inspector,
+.native-map-statusbar {
+  color: var(--ink);
+  background: #ffffff;
+  border-color: var(--border);
+}
+
+.native-map-canvas {
+  background: #f8fafb;
+}
+
+.native-map-chip,
+.native-map-button,
+.native-map-field {
+  color: #354d44;
+  background: #f7f9f8;
+  border-color: var(--border);
+}
+
+.native-map-button:hover,
+.native-map-button[aria-pressed="true"] {
+  color: #0f604a;
+  background: var(--light-accent-soft);
+  border-color: #bddacf;
+}
+
+/* Responsive shell and bottom navigation */
+
+@media (max-width: 900px) {
+}
+
+@media (max-width: 800px) {
+  .sidebar,
+  .sidebar--collapsed {
+    background: rgba(255, 255, 255, 0.97);
+    border-top: 1px solid var(--border);
+    border-right: 0;
+    box-shadow: 0 -8px 28px rgba(23, 43, 37, 0.11);
+  }
+
+  .sidebar__nav {
+    scrollbar-color: #c4cfca transparent;
+  }
+
+  .nav-item,
+  .sidebar--collapsed .nav-item {
+    color: #5c6d67;
+  }
+
+  .nav-item:hover {
+    color: #244338;
+    background: #f3f7f5;
+  }
+
+  .nav-item--active {
+    color: #0c6049;
+    background: #e9f5f0;
+  }
+
+  .nav-item__icon {
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .nav-item--active .nav-item__icon {
+    background: #dff1e9;
+    border-color: transparent;
+  }
+
+  .topbar {
+    background: rgba(255, 255, 255, 0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+}
+
+
+/* Destructive workspace control: deliberately distinct from clock-rate controls. */
+.speed-control button.speed-control__reset {
+  display: flex;
+  min-width: auto;
+  padding: 0 9px;
+  color: #ffffff;
+  background: #c93645;
+  border: 1px solid #b72c3b;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.03em;
+}
+
+.speed-control button.speed-control__reset:hover,
+.speed-control button.speed-control__reset:focus-visible,
+.speed-control button.speed-control__reset:active {
+  color: #ffffff;
+  background: #ad2635;
+  border-color: #98212f;
+  box-shadow: 0 2px 8px rgba(173, 38, 53, 0.24);
+}
+
+@media (max-width: 720px) {
+  .speed-control button.speed-control__reset {
+    padding-inline: 7px;
+    font-size: 7px;
+  }
+}

@@ -1,0 +1,853 @@
+{
+  "schema": "paris-icc-rail-interdependence-graph-validation-v2",
+  "generatedAt": "2026-09-01T20:37:09.910Z",
+  "verdict": "pass",
+  "subject": {
+    "graph": {
+      "file": "artifacts/rail-interdependence-graph.json",
+      "bytes": 1153420,
+      "sha256": "e98a0ee56d241f79ffadc1f7bbf06d8fcc6b2249fd498ead613712215f9774f4"
+    },
+    "topology": {
+      "file": "artifacts/paris-metro-rer-topology.json",
+      "bytes": 219923,
+      "sha256": "ea3e7f272ea6c42941a9bc19bc0123fb6b16474a9710244e9835f3a902954cee"
+    },
+    "stationConnections": {
+      "file": "artifacts/rail-station-connections.json",
+      "bytes": 42653,
+      "sha256": "47088fe076ce45915fb45e7b7a2a8b9545433c551610a4cacc7e5533d8be1265"
+    },
+    "nativeManifest": {
+      "file": "artifacts/ratp-network-native.json",
+      "bytes": 2674817,
+      "sha256": "e56d38df7e23c9e3f583f81bc50c9fb945e17aa8496a64b630a0258f3c3e5f82"
+    },
+    "nativeSvg": {
+      "file": "artifacts/ratp-network-native.svg",
+      "bytes": 2697022,
+      "sha256": "04d67efa8a7d74cb43ee86d5a7445c64e1711c5ce3917e9737ed01ee4d408f7d"
+    }
+  },
+  "summary": {
+    "lines": 21,
+    "physicalStations": 546,
+    "stationLineNodes": 658,
+    "interstations": 640,
+    "interchangeStations": 75,
+    "transfers": 163,
+    "stationConnections": 28,
+    "stationConnectionTraversalLinks": 98,
+    "stationConnectionCategoryCounts": {
+      "interchange-complex": 8,
+      "public-way-authorized": 16,
+      "mapped-walking-link": 4
+    },
+    "gtfsCrossStationPairsAudited": 184,
+    "gtfsCrossStationPairsSelected": 25,
+    "officialDocumentaryPairsSelected": 3,
+    "stationConnectionsSelected": 28,
+    "gtfsCrossStationPairsExcluded": 159,
+    "directedTraversalArcs": 1802,
+    "connectedComponents": 1,
+    "projectedStations": 390,
+    "projectedGraphInterstations": 546,
+    "projectedSvgInterstationObjects": 467,
+    "graphInterstationsOutsideRenderedPlan": 94
+  },
+  "checks": {
+    "schemas": true,
+    "sourceHashes": true,
+    "embeddedTopologyEqualsStandalone": true,
+    "declaredCountsMatchCollections": true,
+    "sourceCountsMatchGraph": true,
+    "uniqueLineIds": true,
+    "uniqueStationIds": true,
+    "uniqueLineNodeIds": true,
+    "uniqueInterstationIds": true,
+    "uniqueTransferIds": true,
+    "uniqueStationConnectionIds": true,
+    "stationBijection": true,
+    "lineNodeBijection": true,
+    "interstationBijection": true,
+    "transferBijection": true,
+    "stationConnectionBijection": true,
+    "stationConnectionCategoryCounts": true,
+    "stationConnectionSourceAudited": true,
+    "officialDocumentaryConnectionSetExact": true,
+    "lineGraphsConnected": true,
+    "globalGraphConnected": true,
+    "directedArcCount": true,
+    "svgIdsUnique": true,
+    "renderedStationsCovered": true,
+    "renderedInterstationsCovered": true,
+    "sourceProjectionExact": true,
+    "projectionCounts": true
+  },
+  "inventory": {
+    "lines": [
+      {
+        "lineCode": "M1",
+        "stationLineNodeCount": 25,
+        "interstationCount": 24,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M2",
+        "stationLineNodeCount": 25,
+        "interstationCount": 24,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M3",
+        "stationLineNodeCount": 25,
+        "interstationCount": 24,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M3BIS",
+        "stationLineNodeCount": 4,
+        "interstationCount": 3,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M4",
+        "stationLineNodeCount": 29,
+        "interstationCount": 28,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M5",
+        "stationLineNodeCount": 22,
+        "interstationCount": 21,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M6",
+        "stationLineNodeCount": 28,
+        "interstationCount": 27,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M7",
+        "stationLineNodeCount": 38,
+        "interstationCount": 37,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M7BIS",
+        "stationLineNodeCount": 8,
+        "interstationCount": 8,
+        "connectedComponentCount": 1,
+        "cycleRank": 1,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M8",
+        "stationLineNodeCount": 38,
+        "interstationCount": 37,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M9",
+        "stationLineNodeCount": 37,
+        "interstationCount": 36,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M10",
+        "stationLineNodeCount": 23,
+        "interstationCount": 24,
+        "connectedComponentCount": 1,
+        "cycleRank": 2,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M11",
+        "stationLineNodeCount": 19,
+        "interstationCount": 18,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M12",
+        "stationLineNodeCount": 31,
+        "interstationCount": 30,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M13",
+        "stationLineNodeCount": 32,
+        "interstationCount": 31,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "M14",
+        "stationLineNodeCount": 21,
+        "interstationCount": 20,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "RER_A",
+        "stationLineNodeCount": 46,
+        "interstationCount": 45,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "RER_B",
+        "stationLineNodeCount": 47,
+        "interstationCount": 46,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "RER_C",
+        "stationLineNodeCount": 75,
+        "interstationCount": 74,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "RER_D",
+        "stationLineNodeCount": 59,
+        "interstationCount": 58,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      },
+      {
+        "lineCode": "RER_E",
+        "stationLineNodeCount": 26,
+        "interstationCount": 25,
+        "connectedComponentCount": 1,
+        "cycleRank": 0,
+        "verdict": "pass"
+      }
+    ],
+    "stationConnections": [
+      {
+        "id": "station-connection:473829--73844",
+        "category": "mapped-walking-link",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:473829",
+        "toStationId": "IDFM:73844",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 1,
+        "estimatedTransferSeconds": 415,
+        "gtfsTransferRowCount": 12,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:474149--71359",
+        "category": "public-way-authorized",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:474149",
+        "toStationId": "IDFM:71359",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 3,
+        "traversalLinkCount": 3,
+        "estimatedTransferSeconds": 445,
+        "gtfsTransferRowCount": 8,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 4,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:474150--71229",
+        "category": "mapped-walking-link",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:474150",
+        "toStationId": "IDFM:71229",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 1,
+        "estimatedTransferSeconds": 430,
+        "gtfsTransferRowCount": 32,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:474151--71264",
+        "category": "interchange-complex",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:474151",
+        "toStationId": "IDFM:71264",
+        "fromLineNodeCount": 3,
+        "toLineNodeCount": 5,
+        "traversalLinkCount": 15,
+        "estimatedTransferSeconds": 420,
+        "gtfsTransferRowCount": 20,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 11,
+        "referenceKeys": [
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 4,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:474151--73794",
+        "category": "public-way-authorized",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:474151",
+        "toStationId": "IDFM:73794",
+        "fromLineNodeCount": 3,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 3,
+        "estimatedTransferSeconds": 300,
+        "gtfsTransferRowCount": 4,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:474152--71321",
+        "category": "public-way-authorized",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:474152",
+        "toStationId": "IDFM:71321",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 1,
+        "estimatedTransferSeconds": 360,
+        "gtfsTransferRowCount": 12,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 4,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:478733--71359",
+        "category": "public-way-authorized",
+        "selectionBasis": "official-documentary",
+        "fromStationId": "IDFM:478733",
+        "toStationId": "IDFM:71359",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 3,
+        "traversalLinkCount": 3,
+        "estimatedTransferSeconds": 545,
+        "gtfsTransferRowCount": 0,
+        "documentaryDistanceMeters": 510,
+        "gtfsReciprocalDirectionCount": 0,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "idfmPublicWayDecision"
+        ],
+        "svgEndpointObjectCount": 4,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:478733--71363",
+        "category": "public-way-authorized",
+        "selectionBasis": "official-documentary",
+        "fromStationId": "IDFM:478733",
+        "toStationId": "IDFM:71363",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 1,
+        "estimatedTransferSeconds": 825,
+        "gtfsTransferRowCount": 0,
+        "documentaryDistanceMeters": 844,
+        "gtfsReciprocalDirectionCount": 0,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "idfmPublicWayDecision"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:478733--71410",
+        "category": "interchange-complex",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:478733",
+        "toStationId": "IDFM:71410",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 4,
+        "traversalLinkCount": 4,
+        "estimatedTransferSeconds": 350,
+        "gtfsTransferRowCount": 38,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 5,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:478926--482368",
+        "category": "interchange-complex",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:478926",
+        "toStationId": "IDFM:482368",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 2,
+        "traversalLinkCount": 2,
+        "estimatedTransferSeconds": 390,
+        "gtfsTransferRowCount": 82,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:478926--71337",
+        "category": "interchange-complex",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:478926",
+        "toStationId": "IDFM:71337",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 3,
+        "traversalLinkCount": 3,
+        "estimatedTransferSeconds": 405,
+        "gtfsTransferRowCount": 104,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:478926--71370",
+        "category": "public-way-authorized",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:478926",
+        "toStationId": "IDFM:71370",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 4,
+        "traversalLinkCount": 4,
+        "estimatedTransferSeconds": 450,
+        "gtfsTransferRowCount": 2,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 6,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:478926--73688",
+        "category": "public-way-authorized",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:478926",
+        "toStationId": "IDFM:73688",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 1,
+        "estimatedTransferSeconds": 400,
+        "gtfsTransferRowCount": 4,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:482368--71337",
+        "category": "interchange-complex",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:482368",
+        "toStationId": "IDFM:71337",
+        "fromLineNodeCount": 2,
+        "toLineNodeCount": 3,
+        "traversalLinkCount": 6,
+        "estimatedTransferSeconds": 455,
+        "gtfsTransferRowCount": 22,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:482368--71370",
+        "category": "interchange-complex",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:482368",
+        "toStationId": "IDFM:71370",
+        "fromLineNodeCount": 2,
+        "toLineNodeCount": 4,
+        "traversalLinkCount": 8,
+        "estimatedTransferSeconds": 445,
+        "gtfsTransferRowCount": 328,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 6,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:482368--73688",
+        "category": "public-way-authorized",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:482368",
+        "toStationId": "IDFM:73688",
+        "fromLineNodeCount": 2,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 2,
+        "estimatedTransferSeconds": 385,
+        "gtfsTransferRowCount": 22,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:488087--70945",
+        "category": "public-way-authorized",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:488087",
+        "toStationId": "IDFM:70945",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 1,
+        "estimatedTransferSeconds": 430,
+        "gtfsTransferRowCount": 4,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 1,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:490784--72206",
+        "category": "public-way-authorized",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:490784",
+        "toStationId": "IDFM:72206",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 1,
+        "estimatedTransferSeconds": 660,
+        "gtfsTransferRowCount": 12,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:492980--71290",
+        "category": "public-way-authorized",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:492980",
+        "toStationId": "IDFM:71290",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 1,
+        "estimatedTransferSeconds": 440,
+        "gtfsTransferRowCount": 4,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:71269--71270",
+        "category": "public-way-authorized",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:71269",
+        "toStationId": "IDFM:71270",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 1,
+        "estimatedTransferSeconds": 460,
+        "gtfsTransferRowCount": 26,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:71286--71292",
+        "category": "mapped-walking-link",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:71286",
+        "toStationId": "IDFM:71292",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 1,
+        "estimatedTransferSeconds": 470,
+        "gtfsTransferRowCount": 6,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:71359--71410",
+        "category": "public-way-authorized",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:71359",
+        "toStationId": "IDFM:71410",
+        "fromLineNodeCount": 3,
+        "toLineNodeCount": 4,
+        "traversalLinkCount": 12,
+        "estimatedTransferSeconds": 460,
+        "gtfsTransferRowCount": 4,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 7,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:71363--71410",
+        "category": "public-way-authorized",
+        "selectionBasis": "official-documentary",
+        "fromStationId": "IDFM:71363",
+        "toStationId": "IDFM:71410",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 4,
+        "traversalLinkCount": 4,
+        "estimatedTransferSeconds": 700,
+        "gtfsTransferRowCount": 0,
+        "documentaryDistanceMeters": 698,
+        "gtfsReciprocalDirectionCount": 0,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "idfmPublicWayDecision"
+        ],
+        "svgEndpointObjectCount": 5,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:71370--73688",
+        "category": "public-way-authorized",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:71370",
+        "toStationId": "IDFM:73688",
+        "fromLineNodeCount": 4,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 4,
+        "estimatedTransferSeconds": 420,
+        "gtfsTransferRowCount": 44,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 4,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 6,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:71370--73690",
+        "category": "public-way-authorized",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:71370",
+        "toStationId": "IDFM:73690",
+        "fromLineNodeCount": 4,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 4,
+        "estimatedTransferSeconds": 470,
+        "gtfsTransferRowCount": 160,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "idfmPublicWay",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 6,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:71410--71434",
+        "category": "interchange-complex",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:71410",
+        "toStationId": "IDFM:71434",
+        "fromLineNodeCount": 4,
+        "toLineNodeCount": 1,
+        "traversalLinkCount": 4,
+        "estimatedTransferSeconds": 540,
+        "gtfsTransferRowCount": 22,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 5,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:71637--73626",
+        "category": "mapped-walking-link",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:71637",
+        "toStationId": "IDFM:73626",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 4,
+        "traversalLinkCount": 4,
+        "estimatedTransferSeconds": 395,
+        "gtfsTransferRowCount": 32,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 3,
+        "verdict": "pass"
+      },
+      {
+        "id": "station-connection:73619--73620",
+        "category": "interchange-complex",
+        "selectionBasis": "reciprocal-gtfs",
+        "fromStationId": "IDFM:73619",
+        "toStationId": "IDFM:73620",
+        "fromLineNodeCount": 1,
+        "toLineNodeCount": 3,
+        "traversalLinkCount": 3,
+        "estimatedTransferSeconds": 420,
+        "gtfsTransferRowCount": 48,
+        "documentaryDistanceMeters": null,
+        "gtfsReciprocalDirectionCount": 2,
+        "gtfsPathwayRowCount": 0,
+        "referenceKeys": [
+          "ratpCluny",
+          "ratpNetworkPlan"
+        ],
+        "svgEndpointObjectCount": 2,
+        "verdict": "pass"
+      }
+    ],
+    "topologyCycleRank": 3,
+    "maximumStationLineMultiplicity": 5,
+    "maximumTraversalDegree": 12
+  },
+  "exceptions": {
+    "stationFailures": [],
+    "lineNodeFailures": [],
+    "interstationFailures": [],
+    "transferFailures": [],
+    "stationConnectionFailures": [],
+    "projectionFailures": [],
+    "missingRenderedStationIds": [],
+    "missingRenderedInterstationIds": [],
+    "missingProjectedSourceInterstationIds": [],
+    "unexpectedProjectedSourceInterstationIds": []
+  }
+}

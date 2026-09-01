@@ -1,0 +1,13 @@
+serviceId,circulationId,trainId,lineId,origin,destination,departureMinutes,arrivalMinutes,track,driverToken,status
+SVC-RB-101,ERIO42,MI79-101,RER_B,Massy–Palaiseau,Aéroport Charles de Gaulle 2 TGV,330,408,B1,ADC-RB-041,scheduled
+SVC-RB-205,ILOT44,MI79-205,RER_B,Robinson,Mitry - Claye,338,410,B2,ADC-RB-017,scheduled
+SVC-RB-312,KALI06,MI84-312,RER_B,Aéroport Charles de Gaulle 2 TGV,Massy–Palaiseau,370,448,B4,ADC-RB-063,scheduled
+SVC-RA-042,QYAN42,MI09-042,RER_A,Cergy-le-Haut,Marne-la-Vallée–Chessy,332,405,A1,ADC-RA-038,scheduled
+SVC-RA-117,NELY44,MI09-117,RER_A,Saint-Germain-en-Laye,Boissy-Saint-Léger,350,410,A2,ADC-RA-052,scheduled
+SVC-RA-157,UPAC43,MI2N-157,RER_A,Marne-la-Vallée–Chessy,Cergy-le-Haut,342,426,A4,ADC-RA-011,scheduled
+SVC-M13-037,13-FOUR-037,MF77-037,M13,Châtillon–Montrouge,Saint-Denis–Université,336,373,13A,ADC-M13-024,scheduled
+SVC-M13-082,13-ASNI-082,MF77-082,M13,Châtillon–Montrouge,Les Courtilles,344,381,13B,ADC-M13-008,scheduled
+SVC-M13-116,13-CHAT-116,MF77-116,M13,Saint-Denis–Université,Châtillon–Montrouge,380,417,13R,ADC-M13-055,scheduled
+SVC-M14-014,14-PLYL-014,MP14-014,M14,Aéroport d'Orly,Saint-Denis–Pleyel,334,376,14A,,scheduled
+SVC-M14-028,14-ORLY-028,MP14-028,M14,Saint-Denis–Pleyel,Aéroport d'Orly,340,382,14B,,scheduled
+SVC-M14-041,14-CHAT-041,MP14-041,M14,Aéroport d'Orly,Saint-Denis–Pleyel,346,388,14R,,scheduled

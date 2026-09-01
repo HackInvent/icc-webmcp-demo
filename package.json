@@ -1,0 +1,46 @@
+{
+  "name": "paris-icc-webmcp",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Federated multimodal railway operations cockpit for Paris",
+  "license": "MIT",
+  "author": "Alexandre EL <contact@hackinvent.com>",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "configure:server": "node scripts/configure_server.mjs",
+    "serve": "node --import tsx server/index.mjs --config config/server.local.json",
+    "build": "tsc -b && vite build",
+    "build:rail-connections": "node scripts/build_rail_station_connections.mjs",
+    "build:rail-graph": "node scripts/build_rail_interdependence_graph.mjs",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:ratp-native": "node scripts/validate_native_ratp_svg.mjs",
+    "test:rail-graph": "node scripts/validate_rail_interdependence_graph.mjs",
+    "test:native-ui": "python3 scripts/validate_native_network_ui.py",
+    "test:webmcp": "python3 scripts/validate_webmcp.py",
+    "smoke:deployment": "python3 scripts/smoke_deployment_ui.py",
+    "smoke:prim": "node scripts/smoke_prim.mjs",
+    "check": "tsc -b --pretty false",
+    "check:rail-graph": "node scripts/build_rail_interdependence_graph.mjs --check",
+    "check:server": "node --check server/index.mjs && node --check server/app.mjs && node --check server/agent-runtime-store.mjs && node --check server/bounded-sse-writer.mjs && node --check server/exclusive-file-lock.mjs && node --check server/operations-repository.mjs && node --check server/agent.mjs && node --check server/config.mjs && node --check server/security.mjs && node --check scripts/configure_server.mjs && node --import tsx -e \"import('./server/operations-service.ts')\""
+  },
+  "dependencies": {
+    "@noble/hashes": "1.8.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "sql.js": "^1.13.0",
+    "tsx": "^4.20.5"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "@vitejs/plugin-react": "4.7.0",
+    "typescript": "5.7.3",
+    "vite": "6.4.3",
+    "vitest": "3.2.7"
+  }
+}

@@ -1,0 +1,400 @@
+/* Readability and workspace-density pass. Loaded last on purpose. */
+:root {
+  --icc-body-text: 14px;
+  --icc-small-text: 11px;
+  --icc-label-text: 10px;
+}
+
+body { font-size: var(--icc-body-text); }
+.app-shell { grid-template-columns: 246px minmax(0, 1fr); }
+.app-shell--collapsed { grid-template-columns: 72px minmax(0, 1fr); }
+.sidebar__brand { height: 60px; padding-inline: 14px; }
+.sidebar__brand > div:last-child { min-width: 0; white-space: normal; }
+.sidebar__brand strong { font-size: 12.5px; line-height: 1.18; }
+.sidebar__brand small { font-size: 9px; line-height: 1.2; }
+.sidebar__scope { padding: 12px 10px 7px; }
+.sidebar__scope > span, .sidebar__eyebrow { font-size: 9.5px; }
+.scope-selector { height: 36px; font-size: 13px; }
+.sidebar__nav { gap: 3px; padding: 8px; }
+.nav-item { min-height: 50px; gap: 9px; padding: 6px 8px; }
+.nav-item__icon { flex: 0 0 auto; }
+.nav-item__copy strong { font-size: 12px; line-height: 1.25; }
+.nav-item__copy small { font-size: 9.5px; line-height: 1.25; }
+.safety-card strong { font-size: 11px; }
+.safety-card span, .collapse-button { font-size: 10px; }
+
+.topbar { height: 60px; gap: 12px; padding: 0 18px; }
+.app-main { min-height: calc(100vh - 60px); }
+.global-search { width: min(430px, 31vw); height: 38px; }
+.global-search input { font-size: 13px; }
+.topbar__controls { gap: 6px; }
+.simview-link, .source-chip, .speed-control { height: 34px; }
+.simview-link { padding-inline: 9px; font-size: 10.5px; }
+.source-chip { max-width: 210px; gap: 6px; padding-inline: 9px; font-size: 10px; }
+.source-chip .status-pill { max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.speed-control button { height: 26px; min-width: 27px; font-size: 10px; }
+.operational-clock strong { font-size: 13px; }
+.operational-clock small { font-size: 9px; }
+
+.page { padding: 24px 28px 40px; }
+.page-header { margin-bottom: 20px; }
+.page-header__eyebrow, .panel__eyebrow { font-size: 10px; }
+.page-header p { font-size: 14px; line-height: 1.55; }
+.button { min-height: 40px; font-size: 12px; }
+.panel__header h2 { font-size: 16px; }
+.panel__header .panel__eyebrow { font-size: 9.5px; }
+.data-table { font-size: 11.5px; }
+.data-table th { font-size: 10px; }
+.data-table td { padding-block: 12px; }
+.cell-main strong, .data-table td > strong { font-size: 12px; }
+.cell-main small, .cell-sub { font-size: 10px; }
+.inline-link { font-size: 11px; }
+
+/* The network map owns the overview viewport; controls and evidence live at its edges. */
+.page--overview-map { height: calc(100dvh - 60px); padding: 8px; }
+.page--overview-map .native-network-panel__header { min-height: 54px; padding: 8px 14px; }
+.native-network-panel__header { align-items: center; }
+.native-network-panel__header > div:first-child { gap: 2px; }
+.native-network-panel__header h2 { font-size: 17px; }
+.native-network-panel__header .panel__eyebrow { margin-bottom: 2px; font-size: 9px; }
+.native-network-panel__disclaimer { font-size: 10px; }
+.native-map__scope button { min-height: 34px; padding-inline: 10px; font-size: 10.5px; }
+.page--overview-map .native-map__toolbar { padding: 7px 12px; }
+.native-map__search label { font-size: 9.5px; }
+.native-map__search input, .native-map__search button, .native-map__toolbar-actions button { height: 34px; min-height: 34px; font-size: 11px; }
+.native-map__workspace { grid-template-columns: 164px minmax(0, 1fr) 282px; }
+.native-map__lines { padding: 8px 6px; }
+.native-map__lines > button { min-height: 45px; }
+.native-map__lines strong { font-size: 11.5px; }
+.native-map__lines small { font-size: 9px; }
+.native-map__level { font-size: 9.5px; }
+.native-network__footer { display: none; }
+.native-map__inspector { overflow: hidden; }
+.native-map__kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 9px;
+  background: #f4f7f5;
+  border-bottom: 1px solid #dfe5e3;
+}
+.native-map__kpis > div { display: grid; gap: 2px; padding: 7px 8px; background: #fff; border: 1px solid #dce5e1; border-radius: 8px; }
+.native-map__kpis small { color: #6b7d76; font-size: 8.5px; font-weight: 850; letter-spacing: .06em; }
+.native-map__kpis strong { color: #173d30; font-size: 15px; }
+.native-map__inspector > header { padding: 12px; }
+.native-map__inspector > header small { font-size: 9px; }
+.native-map__inspector > header strong { font-size: 14px; }
+.native-map__inspector > header span { font-size: 10.5px; }
+.native-map__inspector-body { gap: 10px; padding: 10px; }
+.native-map__facts dt { font-size: 8.5px; }
+.native-map__facts dd { font-size: 10.5px; }
+.native-map__impact-list > span, .native-map__agent p, .native-map__agent code { font-size: 10px; }
+.native-map__agent small { font-size: 9px; }
+.native-map__empty strong { font-size: 13px; }
+.native-map__empty p { font-size: 11px; }
+
+/* Logs and report must remain readable when projected on a shared screen. */
+.operations-log-summary small, .shift-report__meta small { font-size: 9.5px; }
+.operations-log-summary strong, .shift-report__meta strong { font-size: 13px; }
+.operations-log-summary span { font-size: 10px; }
+.operations-log__toolbar small { font-size: 9.5px; }
+.operations-log__toolbar h2 { font-size: 16px; }
+.operations-log__search input { font-size: 11.5px; }
+.operations-log__filters button { min-height: 32px; font-size: 10.5px; }
+.operations-log__table th { padding: 11px 12px; font-size: 9.5px; }
+.operations-log__table td { padding: 13px 12px; font-size: 11px; }
+.operations-log__table td > strong { font-size: 12px; }
+.operations-log__table td > small, .operations-log__table code { font-size: 9.5px; }
+.operations-log__actor { font-size: 9px; }
+.shift-report__agent-status { font-size: 11px; }
+.shift-report-toolbar { top: 59px; }
+.shift-report-toolbar button { font-size: 11px; }
+.shift-report-toolbar > small { font-size: 9.5px; }
+.shift-report-document { font-size: 13px; }
+.shift-report-document h3 { font-size: 15px; }
+.shift-report-document ol { display: grid; gap: 6px; padding-left: 24px; }
+
+@media (max-width: 1280px) {
+  .native-map__workspace { grid-template-columns: 142px minmax(0, 1fr) 250px; }
+  .source-chip .status-pill { display: none; }
+  .operational-clock small { display: none; }
+}
+
+@media (max-width: 980px) {
+  .topbar { padding-inline: 10px; }
+  .global-search { width: min(300px, 32vw); }
+  .source-chip > span:not(.live-dot):not(.status-pill) { display: none; }
+}
+
+/*
+ * Projected-operations typography.
+ * These overrides intentionally stay in the final stylesheet so the native
+ * page styles can keep their compact defaults without becoming illegible in
+ * a 1080p presentation or on a 1280 x 900 operator laptop.
+ */
+:root {
+  --icc-body-text: 14px;
+  --icc-small-text: 12px;
+  --icc-label-text: 10.5px;
+}
+
+body {
+  line-height: 1.45;
+}
+
+/* Compact application chrome, with readable navigation labels. */
+.app-shell { grid-template-columns: 232px minmax(0, 1fr); }
+.app-shell--collapsed { grid-template-columns: 64px minmax(0, 1fr); }
+.sidebar__brand { height: 56px; padding-inline: 12px; }
+.sidebar__brand strong { font-size: 13px; line-height: 1.15; }
+.sidebar__brand small { font-size: 9.5px; }
+.brand-mark { flex-basis: 35px; width: 35px; height: 35px; border-radius: 10px 10px 10px 3px; }
+.sidebar__scope { padding: 9px 8px 5px; }
+.sidebar__scope > span,
+.sidebar__eyebrow { margin-bottom: 6px; font-size: 9.5px; }
+.scope-selector { height: 34px; font-size: 12.5px; }
+.sidebar__nav { gap: 2px; padding: 6px; scrollbar-width: thin; }
+.nav-item { min-height: 46px; gap: 8px; padding: 5px 7px; border-radius: 9px; }
+.nav-item__icon { flex-basis: 32px; width: 32px; height: 32px; }
+.nav-item__copy { gap: 2px; }
+.nav-item__copy strong { font-size: 12.5px; }
+.nav-item__copy small { font-size: 10px; line-height: 1.2; }
+.nav-item__badge { font-size: 10px; }
+.sidebar__bottom { gap: 5px; padding: 7px 8px 8px; }
+.safety-card { gap: 7px; padding: 8px; }
+.safety-card strong { font-size: 11px; }
+.safety-card span,
+.collapse-button { font-size: 10px; }
+.collapse-button { height: 30px; }
+
+.topbar { height: 56px; gap: 10px; padding-inline: 14px; }
+.app-main { min-height: calc(100vh - 56px); }
+.global-search { flex: 1 1 290px; width: auto; min-width: 180px; max-width: 460px; height: 36px; }
+.global-search input { font-size: 12.5px; }
+.global-search kbd { font-size: 9.5px; }
+.topbar__controls { min-width: 0; gap: 5px; }
+.simview-link,
+.source-chip,
+.speed-control { height: 32px; }
+.simview-link { min-height: 32px; font-size: 10.5px; }
+.source-chip { max-width: 190px; font-size: 10px; }
+.speed-control button { height: 24px; min-width: 25px; }
+.operational-clock { gap: 6px; padding-left: 8px; }
+.operational-clock strong { font-size: 12.5px; }
+.operational-clock small { font-size: 9px; }
+
+.page { padding: 20px 24px 36px; }
+.page-header { margin-bottom: 16px; }
+.page-header h1 { line-height: 1.12; }
+.page-header__eyebrow,
+.panel__eyebrow { font-size: 10.5px; }
+.page-header p { font-size: 13.5px; line-height: 1.5; }
+.panel__header h2 { font-size: 17px; }
+.button { font-size: 12.5px; }
+
+/* SCADA and bus continuity pages. */
+.line-tab-strip { gap: 6px; margin-bottom: 12px; }
+.line-tab-strip button { min-height: 38px; font-size: 12px; }
+.line-tab-strip button span { min-width: 27px; height: 27px; font-size: 10.5px; }
+.system-summary-grid { gap: 9px; margin-bottom: 12px; }
+.system-summary-grid article { min-height: 94px; padding: 13px; }
+.system-summary-grid small { font-size: 10.5px; }
+.system-summary-grid strong { font-size: 17px; line-height: 1.25; }
+.system-summary-grid span { font-size: 12px; line-height: 1.4; }
+.scada-chain { gap: 11px; padding: 22px; }
+.scada-chain__sources { gap: 8px; }
+.system-node { gap: 6px; min-height: 122px; padding: 15px; }
+.system-node small { font-size: 10.5px; }
+.system-node strong { font-size: 16px; line-height: 1.3; }
+.system-node p { font-size: 12.5px; line-height: 1.45; }
+.system-node > span { font-size: 10.5px; }
+.system-link span { font-size: 11.5px; }
+.system-status { font-size: 10.5px; }
+.operational-alert { gap: 13px; padding: 16px; }
+.operational-alert strong { font-size: 15.5px; }
+.operational-alert p { font-size: 12.5px; }
+.operational-alert code { font-size: 11px; }
+.operational-empty strong { font-size: 15px; }
+.operational-empty span { max-width: 680px; font-size: 12.5px; }
+
+.bus-service-card > header small { font-size: 10.5px; }
+.bus-service-card > header strong { font-size: 15.5px; }
+.bus-service-route { min-height: 142px; padding: 18px; }
+.bus-service-route strong { font-size: 13.5px; }
+.bus-service-route small { font-size: 11px; }
+.bus-service-route__leg span { font-size: 10.5px; }
+.bus-service-facts dt { font-size: 10px; }
+.bus-service-facts dd { font-size: 12px; }
+.bus-service-card > footer > span { font-size: 11.5px; line-height: 1.4; }
+.planning-disclaimer { font-size: 12px; }
+
+/* Rolling-stock source cards and their explicitly qualified estimate. */
+.rs-classification { font-size: 11.5px; }
+.rs-line-tabs button { min-height: 38px; font-size: 12px; }
+.rs-hero p,
+.native-regulation__section-header p { font-size: 12.5px; }
+.rs-hero__facts dt,
+.rs-family-card dt,
+.native-regulation__evidence dt { font-size: 10.5px; }
+.rs-hero__facts dd,
+.rs-family-card dd,
+.native-regulation__evidence dd { font-size: 12.5px; }
+.rs-section-header a,
+.rs-family-card a,
+.rs-method a,
+.native-regulation__estimate-section a { font-size: 11.5px; }
+.rs-family-card__top { font-size: 10.5px; }
+.rs-family-card > p,
+.rs-estimate-panel__intro { font-size: 12.5px; }
+.rs-family-card > small { font-size: 11px; }
+.rs-estimate-badge { font-size: 10.5px; }
+.rs-load-control span { font-size: 12px; }
+.rs-estimate-output span { font-size: 10.5px; }
+.rs-method h3 { font-size: 13.5px; }
+.rs-method ul { font-size: 11.5px; }
+
+/* One-line-at-a-time regulation: readable labels, deliberate horizontal pan. */
+.native-regulation__clock span,
+.native-regulation__clock small { font-size: 10px; }
+.native-regulation__line-tabs button { min-height: 38px; font-size: 12px; }
+.native-regulation__kpis span,
+.native-regulation__kpis small { font-size: 10.5px; line-height: 1.35; }
+.native-regulation__kpis span b { font-size: 9px; }
+.native-regulation__legend { font-size: 11px; }
+.native-regulation__synoptic-scroll { overscroll-behavior-x: contain; }
+.native-regulation__cell--station { width: 150px; }
+.native-regulation__cell--interstation { width: 182px; }
+.native-regulation__cell-label strong { font-size: 12px; }
+.native-regulation__cell-label small { max-height: 32px; font-size: 10.5px; }
+.native-regulation__cell--interstation .native-regulation__cell-label strong { font-size: 10.5px; }
+.native-regulation__train { padding: 6px 7px; font-size: 10.5px; }
+.native-regulation__train em { font-size: 10px; }
+.native-regulation__queue-rank { font-size: 11px; }
+.native-regulation__queue-list article div > span { font-size: 10.5px; }
+.native-regulation__queue-list h3 { font-size: 14px; }
+.native-regulation__queue-list p { font-size: 12.5px; line-height: 1.45; }
+.native-regulation__queue-list small { font-size: 11.5px; line-height: 1.4; }
+.native-regulation__empty strong { font-size: 13.5px; }
+.native-regulation__empty span { font-size: 12px; }
+.native-regulation__evidence h3 { font-size: 12.5px; }
+.native-regulation__estimate-section p { font-size: 11.5px; }
+.native-regulation__train-board > .native-regulation__section-header > span { font-size: 11.5px; }
+.native-regulation__train-board table { min-width: 860px; font-size: 12px; }
+.native-regulation__train-board th { font-size: 10.5px; }
+.native-regulation__train-board td small { font-size: 10.5px; }
+.native-regulation__location-type,
+.native-regulation__status { font-size: 10px; }
+
+/* Operations log remains dense, but no primary evidence is micro-text. */
+.operations-log-summary small,
+.shift-report__meta small { font-size: 10.5px; }
+.operations-log-summary strong,
+.shift-report__meta strong { font-size: 13px; }
+.operations-log-summary span { font-size: 11px; }
+.operations-log__toolbar small { font-size: 10.5px; }
+.operations-log__toolbar h2 { font-size: 17px; }
+.operations-log__search input { font-size: 12px; }
+.operations-log__filters button { min-height: 34px; font-size: 11.5px; }
+.operations-log__table { min-width: 1180px; }
+.operations-log__table th { font-size: 10.5px; }
+.operations-log__table td { font-size: 12px; line-height: 1.45; }
+.operations-log__table td > strong { font-size: 13px; }
+.operations-log__table td > small,
+.operations-log__table code { font-size: 10.5px; }
+.operations-log__actor { font-size: 10px; }
+.operations-log__empty span { font-size: 12px; }
+.shift-report__agent-status { font-size: 12px; }
+.shift-report-toolbar { top: 55px; }
+.shift-report-toolbar button { font-size: 12px; }
+.shift-report-toolbar > small { font-size: 10.5px; }
+.shift-report-document { font-size: 13px; }
+
+/*
+ * Overview is a bounded operational canvas. The document itself never scrolls
+ * while wheel/pinch gestures zoom the SVG; only the line list and inspector do.
+ */
+body:has(.page--overview-map),
+.app-shell:has(.page--overview-map),
+.app-workspace:has(.page--overview-map) {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-main:has(.page--overview-map) {
+  height: calc(100dvh - 56px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.page--overview-map {
+  height: 100%;
+  padding: 6px;
+  overflow: hidden;
+}
+
+.page--overview-map .native-network-panel__header { min-height: 50px; padding: 7px 12px; }
+.native-network-panel__header h2 { font-size: 17px; }
+.native-network-panel__header .panel__eyebrow { font-size: 9.5px; }
+.native-network-panel__disclaimer { font-size: 10.5px; }
+.native-map__scope button { min-height: 32px; font-size: 11px; }
+.page--overview-map .native-map__toolbar { padding: 6px 10px; }
+.native-map__search label { font-size: 10px; }
+.native-map__search input,
+.native-map__search button,
+.native-map__toolbar-actions button { height: 32px; min-height: 32px; font-size: 11.5px; }
+.native-map__toolbar-actions output { font-size: 11px; }
+.native-map__workspace {
+  grid-template-columns: 158px minmax(0, 1fr) 292px;
+  min-height: 0;
+  overflow: hidden;
+}
+.native-map__lines { overscroll-behavior: contain; }
+.native-map__lines > button { min-height: 44px; }
+.native-map__lines strong { font-size: 12px; }
+.native-map__lines small { font-size: 10px; }
+.native-map__line-badge { font-size: 10px; }
+.native-map__level { font-size: 10.5px; }
+.native-map__stage { min-height: 0; }
+.native-map__inspector { overflow: hidden; }
+.native-map__inspector-body { overscroll-behavior: contain; }
+.native-map__kpis small { font-size: 9.5px; }
+.native-map__kpis strong { font-size: 16px; }
+.native-map__inspector > header small { font-size: 10px; }
+.native-map__inspector > header strong { font-size: 14.5px; }
+.native-map__inspector > header span { font-size: 11.5px; }
+.native-map__facts dt { font-size: 9.5px; }
+.native-map__facts dd { font-size: 11.5px; }
+.native-map__impact-list > span { font-size: 11px; }
+.native-map__agent small { font-size: 10px; }
+.native-map__agent p,
+.native-map__agent code { font-size: 11px; }
+.native-map__empty strong { font-size: 14px; }
+.native-map__empty p { font-size: 12px; }
+
+@media (max-width: 1280px) {
+  .app-shell { grid-template-columns: 220px minmax(0, 1fr); }
+  .app-shell--collapsed { grid-template-columns: 62px minmax(0, 1fr); }
+  .topbar { padding-inline: 10px; }
+  .global-search { max-width: 340px; }
+  .global-search kbd,
+  .source-chip .status-pill,
+  .operational-clock small { display: none; }
+  .source-chip { max-width: 150px; }
+  .page { padding-inline: 18px; }
+  .native-map__workspace { grid-template-columns: 142px minmax(0, 1fr) 260px; }
+  .page--overview-map { padding-inline: 5px; }
+  .page--overview-map .native-network-panel__header { padding-inline: 10px; }
+  .native-map__lines strong { font-size: 11.5px; }
+  .native-map__lines small { font-size: 9.5px; }
+  .native-map__inspector-body { padding: 9px; }
+  .native-regulation__kpis { gap: 8px; }
+  .native-regulation__kpis article { padding: 12px; }
+}
+
+@media (max-width: 1100px) {
+  .operational-clock { display: none; }
+  .source-chip { max-width: 110px; }
+  .rs-hero__facts { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+}
