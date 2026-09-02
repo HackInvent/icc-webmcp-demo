@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   analyzeIncidentDecision,
   applyIncidentProcedureStep,
+  assessIncidentProcedureChoice,
   clearIncidentDecisionCache,
 } from "./incidentDecisionAgent";
 
@@ -490,16 +491,53 @@ function createTools(
       receiptId: "PROC-DEC-8-INC-RER-A-01",
     };
   });
+  const assess = vi.fn(async (input: Record<string, unknown>) => {
+    order.push("assess");
+    const matchesSelection = input.stepId === input.agentSuggestedStepId;
+    return {
+      status: "procedure_choice_assessed",
+      selectedStep: {
+        stepId: input.stepId,
+        title: input.stepId === VERIFY_STEP
+          ? "Verify stable detection"
+          : "Protect the affected segment",
+      },
+      agentSuggestion: {
+        stepId: input.agentSuggestedStepId,
+        title: "Protect the affected segment",
+        matchesSelection,
+      },
+      sequence: {
+        nextDocumentedStepId: PROTECT_STEP,
+        missingPreviousStepIds: matchesSelection ? [] : [PROTECT_STEP],
+        outOfSequence: !matchesSelection,
+      },
+      advisory: {
+        verdict: matchesSelection ? "recommended" : "caution",
+        reasons: matchesSelection
+          ? ["This choice matches the current recommendation."]
+          : ["Protection evidence may still be missing."],
+        operatorMayProceed: true,
+        nonBlocking: true,
+        statement: matchesSelection
+          ? "The agent recommends this step now."
+          : "The agent advises caution, but the operator may proceed.",
+      },
+      nonMutating: true,
+    };
+  });
   return {
     order,
     inspect,
     search,
     get,
+    assess,
     apply,
     definitions: [
       definition("inspect_incident_decision_context", inspect, true),
       definition("search_operational_procedures", search, true),
       definition("get_operational_procedure", get, true),
+      definition("assess_operator_procedure_choice", assess, true),
       definition("apply_reviewed_procedure_step", apply, false),
     ],
   };
@@ -948,6 +986,57 @@ describe("procedure-grounded incident decision agent", () => {
       decisionRevision: REVISION + 1,
     });
     expect(tools.order).toEqual(["inspect", "search", "get", "apply"]);
+  });
+
+  it("assesses an operator-selected step through the read-only page tool without blocking it", async () => {
+    const tools = createTools();
+    const decision = await deterministicDecision(tools);
+    const controller = new AbortController();
+
+    const advice = await assessIncidentProcedureChoice({
+      package: decision,
+      stepId: VERIFY_STEP,
+      agentSuggestedStepId: PROTECT_STEP,
+      inPageTools: tools.definitions,
+      signal: controller.signal,
+    });
+
+    expect(tools.assess).toHaveBeenCalledWith({
+      incidentId: INCIDENT_ID,
+      procedureId: PROCEDURE_ID,
+      procedureRevision: PROCEDURE_REVISION,
+      procedureContentHash: PROCEDURE_HASH,
+      stepId: VERIFY_STEP,
+      agentSuggestedStepId: PROTECT_STEP,
+      expectedDecisionRevision: REVISION,
+    }, { signal: controller.signal });
+    expect(advice).toEqual(expect.objectContaining({
+      selectedStepId: VERIFY_STEP,
+      suggestedStepId: PROTECT_STEP,
+      matchesAgentSuggestion: false,
+      verdict: "caution",
+      operatorMayProceed: true,
+      missingPreviousStepIds: [PROTECT_STEP],
+    }));
+    expect(tools.order).toEqual(["inspect", "search", "get", "assess"]);
+  });
+
+  it("allows any exact retrieved procedure step even when it is not in the agent recommendation", async () => {
+    const tools = createTools();
+    const decision = await deterministicDecision(tools);
+    expect(decision.recommendation.actions.map((action) => action.stepId))
+      .not.toContain(PASSENGER_INFO_STEP);
+
+    await applyIncidentProcedureStep({
+      package: decision,
+      stepId: PASSENGER_INFO_STEP,
+      inPageTools: tools.definitions,
+      signal: new AbortController().signal,
+    });
+
+    expect(tools.apply).toHaveBeenCalledWith(expect.objectContaining({
+      stepId: PASSENGER_INFO_STEP,
+    }), expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it("forwards an explicit operator authority reference to the reviewed WebMCP write", async () => {

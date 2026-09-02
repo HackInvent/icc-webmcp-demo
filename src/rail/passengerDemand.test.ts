@@ -7,6 +7,10 @@ import {
   nativeStationPassengerId,
   type NativeStationPassengerState,
 } from "./passengerDemand";
+import {
+  PASSENGER_SERVICE_SECONDS_PER_DAY,
+  isPassengerDemandActive,
+} from "./operationalTime";
 
 describe("native passenger demand", () => {
   it("creates one empty line-specific queue per station from the strict official volume formula", () => {
@@ -37,7 +41,7 @@ describe("native passenger demand", () => {
     expect(metroState.arrivalsPerSecond).toBe(
       metroVolume.annualPassengerJourneys /
         metroLine.stationCodes.length /
-        (365 * 24 * 60 * 60),
+        (365 * PASSENGER_SERVICE_SECONDS_PER_DAY),
     );
     expect(metroState.demandVolumeProvenance).toBe(
       "official-annual-passenger-journeys",
@@ -52,7 +56,7 @@ describe("native passenger demand", () => {
     expect(rerState.arrivalsPerSecond).toBe(
       rerVolume.dailyPassengerJourneys! /
         rerLine.stationCodes.length /
-        (24 * 60 * 60),
+        PASSENGER_SERVICE_SECONDS_PER_DAY,
     );
     expect(rerState.demandVolumeProvenance).toBe(
       "official-daily-passenger-journeys",
@@ -82,5 +86,12 @@ describe("native passenger demand", () => {
       arrivalRemainder: 0.4,
       totalGeneratedPassengers: 2,
     }));
+  });
+
+  it("pauses demand from 01:00 AM until 05:00 AM in Paris", () => {
+    expect(isPassengerDemandActive(Date.UTC(2026, 7, 27, 22, 59, 59))).toBe(true);
+    expect(isPassengerDemandActive(Date.UTC(2026, 7, 27, 23, 0, 0))).toBe(false);
+    expect(isPassengerDemandActive(Date.UTC(2026, 7, 28, 2, 59, 59))).toBe(false);
+    expect(isPassengerDemandActive(Date.UTC(2026, 7, 28, 3, 0, 0))).toBe(true);
   });
 });

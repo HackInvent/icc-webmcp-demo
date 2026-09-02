@@ -62,6 +62,8 @@ import {
 } from "./shift-report.mjs";
 
 export const OPERATIONS_RUNTIME_SCHEMA = "paris-icc-operations-runtime-v1";
+const RETIRED_NATIVE_DEFAULT_TIMESTAMP = Date.UTC(2026, 7, 28, 6, 30, 0);
+const RETIRED_DETAILED_DEFAULT_TIMESTAMP = Date.UTC(2026, 7, 26, 3, 42, 0);
 const COMMAND_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/;
 const WORKSPACE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
@@ -211,6 +213,41 @@ function freshOperationalResponse(nativeSnapshot, procedureWorkspace = createPro
     nativeSnapshot.timestamp,
     listActiveProcedures(procedureWorkspace),
   ).state;
+}
+
+function upgradeRetiredBuiltInBaseline(runtime) {
+  const baseline = runtime.baseline;
+  if (
+    baseline?.native?.timestamp !== RETIRED_NATIVE_DEFAULT_TIMESTAMP ||
+    baseline?.native?.scenarioName !== "Paris morning multi-event" ||
+    baseline?.detailed?.snapshot?.timestamp !== RETIRED_DETAILED_DEFAULT_TIMESTAMP ||
+    baseline?.detailed?.snapshot?.scenarioName !== "Morning peak — D-1 events"
+  ) {
+    return false;
+  }
+
+  const previousNative = runtime.nativeController.getSnapshot();
+  const freshController = createNativeNetworkController();
+  const freshNative = freshController.getSnapshot();
+  const freshDetailed = createSimulationState();
+  runtime.baseline = {
+    ...baseline,
+    native: clone(freshNative),
+    detailed: clone(freshDetailed),
+    operationalResponse: freshOperationalResponse(
+      freshNative,
+      runtime.procedureWorkspace,
+    ),
+  };
+  runtime.nativeController = createNativeNetworkController({
+    restoredSnapshot: {
+      ...freshNative,
+      decisionRevision: previousNative.decisionRevision,
+      telemetryRevision: previousNative.telemetryRevision,
+    },
+    baselineSnapshot: freshNative,
+  });
+  return true;
 }
 
 function synchronizeOperationalResponse(runtime) {
@@ -689,14 +726,11 @@ export async function createOperationsService(options) {
         !execution.completedStepIds.includes(candidate.stepId)
       )
       .map((candidate) => candidate.stepId);
-    if (missingPreviousStepIds.length > 0) {
-      throw new OperationsError(
-        409,
-        "procedure_step_out_of_sequence",
-        "Complete the preceding mandatory procedure steps first.",
-        { missingPreviousStepIds },
-      );
-    }
+    const sequenceAdvisory = {
+      outOfSequence: missingPreviousStepIds.length > 0,
+      missingPreviousStepIds,
+      operatorOverrideRecorded: missingPreviousStepIds.length > 0,
+    };
     if (execution.completedStepIds.includes(stepId)) {
       throw new OperationsError(409, "no_op", "This exact procedure step was already recorded.");
     }
@@ -805,6 +839,7 @@ export async function createOperationsService(options) {
       procedureContentHash,
       stepId,
       capability: command ?? "operator-check",
+      sequenceAdvisory,
       normalStateVerification: step.phase === "close"
         ? {
             status:
@@ -840,6 +875,7 @@ export async function createOperationsService(options) {
         return { speed };
       }
       case "reset_all": {
+        const baselineUpgraded = upgradeRetiredBuiltInBaseline(runtime);
         runtime.nativeController.reset();
         const detailed = clone(runtime.baseline.detailed);
         detailed.snapshot.decisionRevision = runtime.detailed.snapshot.decisionRevision + 1;
@@ -853,7 +889,7 @@ export async function createOperationsService(options) {
           runtime.detailed,
           now(),
         );
-        return { reset: true };
+        return { reset: true, baselineUpgraded };
       }
       case "update_procedure_step": {
         const procedureId = requiredString(payload.procedureId, "procedureId", 96);
@@ -906,6 +942,7 @@ export async function createOperationsService(options) {
             scenarioId: native.scenarioId,
             scenarioName: native.scenarioName,
             trains: native.trains,
+            shuttles: native.shuttles,
             stationPassengers: native.stationPassengers,
             incidents: native.incidents,
           });
@@ -945,6 +982,25 @@ export async function createOperationsService(options) {
           lineCode,
           stationId,
           direction: payload.direction,
+        });
+        return { insertion };
+      }
+      case "insert_native_shuttle": {
+        const lineCode = requiredString(payload.lineCode, "lineCode", 24);
+        const departureStationId = requiredString(
+          payload.departureStationId,
+          "departureStationId",
+          128,
+        );
+        const arrivalStationId = requiredString(
+          payload.arrivalStationId,
+          "arrivalStationId",
+          128,
+        );
+        const insertion = runtime.nativeController.insertShuttle({
+          lineCode,
+          departureStationId,
+          arrivalStationId,
         });
         return { insertion };
       }

@@ -10,6 +10,7 @@ import {
   createNativeNetworkController,
   createNativeSimulationSnapshot,
 } from "./nativeSimulation";
+import { NATIVE_INTERSTATIONS } from "./nativeNetwork";
 import { assertSnapshotInvariants, createSimulationState } from "./simulation";
 
 describe("simulation configuration import/export", () => {
@@ -73,6 +74,32 @@ describe("simulation configuration import/export", () => {
     expect(restored?.incidentCode).toBe("ICC-INC-PAX-STA-CLS-001");
     expect(legacy).not.toHaveProperty("incidentCode");
     expect(() => assertSnapshotInvariants(parsed.detailedState.snapshot)).not.toThrow();
+  });
+
+  it("round-trips manual shuttles and preserves them in the imported reset baseline", () => {
+    const controller = createNativeNetworkController({ scenarioId: "nominal" });
+    const edge = NATIVE_INTERSTATIONS.find((candidate) => candidate.lineCode === "M4")!;
+    controller.insertShuttle({
+      lineCode: "M4",
+      departureStationId: edge.fromStationCode,
+      arrivalStationId: edge.toStationCode,
+    });
+    controller.tick();
+    const source = controller.getSnapshot();
+    const configuration = createSimulationConfiguration(source, createSimulationState());
+
+    expect(configuration.nativeNetwork.shuttles).toHaveLength(1);
+    const parsed = parseSimulationConfiguration(JSON.stringify(configuration));
+    expect(parsed.nativeSnapshot.shuttles).toEqual(source.shuttles);
+
+    const restored = createNativeNetworkController({ scenarioId: "multi-event" });
+    restored.loadConfiguration(parsed.nativeSnapshot);
+    restored.tick();
+    expect(restored.reset().shuttles).toEqual(source.shuttles);
+
+    const legacy = structuredClone(configuration) as Record<string, any>;
+    delete legacy.nativeNetwork.shuttles;
+    expect(parseSimulationConfiguration(JSON.stringify(legacy)).nativeSnapshot.shuttles).toEqual([]);
   });
 
   it("accepts an edited baseline and makes native Reset return to it", () => {

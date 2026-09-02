@@ -55,7 +55,7 @@ describe("native regulation model", () => {
     expect(metrics.shiftWindow).toEqual(shift);
     expect(shift.name).toBe("Early");
     expect(shift.startLabel).toBe("06:00");
-    expect(shift.elapsedMinutes).toBe(150);
+    expect(shift.elapsedMinutes).toBe(420);
     expect(metrics.highestObjectCrowdingPercent).toBeGreaterThan(0);
   });
 

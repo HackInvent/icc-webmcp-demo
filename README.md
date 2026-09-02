@@ -29,10 +29,13 @@ From the application, an operator can:
 - follow train occupation across the network;
 - create an incident on a station, an interstation, a train or an electrical asset;
 - see the current impact on traffic and passengers;
+- ask the Passenger flow agent to rank the three active incidents whose affected stations have the largest waiting queues;
 - ask the agent to find the procedure that matches the incident code;
+- ask the agent to review a procedure draft against earlier actions, linked logs and public sources;
 - review the proposed actions, their expected effects and their estimated duration;
 - approve procedure steps one by one;
 - set up a provisional service, a train turnback or a shuttle-bus service;
+- order a shuttle manually between two stations on the same line;
 - monitor passenger queues, train loads, delays, power and SCADA communication;
 - keep a timestamped record of incidents and operator actions; and
 - prepare and print the end-of-shift report.
@@ -59,6 +62,7 @@ The agent can use those tools to:
 
 - inspect the selected incident and its current revision;
 - read the network state around the affected object;
+- rank the top three incident responses by the current waiting queues in their affected area;
 - search the procedure library and open the exact document revision;
 - estimate the effect and duration of the available response;
 - use the network graph to find connections, turnback points and reinforcement options;
@@ -67,26 +71,26 @@ The agent can use those tools to:
 
 Without this connection, the operator would have to copy information from the map, incident list, procedure documents and logs into a separate assistant. Here, the agent reads that context directly from the page and returns its proposal inside the incident workflow.
 
-The application registers 19 typed WebMCP tools. Read-only tools can inspect the current state. Tools that change the state require a visible, one-time operator approval. Incident revisions and procedure hashes are checked again before a change is accepted, so an old recommendation cannot silently be applied to a newer situation.
+The application registers 21 typed WebMCP tools. Read-only tools can inspect the current state. Tools that change the state require a visible, one-time operator approval. Incident revisions and procedure hashes are checked again before a change is accepted, so an old recommendation cannot silently be applied to a newer situation.
 
 ## Main parts of the product
 
 - **Network overview** — Interactive SVG map, semantic zoom, train occupation and incident handling.
-- **Passenger flow** — Network heatmap, passenger queues by station and train load.
+- **Passenger flow** — Network heatmap, passenger queues by station and train load. On opening, the agent reads the current page state and shows up to three incidents to handle first for the largest queue relief; **Refresh** reruns the analysis. New demand uses 20 active service hours per day and pauses from 01:00 AM to 05:00 AM Europe/Paris.
 - **Incident workflow** — Situation, impact, proposed response, procedure steps and return to normal in one modal.
-- **Procedures** — Fourteen local demo procedures with versions, step durations and an editor.
+- **Procedures** — Fourteen local demo procedures with versions, step durations, an editor and agent feedback for every editable field.
 - **Delays and regulation** — One line at a time with its full synoptic, trains, delays, production and crowding.
 - **SCADA** — Field signalling, traction, train telemetry, ATS and passenger-information links for each line.
-- **Bus services** — Operator-approved shuttle services with simulated round trips.
+- **Bus services** — Manual shuttle ordering and operator-approved replacement services. Each manual shuttle runs at 15 km/h, carries up to 100 passengers and moves between discrete station and interstation states.
 - **Rolling stock** — Capacity references and a relative load/traction estimate for each line.
 - **Schedules and drivers** — CSV loading with preview, impact review, approval and application before D-1 service.
 - **Operations log** — Incidents and actions recorded with server timestamps.
 - **Shift report** — Editable report drafted from the operations log, then frozen and printed as PDF.
-- **SimView** — Tables for trains, incidents, power and the other local data used by the demo.
+- **SimView** — Tables for trains, shuttles, incidents, power and the other local data used by the demo.
 
 ## What is simulated
 
-By default, the application runs with deterministic local data. Train positions, incidents, passenger queues, crews, track occupation, traction power and procedure actions are part of the demo.
+By default, the application runs with deterministic local data. Train and shuttle positions, incidents, passenger queues, crews, track occupation, traction power and procedure actions are part of the demo.
 
 The procedures were written for this project. They are examples, not RATP or IDFM operating instructions.
 
@@ -133,14 +137,14 @@ For an HTTPS deployment, put Nginx in front of the Node process and set `applica
 | --- | --- |
 | `#/overview` | Network map and incident workflow |
 | `#/passenger-flow` | Passenger heatmap, station queues and train loads |
-| `#/simulator` | Local data tables, incident creation and train insertion |
+| `#/simulator` | Local data tables, including live shuttle state, incident creation and train insertion |
 | `#/procedures` | Procedure library and step editor |
 | `#/schedules-drivers` | D-1 schedule and driver preparation |
 | `#/incidents` | Active, planned and past incidents |
 | `#/regulation` | Line synoptic, occupation, delays and crowding |
 | `#/power` | Traction-power state |
 | `#/scada` | Field-to-ATS architecture and communication incidents |
-| `#/bus-services` | Shuttle-bus plans and current services |
+| `#/bus-services` | Manual same-line shuttle ordering, shuttle-bus plans and current services |
 | `#/rolling-stock` | Capacity and relative traction estimates |
 | `#/operations-log` | Current-shift incident and action history |
 | `#/shift-report` | End-of-shift report and PDF output |

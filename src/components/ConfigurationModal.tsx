@@ -881,7 +881,7 @@ export function ConfigurationModal({
             <div className="configuration-scenario-summary" id="text-text-configuration-simulator-summary">
               <div><span>Scenario</span><strong>{nativeSimulation.scenarioName}</strong></div>
               <div><span>Operational time</span><strong>{formatLogTime(nativeSimulation.timestamp)}</strong></div>
-              <div><span>Objects</span><strong>{nativeSimulation.trains.length} trains · {nativeSimulation.incidents.length} incidents</strong></div>
+              <div><span>Objects</span><strong>{nativeSimulation.trains.length} trains · {nativeSimulation.shuttles.length} shuttles · {nativeSimulation.incidents.length} incidents</strong></div>
             </div>
             <div className="configuration-transfer-grid">
               <article>
@@ -918,7 +918,7 @@ export function ConfigurationModal({
                 <div>
                   <span>Validated import</span>
                   <strong>{pendingImport.configuration.name}</strong>
-                  <small>{pendingImport.fileName} · {pendingImport.configuration.nativeSnapshot.trains.length} trains · {pendingImport.configuration.nativeSnapshot.incidents.length} incidents · {formatLogTime(pendingImport.configuration.nativeSnapshot.timestamp)}</small>
+                  <small>{pendingImport.fileName} · {pendingImport.configuration.nativeSnapshot.trains.length} trains · {pendingImport.configuration.nativeSnapshot.shuttles.length} shuttles · {pendingImport.configuration.nativeSnapshot.incidents.length} incidents · {formatLogTime(pendingImport.configuration.nativeSnapshot.timestamp)}</small>
                 </div>
                 <button type="button" className="button button--secondary" onClick={() => { setPendingImport(null); setTransferFeedback(null); }}>Cancel</button>
                 <button type="button" className="button button--danger" data-testid="install-simulation-configuration" disabled={importing} onClick={() => void installImportConfiguration()}>

@@ -22,6 +22,7 @@ describe("procedure editor workspace", () => {
       initialStepId: selectedStep.stepId,
       onClose: vi.fn(),
       onPublishStep: vi.fn(async () => undefined),
+      onRequestAgentFeedback: vi.fn(async () => { throw new Error("not invoked during static rendering"); }),
     }));
 
     expect(html).toContain('role="dialog"');
@@ -35,6 +36,10 @@ describe("procedure editor workspace", () => {
     expect(html).toContain('data-testid="procedure-editor-previous"');
     expect(html).toContain('data-testid="procedure-editor-next"');
     expect(html).toContain('data-testid="procedure-editor-publish"');
+    expect(html).toContain('data-testid="procedure-editor-agent-feedback"');
+    expect(html).toContain("Ask agent for feedback");
+    expect(html).toContain("Procedure edit feedback");
+    expect(html).toContain("previous edits, linked operational REX and current public sources");
     expect(html).not.toContain("NOT AN OFFICIAL");
   });
 

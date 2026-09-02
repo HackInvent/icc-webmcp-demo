@@ -9,6 +9,7 @@ import type {
   NativeTrainState,
 } from "../rail/nativeSimulation";
 import { getMaximumTrainCapacity } from "../rail/rollingStock";
+import { effectivePassengerArrivalRate } from "../rail/operationalTime";
 
 export type PassengerFlowLevel = "quiet" | "moderate" | "high" | "critical";
 
@@ -65,6 +66,9 @@ export interface PassengerFlowView {
   stations: PassengerFlowStation[];
   totalOnboardPassengers: number;
   totalQueuePassengers: number;
+  totalGeneratedPassengers: number;
+  totalBoardedPassengers: number;
+  totalAlightedPassengers: number;
   passengerPressure: number;
   activeStationCount: number;
   highPressureStationCount: number;
@@ -152,7 +156,10 @@ function futureFlowByStation(
     if (passengers === null) continue;
     const previous = flows.get(key);
     const perMinute = finiteNumber(item.arrivalsPerMinute);
-    const arrivalRate = finiteNumber(item.arrivalsPerSecond) ?? (perMinute === null ? null : perMinute / 60);
+    const nominalArrivalRate = finiteNumber(item.arrivalsPerSecond) ?? (perMinute === null ? null : perMinute / 60);
+    const arrivalRate = nominalArrivalRate === null
+      ? null
+      : effectivePassengerArrivalRate(nominalArrivalRate, simulation.timestamp);
     const totalGenerated = finiteNumber(item.totalGeneratedPassengers);
     const totalBoarded = finiteNumber(item.totalBoardedPassengers);
     const totalAlighted = finiteNumber(item.totalAlightedPassengers);
@@ -240,6 +247,9 @@ export function buildPassengerFlowView(
     stations,
     totalOnboardPassengers: trains.reduce((sum, train) => sum + train.passengers, 0),
     totalQueuePassengers: stations.reduce((sum, station) => sum + station.queuePassengers, 0),
+    totalGeneratedPassengers: stations.reduce((sum, station) => sum + (station.totalGenerated ?? 0), 0),
+    totalBoardedPassengers: stations.reduce((sum, station) => sum + (station.totalBoarded ?? 0), 0),
+    totalAlightedPassengers: stations.reduce((sum, station) => sum + (station.totalAlighted ?? 0), 0),
     passengerPressure: active.reduce((sum, station) => sum + station.passengerPressure, 0),
     activeStationCount: active.length,
     highPressureStationCount: active.filter((station) => station.level === "high" || station.level === "critical").length,

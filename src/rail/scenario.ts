@@ -9,9 +9,10 @@ import type {
 } from "./domain";
 import { classifyIncidentCode } from "../procedures";
 import { emptyCircuitViews, routeFor, TRACK_CIRCUITS } from "./topology";
+import { DEFAULT_OPERATIONAL_START_TIMESTAMP } from "./operationalTime";
 
-// 26 August 2026, 05:42 CEST (Europe/Paris): the D-1 view for the 27 August plan.
-export const SCENARIO_EPOCH = Date.UTC(2026, 7, 26, 3, 42, 0);
+// 28 August 2026, 01:00 PM CEST (Europe/Paris).
+export const SCENARIO_EPOCH = DEFAULT_OPERATIONAL_START_TIMESTAMP;
 
 interface TrainSeed {
   id: string;
@@ -333,7 +334,7 @@ function createIncidents(): Incident[] {
       status: "planned",
       lineIds: ["RER_B"],
       location: "Gare du Nord → Aulnay-sous-Bois",
-      startedAt: SCENARIO_EPOCH + (17 * 60 + 18) * 60_000,
+      startedAt: SCENARIO_EPOCH + 10 * 60 * 60_000,
       blockedCircuitIds: [],
       impactedTrainIds: [],
       owner: "D-1 planning",
@@ -379,7 +380,7 @@ export function createInitialSnapshot(): RailSnapshot {
     revision: 1,
     timestamp: SCENARIO_EPOCH,
     source: "simulation",
-    scenarioName: "Morning peak — D-1 events",
+    scenarioName: "Afternoon operations — D-1 events",
     trains,
     circuits: emptyCircuitViews().map((circuit) => {
       const train = occupied.get(circuit.id);

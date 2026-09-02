@@ -18,12 +18,22 @@ import {
   type NativeStationPassengerState,
 } from "./passengerDemand";
 import { getReferenceCapacity } from "./rollingStock";
+import {
+  DEFAULT_OPERATIONAL_START_TIMESTAMP,
+  isPassengerDemandActive,
+} from "./operationalTime";
+import {
+  RAIL_GRAPH_INTERSTATION_BY_ID,
+  findRailRoute,
+} from "./interdependenceGraph";
 
 export type { NativeStationPassengerState } from "./passengerDemand";
 
 export const NATIVE_SIMULATION_STEP_MS = 1_000;
 export const NATIVE_STATION_DWELL_MS = 20_000;
-export const NATIVE_DEFAULT_TIMESTAMP = Date.UTC(2026, 7, 28, 6, 30, 0);
+export const NATIVE_SHUTTLE_SPEED_KMH = 15;
+export const NATIVE_SHUTTLE_CAPACITY_PASSENGERS = 100;
+export const NATIVE_DEFAULT_TIMESTAMP = DEFAULT_OPERATIONAL_START_TIMESTAMP;
 
 const NATIVE_STATION_DWELL_TICKS = Math.ceil(
   NATIVE_STATION_DWELL_MS / NATIVE_SIMULATION_STEP_MS,
@@ -88,6 +98,30 @@ export interface NativeTrainState {
   status: NativeTrainStatus;
   dwellTicks: number;
   passengers: number;
+  quality: "simulated";
+}
+
+export interface NativeShuttleState {
+  id: string;
+  lineCode: NativeLineCode;
+  departureStationId: string;
+  arrivalStationId: string;
+  routeStationIds: readonly string[];
+  routeInterstationIds: readonly string[];
+  routeTravelTicks: readonly number[];
+  routeDistanceMeters: number;
+  stationIndex: number;
+  direction: 1 | -1;
+  location: NativeTrainOperationalLocation;
+  currentInterstationId: string | null;
+  status: "running" | "dwelling";
+  dwellTicks: number;
+  travelTicksRemaining: number;
+  speedKmh: number;
+  nominalSpeedKmh: typeof NATIVE_SHUTTLE_SPEED_KMH;
+  capacityPassengers: typeof NATIVE_SHUTTLE_CAPACITY_PASSENGERS;
+  passengers: number;
+  startedAt: number;
   quality: "simulated";
 }
 
@@ -187,6 +221,7 @@ export interface NativeSimulationSnapshot {
   scenarioId: NativeScenarioId;
   scenarioName: string;
   trains: readonly NativeTrainState[];
+  shuttles: readonly NativeShuttleState[];
   stationPassengers: readonly NativeStationPassengerState[];
   incidents: readonly NativeIncident[];
   restrictions: readonly NativeRestriction[];
@@ -200,6 +235,7 @@ export interface NativeSimulationConfigurationState {
   scenarioId: NativeScenarioId;
   scenarioName: string;
   trains: readonly NativeTrainState[];
+  shuttles?: readonly NativeShuttleState[];
   stationPassengers?: readonly NativeStationPassengerState[];
   incidents: readonly NativeIncident[];
 }
@@ -239,6 +275,23 @@ export interface NativeTrainInsertionReceipt {
   direction: 1 | -1;
   capacityDeltaPassengers: number;
   decisionRevision: number;
+}
+
+export interface NativeShuttleInsertionInput {
+  lineCode: NativeLineCode;
+  departureStationId: string;
+  arrivalStationId: string;
+}
+
+export interface NativeShuttleInsertionReceipt {
+  shuttle: NativeShuttleState;
+  capacityDeltaPassengers: typeof NATIVE_SHUTTLE_CAPACITY_PASSENGERS;
+  decisionRevision: number;
+}
+
+export interface NativeShuttleStationOption {
+  stationId: string;
+  name: string;
 }
 
 export interface NativeScenarioDefinition {
@@ -295,6 +348,7 @@ export interface NativeNetworkController {
   loadConfiguration: (configuration: NativeSimulationConfigurationState) => NativeSimulationSnapshot;
   createIncident: (input: NativeIncidentInput) => NativeIncident;
   insertTrain: (input: NativeTrainInsertionInput) => NativeTrainInsertionReceipt;
+  insertShuttle: (input: NativeShuttleInsertionInput) => NativeShuttleInsertionReceipt;
   evaluateResponse: (input: { incidentId: string }) => NativeResponseEvaluation;
   applyReviewedOption: (input: {
     evaluationId: string;
@@ -407,7 +461,7 @@ export const NATIVE_SCENARIOS: readonly NativeScenarioDefinition[] = Object.free
   },
   {
     id: "multi-event",
-    name: "Paris morning multi-event",
+    name: "Paris afternoon multi-event",
     description: "Three concurrent infrastructure constraints demonstrate network-wide decision support.",
     incidentSeeds: SCENARIO_SEEDS["multi-event"],
   },
@@ -565,6 +619,151 @@ export function nativeTrainInsertionOptions(lineCode: NativeLineCode): readonly 
 
 export function nativeTrainInsertionStationIds(lineCode: NativeLineCode): readonly string[] {
   return Object.freeze(nativeTrainInsertionOptions(lineCode).map((option) => option.stationId));
+}
+
+interface NativeShuttleRoute {
+  stationIds: readonly string[];
+  interstationIds: readonly string[];
+  travelTicks: readonly number[];
+  distanceMeters: number;
+}
+
+function sameLineRailRoute(
+  lineCode: NativeLineCode,
+  departureStationId: string,
+  arrivalStationId: string,
+) {
+  return findRailRoute(departureStationId, arrivalStationId, {
+    maxTransfers: 0,
+    stationConnectionPolicy: "none",
+    disabledLineCodes: NATIVE_LINES
+      .filter((line) => line.code !== lineCode)
+      .map((line) => line.code),
+  });
+}
+
+function virtualShuttleInterstationId(
+  lineCode: NativeLineCode,
+  fromStationId: string,
+  toStationId: string,
+): string {
+  return `shuttle-road-${lineCode}-${fromStationId}--${toStationId}`;
+}
+
+/** Stations which can be selected as a manual shuttle endpoint on one line. */
+export function nativeShuttleStationOptions(
+  lineCode: NativeLineCode,
+): readonly NativeShuttleStationOption[] {
+  const line = NATIVE_LINE_BY_CODE.get(lineCode);
+  if (!line) return Object.freeze([]);
+  return Object.freeze(line.stationCodes
+    .map((stationId) => Object.freeze({ stationId, name: stationName(stationId) }))
+    .sort((left, right) => left.name.localeCompare(right.name) || left.stationId.localeCompare(right.stationId)));
+}
+
+/** Reachable destinations on the same selected line, excluding the origin. */
+export function nativeShuttleDestinationOptions(
+  lineCode: NativeLineCode,
+  departureStationId: string,
+): readonly NativeShuttleStationOption[] {
+  const line = NATIVE_LINE_BY_CODE.get(lineCode);
+  if (!line || !line.stationCodes.includes(departureStationId)) return Object.freeze([]);
+  return Object.freeze(nativeShuttleStationOptions(lineCode).filter((option) =>
+    option.stationId !== departureStationId &&
+    sameLineRailRoute(lineCode, departureStationId, option.stationId) !== null
+  ));
+}
+
+function nativeShuttleRoute(input: NativeShuttleInsertionInput): NativeShuttleRoute {
+  const line = NATIVE_LINE_BY_CODE.get(input.lineCode);
+  if (!line) {
+    throw new NativeSimulationError("UNKNOWN_LINE", `Unknown shuttle line ${input.lineCode}.`);
+  }
+  if (input.departureStationId === input.arrivalStationId) {
+    throw new NativeSimulationError("INVALID_INPUT", "Shuttle departure and arrival stations must be different.");
+  }
+  for (const [label, stationId] of [
+    ["departure", input.departureStationId],
+    ["arrival", input.arrivalStationId],
+  ] as const) {
+    const station = NATIVE_STATION_BY_CODE.get(stationId);
+    if (!station) {
+      throw new NativeSimulationError("INVALID_INPUT", `Unknown shuttle ${label} station ${stationId}.`);
+    }
+    if (!station.lines.includes(input.lineCode)) {
+      throw new NativeSimulationError(
+        "LINE_MISMATCH",
+        `${station.name} is not served by ${input.lineCode}.`,
+      );
+    }
+  }
+  const graphRoute = sameLineRailRoute(
+    input.lineCode,
+    input.departureStationId,
+    input.arrivalStationId,
+  );
+  if (!graphRoute || graphRoute.steps.length === 0) {
+    throw new NativeSimulationError(
+      "INVALID_INPUT",
+      `No same-line shuttle route connects ${input.departureStationId} to ${input.arrivalStationId}.`,
+    );
+  }
+  const allowedStationIds = new Set(line.stationCodes);
+  const stationIds = [input.departureStationId];
+  const interstationIds: string[] = [];
+  const distances: number[] = [];
+  let accumulatedDistanceMeters = 0;
+  let previousRenderedStationId = input.departureStationId;
+  for (const step of graphRoute.steps) {
+    if (step.kind !== "interstation" || step.lineCode !== input.lineCode) {
+      throw new NativeSimulationError(
+        "INVALID_INPUT",
+        "A manual shuttle route cannot leave its selected line.",
+      );
+    }
+    const graphInterstation = RAIL_GRAPH_INTERSTATION_BY_ID.get(step.linkId);
+    if (!graphInterstation) {
+      throw new NativeSimulationError(
+        "INVALID_INPUT",
+        `No physical distance is available for shuttle segment ${step.linkId}.`,
+      );
+    }
+    accumulatedDistanceMeters += graphInterstation.distanceMeters;
+    if (!allowedStationIds.has(step.toStationId)) continue;
+    const nextRenderedStationId = step.toStationId;
+    const nativeAdjacency = getNativeNeighbors(input.lineCode, previousRenderedStationId).find(
+      (neighbor) => neighbor.neighborStationCode === nextRenderedStationId,
+    );
+    interstationIds.push(nativeAdjacency?.interstationId ?? virtualShuttleInterstationId(
+      input.lineCode,
+      previousRenderedStationId,
+      nextRenderedStationId,
+    ));
+    distances.push(accumulatedDistanceMeters);
+    stationIds.push(nextRenderedStationId);
+    previousRenderedStationId = nextRenderedStationId;
+    accumulatedDistanceMeters = 0;
+  }
+  if (
+    stationIds.at(-1) !== input.arrivalStationId ||
+    interstationIds.length !== stationIds.length - 1 ||
+    distances.some((distance) => !Number.isFinite(distance) || distance <= 0)
+  ) {
+    throw new NativeSimulationError(
+      "INVALID_INPUT",
+      `The exhaustive graph could not project the ${input.lineCode} shuttle route onto the operational map.`,
+    );
+  }
+  const metersPerSecond = NATIVE_SHUTTLE_SPEED_KMH * 1_000 / 3_600;
+  const secondsPerTick = NATIVE_SIMULATION_STEP_MS / 1_000;
+  return {
+    stationIds: Object.freeze(stationIds),
+    interstationIds: Object.freeze(interstationIds),
+    travelTicks: Object.freeze(distances.map((distanceMeters) =>
+      Math.max(1, Math.ceil(distanceMeters / metersPerSecond / secondsPerTick))
+    )),
+    distanceMeters: distances.reduce((total, distanceMeters) => total + distanceMeters, 0),
+  };
 }
 
 function orientedEdge(train: Pick<NativeTrainState, "routeInterstationIds" | "routeIndex" | "direction">) {
@@ -898,6 +1097,18 @@ function withDerivedState(snapshot: NativeSimulationSnapshot): NativeSimulationS
     ...train,
     location: nativeTrainOperationalLocation(train),
   }));
+  const configuredShuttles = (snapshot as NativeSimulationSnapshot & {
+    shuttles?: readonly NativeShuttleState[];
+  }).shuttles;
+  const shuttles = Array.isArray(configuredShuttles)
+    ? configuredShuttles.map((shuttle) => ({
+        ...shuttle,
+        routeStationIds: [...shuttle.routeStationIds],
+        routeInterstationIds: [...shuttle.routeInterstationIds],
+        routeTravelTicks: [...shuttle.routeTravelTicks],
+        location: { ...shuttle.location },
+      }))
+    : [];
   const incidents = snapshot.incidents.map((incident) => {
     let location = incident.location;
     let affectedStationCodes = [...incident.affectedStationCodes];
@@ -943,6 +1154,7 @@ function withDerivedState(snapshot: NativeSimulationSnapshot): NativeSimulationS
   return {
     ...snapshot,
     trains,
+    shuttles,
     stationPassengers,
     incidents,
     restrictions,
@@ -998,6 +1210,7 @@ export function createNativeSimulationSnapshot(
     scenarioId,
     scenarioName: scenario.name,
     trains: makeFleet(),
+    shuttles: [],
     stationPassengers: createNativeStationPassengerStates(),
     incidents: scenarioIncidents(scenario, timestamp),
     restrictions: [],
@@ -1071,6 +1284,13 @@ export function createNativeSimulationSnapshotFromConfiguration(
       ...train,
       routeInterstationIds: [...train.routeInterstationIds],
       location: { ...train.location },
+    })),
+    shuttles: (configuration.shuttles ?? []).map((shuttle) => ({
+      ...shuttle,
+      routeStationIds: [...shuttle.routeStationIds],
+      routeInterstationIds: [...shuttle.routeInterstationIds],
+      routeTravelTicks: [...shuttle.routeTravelTicks],
+      location: { ...shuttle.location },
     })),
     stationPassengers: configuration.stationPassengers
       ? configuration.stationPassengers.map((state) => ({ ...state }))
@@ -1232,6 +1452,100 @@ function exchangePassengersAtStation(
   };
 }
 
+function exchangeShuttlePassengersAtStation(
+  shuttle: NativeShuttleState,
+  stationId: string,
+  terminus: boolean,
+  exchangeAt: number,
+  stationPassengersById: Map<string, NativeStationPassengerState>,
+): NativeShuttleState {
+  const stateId = nativeStationPassengerId(shuttle.lineCode, stationId);
+  const stationState = stationPassengersById.get(stateId);
+  invariant(stationState, `missing passenger state ${stateId}`);
+  const alightingPassengers = nativeAlightingPassengerCount(shuttle.passengers, terminus);
+  const remainingPassengers = shuttle.passengers - alightingPassengers;
+  const availableCapacity = Math.max(
+    0,
+    NATIVE_SHUTTLE_CAPACITY_PASSENGERS - remainingPassengers,
+  );
+  const boardingPassengers = Math.min(stationState.waitingPassengers, availableCapacity);
+  stationPassengersById.set(stateId, {
+    ...stationState,
+    waitingPassengers: stationState.waitingPassengers - boardingPassengers,
+    totalBoardedPassengers: stationState.totalBoardedPassengers + boardingPassengers,
+    totalAlightedPassengers: stationState.totalAlightedPassengers + alightingPassengers,
+    lastBoardedPassengers: boardingPassengers,
+    lastAlightedPassengers: alightingPassengers,
+    lastExchangeAt: exchangeAt,
+  });
+  return {
+    ...shuttle,
+    passengers: remainingPassengers + boardingPassengers,
+  };
+}
+
+function stepShuttle(
+  shuttle: NativeShuttleState,
+  stepTimestamp: number,
+  stationPassengersById: Map<string, NativeStationPassengerState>,
+): NativeShuttleState {
+  if (shuttle.location.type === "station") {
+    if (shuttle.dwellTicks > 1) {
+      return {
+        ...shuttle,
+        speedKmh: 0,
+        status: "dwelling",
+        dwellTicks: shuttle.dwellTicks - 1,
+      };
+    }
+    const edgeIndex = shuttle.direction === 1
+      ? shuttle.stationIndex
+      : shuttle.stationIndex - 1;
+    const interstationId = shuttle.routeInterstationIds[edgeIndex];
+    const travelTicks = shuttle.routeTravelTicks[edgeIndex];
+    invariant(interstationId && travelTicks > 0, `${shuttle.id} cannot leave station`);
+    return {
+      ...shuttle,
+      location: { type: "interstation", id: interstationId },
+      currentInterstationId: interstationId,
+      status: "running",
+      dwellTicks: 0,
+      travelTicksRemaining: travelTicks,
+      speedKmh: NATIVE_SHUTTLE_SPEED_KMH,
+    };
+  }
+  if (shuttle.travelTicksRemaining > 1) {
+    return {
+      ...shuttle,
+      status: "running",
+      speedKmh: NATIVE_SHUTTLE_SPEED_KMH,
+      travelTicksRemaining: shuttle.travelTicksRemaining - 1,
+    };
+  }
+  const stationIndex = shuttle.stationIndex + shuttle.direction;
+  const stationId = shuttle.routeStationIds[stationIndex];
+  invariant(stationId, `${shuttle.id} arrival station`);
+  const terminus = stationIndex === 0 || stationIndex === shuttle.routeStationIds.length - 1;
+  const arrived: NativeShuttleState = {
+    ...shuttle,
+    stationIndex,
+    direction: terminus ? (shuttle.direction === 1 ? -1 : 1) : shuttle.direction,
+    location: { type: "station", id: stationId },
+    currentInterstationId: null,
+    status: "dwelling",
+    dwellTicks: NATIVE_STATION_DWELL_TICKS,
+    travelTicksRemaining: 0,
+    speedKmh: 0,
+  };
+  return exchangeShuttlePassengersAtStation(
+    arrived,
+    stationId,
+    terminus,
+    stepTimestamp,
+    stationPassengersById,
+  );
+}
+
 function stepTrain(
   train: NativeTrainState,
   restrictions: ReadonlyMap<string, NativeRestriction>,
@@ -1388,7 +1702,7 @@ function advanceOneStep(snapshot: NativeSimulationSnapshot): NativeSimulationSna
   const restrictions = restrictionMap(activated);
   const accumulatedStationPassengers = accumulateNativeStationPassengers(
     activated.stationPassengers,
-    NATIVE_SIMULATION_STEP_MS,
+    isPassengerDemandActive(activated.timestamp) ? NATIVE_SIMULATION_STEP_MS : 0,
   );
   const stationPassengersById = new Map(
     accumulatedStationPassengers.map((state) => [state.id, state]),
@@ -1402,6 +1716,13 @@ function advanceOneStep(snapshot: NativeSimulationSnapshot): NativeSimulationSna
       nextTimestamp,
       stationPassengersById,
     ));
+  const shuttles = [...activated.shuttles]
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map((shuttle) => stepShuttle(
+      shuttle,
+      nextTimestamp,
+      stationPassengersById,
+    ));
   const stationPassengers = [...stationPassengersById.values()].sort((left, right) =>
     left.lineCode.localeCompare(right.lineCode) || left.stationId.localeCompare(right.stationId)
   );
@@ -1410,6 +1731,7 @@ function advanceOneStep(snapshot: NativeSimulationSnapshot): NativeSimulationSna
     telemetryRevision: activated.telemetryRevision + 1,
     timestamp: nextTimestamp,
     trains,
+    shuttles,
     stationPassengers,
   });
 }
@@ -1446,6 +1768,102 @@ export function assertNativeSimulationInvariants(snapshot: NativeSimulationSnaps
     const oriented = orientedEdge(train);
     invariant(oriented.fromStationCode === train.fromStationCode, `${train.id} from station`);
     invariant(oriented.toStationCode === train.toStationCode, `${train.id} to station`);
+  }
+  invariant(
+    new Set(snapshot.shuttles.map((shuttle) => shuttle.id)).size === snapshot.shuttles.length,
+    "shuttle IDs must be unique",
+  );
+  for (const shuttle of snapshot.shuttles) {
+    invariant(NATIVE_LINE_BY_CODE.has(shuttle.lineCode), `${shuttle.id} line`);
+    invariant(shuttle.routeStationIds.length >= 2, `${shuttle.id} route stations`);
+    invariant(
+      shuttle.routeStationIds.length === shuttle.routeInterstationIds.length + 1,
+      `${shuttle.id} route topology`,
+    );
+    invariant(
+      shuttle.routeTravelTicks.length === shuttle.routeInterstationIds.length,
+      `${shuttle.id} travel-time topology`,
+    );
+    invariant(shuttle.routeStationIds[0] === shuttle.departureStationId, `${shuttle.id} departure`);
+    invariant(shuttle.routeStationIds.at(-1) === shuttle.arrivalStationId, `${shuttle.id} arrival`);
+    invariant(shuttle.departureStationId !== shuttle.arrivalStationId, `${shuttle.id} distinct termini`);
+    invariant(
+      Number.isInteger(shuttle.stationIndex) &&
+        shuttle.stationIndex >= 0 &&
+        shuttle.stationIndex < shuttle.routeStationIds.length,
+      `${shuttle.id} station index`,
+    );
+    invariant(shuttle.direction === 1 || shuttle.direction === -1, `${shuttle.id} direction`);
+    invariant(
+      shuttle.nominalSpeedKmh === NATIVE_SHUTTLE_SPEED_KMH,
+      `${shuttle.id} nominal speed`,
+    );
+    invariant(
+      shuttle.capacityPassengers === NATIVE_SHUTTLE_CAPACITY_PASSENGERS,
+      `${shuttle.id} capacity`,
+    );
+    invariant(
+      Number.isSafeInteger(shuttle.passengers) &&
+        shuttle.passengers >= 0 &&
+        shuttle.passengers <= NATIVE_SHUTTLE_CAPACITY_PASSENGERS,
+      `${shuttle.id} passengers`,
+    );
+    invariant(Number.isFinite(shuttle.routeDistanceMeters) && shuttle.routeDistanceMeters > 0, `${shuttle.id} route distance`);
+    invariant(Number.isFinite(shuttle.startedAt) && shuttle.startedAt <= snapshot.timestamp, `${shuttle.id} start time`);
+    shuttle.routeStationIds.forEach((stationId) => {
+      invariant(NATIVE_STATION_BY_CODE.get(stationId)?.lines.includes(shuttle.lineCode), `${shuttle.id} station line`);
+    });
+    shuttle.routeInterstationIds.forEach((interstationId, index) => {
+      const interstation = NATIVE_INTERSTATION_BY_ID.get(interstationId);
+      const left = shuttle.routeStationIds[index];
+      const right = shuttle.routeStationIds[index + 1];
+      if (interstation) {
+        invariant(interstation.lineCode === shuttle.lineCode, `${shuttle.id} interstation line`);
+        invariant(
+          (interstation.fromStationCode === left && interstation.toStationCode === right) ||
+            (interstation.fromStationCode === right && interstation.toStationCode === left),
+          `${shuttle.id} interstation binding`,
+        );
+      } else {
+        invariant(
+          interstationId === virtualShuttleInterstationId(shuttle.lineCode, left, right),
+          `${shuttle.id} virtual road-leg binding`,
+        );
+      }
+      invariant(
+        Number.isSafeInteger(shuttle.routeTravelTicks[index]) && shuttle.routeTravelTicks[index] > 0,
+        `${shuttle.id} travel ticks`,
+      );
+    });
+    if (shuttle.location.type === "station") {
+      invariant(shuttle.location.id === shuttle.routeStationIds[shuttle.stationIndex], `${shuttle.id} station location`);
+      invariant(shuttle.currentInterstationId === null, `${shuttle.id} cleared interstation`);
+      invariant(shuttle.status === "dwelling" && shuttle.speedKmh === 0, `${shuttle.id} station status`);
+      invariant(
+        Number.isSafeInteger(shuttle.dwellTicks) &&
+          shuttle.dwellTicks > 0 &&
+          shuttle.dwellTicks <= NATIVE_STATION_DWELL_TICKS,
+        `${shuttle.id} dwell`,
+      );
+      invariant(shuttle.travelTicksRemaining === 0, `${shuttle.id} station travel ticks`);
+    } else {
+      const edgeIndex = shuttle.direction === 1
+        ? shuttle.stationIndex
+        : shuttle.stationIndex - 1;
+      invariant(shuttle.location.id === shuttle.routeInterstationIds[edgeIndex], `${shuttle.id} interstation location`);
+      invariant(shuttle.currentInterstationId === shuttle.location.id, `${shuttle.id} current interstation`);
+      invariant(
+        shuttle.status === "running" && shuttle.speedKmh === NATIVE_SHUTTLE_SPEED_KMH,
+        `${shuttle.id} running status`,
+      );
+      invariant(shuttle.dwellTicks === 0, `${shuttle.id} running dwell`);
+      invariant(
+        Number.isSafeInteger(shuttle.travelTicksRemaining) &&
+          shuttle.travelTicksRemaining > 0 &&
+          shuttle.travelTicksRemaining <= shuttle.routeTravelTicks[edgeIndex],
+        `${shuttle.id} remaining travel ticks`,
+      );
+    }
   }
   const expectedPassengerStateIds = new Set(NATIVE_LINES.flatMap((line) =>
     line.stationCodes.map((stationId) => nativeStationPassengerId(line.code, stationId))
@@ -1660,6 +2078,47 @@ function createInsertedTrain(
   };
 }
 
+function createInsertedShuttle(
+  snapshot: NativeSimulationSnapshot,
+  input: NativeShuttleInsertionInput,
+): NativeShuttleInsertionReceipt {
+  const route = nativeShuttleRoute(input);
+  let sequence = 1;
+  let id: string;
+  do {
+    id = `SHUT-${input.lineCode.replace("RER_", "RER")}-${String(sequence).padStart(3, "0")}`;
+    sequence += 1;
+  } while (snapshot.shuttles.some((shuttle) => shuttle.id === id));
+  const shuttle: NativeShuttleState = {
+    id,
+    lineCode: input.lineCode,
+    departureStationId: input.departureStationId,
+    arrivalStationId: input.arrivalStationId,
+    routeStationIds: route.stationIds,
+    routeInterstationIds: route.interstationIds,
+    routeTravelTicks: route.travelTicks,
+    routeDistanceMeters: route.distanceMeters,
+    stationIndex: 0,
+    direction: 1,
+    location: { type: "station", id: input.departureStationId },
+    currentInterstationId: null,
+    status: "dwelling",
+    dwellTicks: NATIVE_STATION_DWELL_TICKS,
+    travelTicksRemaining: 0,
+    speedKmh: 0,
+    nominalSpeedKmh: NATIVE_SHUTTLE_SPEED_KMH,
+    capacityPassengers: NATIVE_SHUTTLE_CAPACITY_PASSENGERS,
+    passengers: 0,
+    startedAt: snapshot.timestamp,
+    quality: "simulated",
+  };
+  return {
+    shuttle,
+    capacityDeltaPassengers: NATIVE_SHUTTLE_CAPACITY_PASSENGERS,
+    decisionRevision: snapshot.decisionRevision + 1,
+  };
+}
+
 class NativeNetworkControllerImplementation implements NativeNetworkController {
   private snapshot: NativeSimulationSnapshot;
   private initialSnapshot: NativeSimulationSnapshot;
@@ -1710,6 +2169,7 @@ class NativeNetworkControllerImplementation implements NativeNetworkController {
       scenarioId: this.initialSnapshot.scenarioId,
       scenarioName: this.initialSnapshot.scenarioName,
       trains: this.initialSnapshot.trains,
+      shuttles: this.initialSnapshot.shuttles,
       stationPassengers: this.initialSnapshot.stationPassengers,
       incidents: this.initialSnapshot.incidents,
     });
@@ -1799,6 +2259,35 @@ class NativeNetworkControllerImplementation implements NativeNetworkController {
     return {
       ...receipt,
       train: this.snapshot.trains.find((train) => train.id === receipt.train.id)!,
+    };
+  };
+
+  insertShuttle = (input: NativeShuttleInsertionInput): NativeShuttleInsertionReceipt => {
+    const receipt = createInsertedShuttle(this.snapshot, input);
+    const stationPassengersById = new Map(
+      this.snapshot.stationPassengers.map((state) => [state.id, state]),
+    );
+    const insertedShuttle = exchangeShuttlePassengersAtStation(
+      receipt.shuttle,
+      receipt.shuttle.departureStationId,
+      true,
+      this.snapshot.timestamp,
+      stationPassengersById,
+    );
+    this.evaluations.clear();
+    this.publish(withDerivedState({
+      ...this.snapshot,
+      decisionRevision: receipt.decisionRevision,
+      shuttles: [...this.snapshot.shuttles, insertedShuttle].sort((left, right) =>
+        left.id.localeCompare(right.id)
+      ),
+      stationPassengers: [...stationPassengersById.values()].sort((left, right) =>
+        left.lineCode.localeCompare(right.lineCode) || left.stationId.localeCompare(right.stationId)
+      ),
+    }));
+    return {
+      ...receipt,
+      shuttle: this.snapshot.shuttles.find((shuttle) => shuttle.id === receipt.shuttle.id)!,
     };
   };
 

@@ -55,6 +55,12 @@ describe("Passenger flow UI audit", () => {
     expect(lineStation?.capacityReferencePlaces).toBe(getMaximumTrainCapacity("M1"));
     expect(lineStation?.loadPercent).toBe(Math.round(240 / getMaximumTrainCapacity("M1") * 100));
     expect(all.totalOnboardPassengers).toBe(0);
+    expect(all.totalGeneratedPassengers).toBe(420);
+    expect(all.totalBoardedPassengers).toBe(56);
+    expect(all.totalAlightedPassengers).toBe(34);
+    expect(line.totalGeneratedPassengers).toBe(240);
+    expect(line.totalBoardedPassengers).toBe(28);
+    expect(line.totalAlightedPassengers).toBe(17);
 
     const html = renderToStaticMarkup(createElement(PassengerFlowPage, {
       simulation,
@@ -62,8 +68,13 @@ describe("Passenger flow UI audit", () => {
     }));
     expect(html).toContain('id="text-text-passenger-flow-page"');
     expect(html).toContain("Passenger flow");
-    expect(html).toContain("Auditable demand formula");
+    expect(html).not.toContain("Auditable demand formula");
+    expect(html).toContain("AGENT DECISION SUPPORT");
+    expect(html).toContain("Priority incidents");
+    expect(html).toContain('data-testid="passenger-flow-agent-refresh"');
     expect(html).toContain("Waiting queue");
+    expect(html).toContain("Cumulative boardings");
+    expect(html).toContain("generated · 34 alighted since reset");
     expect(html).toContain("Last boarded");
     expect(html).toContain("Last alighted");
     expect(html).toContain('data-testid="passenger-flow-line-filter"');

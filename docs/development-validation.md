@@ -108,7 +108,7 @@ npm run test:webmcp
 ```
 
 The script uses an existing `http://127.0.0.1:5173/#/overview` server or starts a
-temporary Vite server itself. It validates the exact 19-tool catalogue, strict
+temporary Vite server itself. It validates the exact 21-tool catalogue, strict
 input schemas, read-only annotations, coded incident inspection, procedure
 search/retrieval, revision and content-hash binding, cited step application,
 stale-state guards, one-shot approval, receipts, simulation reset, schedule

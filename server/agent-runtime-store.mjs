@@ -9,14 +9,15 @@ import {
   parseIncidentInstructionTransfer,
 } from "./incident-instruction-registry.mjs";
 
-const SCHEMA_VERSION = "paris-icc-agent-runtime.v4";
+const SCHEMA_VERSION = "paris-icc-agent-runtime.v5";
 const READABLE_SCHEMA_VERSIONS = new Set([
   "paris-icc-agent-runtime.v1",
   "paris-icc-agent-runtime.v2",
   "paris-icc-agent-runtime.v3",
+  "paris-icc-agent-runtime.v4",
   SCHEMA_VERSION,
 ]);
-const CATEGORIES = new Set(["generic", "incident", "report"]);
+const CATEGORIES = new Set(["generic", "incident", "report", "procedure"]);
 const OUTCOMES = new Set(["completed", "tool_calls", "failed"]);
 const REASONING_EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
@@ -120,7 +121,10 @@ export class AgentRuntimeStore {
       if (typeof parsed.updatedAt === "string") this.updatedAt = parsed.updatedAt;
       const hasLegacyCompleteInstructions = parsed.schemaVersion === "paris-icc-agent-runtime.v3" &&
         Array.isArray(parsed.incidentInstructions);
-      const hasInstructionOverrides = parsed.schemaVersion === SCHEMA_VERSION &&
+      const hasInstructionOverrides = new Set([
+        "paris-icc-agent-runtime.v4",
+        SCHEMA_VERSION,
+      ]).has(parsed.schemaVersion) &&
         Array.isArray(parsed.incidentInstructionOverrides);
       if (hasLegacyCompleteInstructions || hasInstructionOverrides) {
         try {

@@ -292,7 +292,7 @@ export function EmbeddedAgent({
 
         <div className="embedded-agent__trust">
           <span><i className={configuration.agent.enabled ? "is-live" : ""} />{configuration.agent.model ?? "Agent disabled"}</span>
-          <span>{expectedToolNames.length || 18} page tools</span>
+          <span>{expectedToolNames.length || 21} page tools</span>
           <span>Writes need approval</span>
         </div>
 
@@ -325,7 +325,7 @@ export function EmbeddedAgent({
               )}
               {configuration.agent.enabled && !toolsReady && (
                 <p className="embedded-agent__disabled">
-                  Paris ICC is publishing its 18 native WebMCP tools. Missions unlock automatically when the page is ready.
+                  Paris ICC is publishing its 21 native WebMCP tools. Missions unlock automatically when the page is ready.
                 </p>
               )}
             </div>

@@ -99,8 +99,9 @@ hash. Reconcile the actual source files, dates, authorship, licences and permitt
 transformations, then update the notices with evidence.
 
 Project code is MIT-licensed. That licence does not relicense railway artwork,
-operator names, logos, trademarks, GTFS data or other third-party material.
-Independently verify applicable RATP/IDFM and source-platform terms, and obtain any permission required for the
+operator names, logos, trademarks, GTFS data or other third-party material. Retain
+[the third-party notice](../THIRD_PARTY_NOTICES.md), independently verify applicable
+RATP/IDFM and source-platform terms, and obtain any permission required for the
 intended publication.
 
 ## Procedures and decision support
@@ -115,8 +116,11 @@ uses exactly three read-only page tools in order:
 The selected document is bound by procedure ID, revision and content hash. A valid
 agent output may cite only step IDs present in that document. The application, not
 free-form model text, constructs the arguments for
-`apply_reviewed_procedure_step`. The call then requires visible one-shot operator
-approval and revalidates the current decision revision.
+`apply_reviewed_procedure_step`. Before that write, the read-only
+`assess_operator_procedure_choice` tool explains whether the selected step
+differs from the current agent recommendation. The advice never blocks a
+documented choice. The write then requires visible one-shot operator approval and
+revalidates the current decision revision.
 
 The bundled English catalogue is demo-authored, synthetic and explicitly
 `official: false`. It contains no approved internal RATP/IDFM procedure and must not
@@ -192,4 +196,5 @@ optional connector is configured; all train movement, infrastructure, incident,
 crew, schedule and power behavior remains deterministic local simulation.**
 
 For the corresponding operator workflow, see the
-[Paris ICC operator guide](operator-guide.md).
+[Paris ICC operator guide](operator-guide.md) and the
+[jury walkthrough](jury-walkthrough.md).

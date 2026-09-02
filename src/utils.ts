@@ -1,5 +1,6 @@
 import type { IncidentStatus, LineId, Severity, TrainStatus } from "./rail/domain";
 import { lineDefinition } from "./rail/topology";
+import { formatParisOperationalTime } from "./rail/operationalTime";
 
 export function formatDelay(seconds: number): string {
   if (seconds < 60) return seconds === 0 ? "On time" : `+${seconds} s`;
@@ -9,11 +10,7 @@ export function formatDelay(seconds: number): string {
 }
 
 export function formatTime(timestamp: number): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Paris",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(timestamp);
+  return formatParisOperationalTime(timestamp);
 }
 
 export function lineLabel(lineId: LineId): string {

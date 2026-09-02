@@ -28,6 +28,8 @@ controls pause them or apply a ×1, ×2, or ×4 simulation multiplier. In authen
 server mode, the operations timer fires every 1,000 ms by default, so ×1 tracks
 wall-clock time while ×2 and ×4 are explicit accelerators. Train positions remain
 discrete station/interstation occupations rather than interpolated movement.
+The default baseline starts at **01:00 PM Europe/Paris**, and visible operational
+times use an explicit AM/PM suffix.
 
 Native trains use a 20-second simulated station dwell. Operationally, a train is
 in exactly one of two location states:
@@ -48,14 +50,16 @@ The native snapshot owns one passenger state for every line/station pair. For
 Metro, its constant arrival rate is:
 
 ```text
-OMNIL 2025 annual journeys / rendered stations on the line / (365 × 24 × 3,600)
+OMNIL 2025 annual journeys / rendered stations on the line / (365 × 20 × 3,600)
 ```
 
 For RER A–E, the same calculation uses the published daily operator/authority
-reference divided by rendered stations and 86,400 seconds. No headway, capacity,
-interchange or load-factor coefficient changes that rate. Fractional arrivals
-are retained in a remainder, while the visible queue and cumulative counters are
-integers. Source years, qualifiers and conversion limits are documented in
+reference divided by rendered stations and 72,000 active-service seconds. New
+passenger generation is zero from **01:00 AM inclusive to 05:00 AM exclusive**
+in Europe/Paris; existing queues and onboard passengers are not deleted. No
+headway, interchange or load-factor coefficient changes that rate. Fractional
+arrivals are retained in a remainder, while the visible queue and cumulative
+counters are integers. Source years, qualifiers and conversion limits are documented in
 [Line ridership reference](line-ridership-sources.md).
 
 Passenger exchange happens exactly once when a train changes from an

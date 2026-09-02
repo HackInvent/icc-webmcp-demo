@@ -49,5 +49,6 @@ describe("browser fallback simulation cadence", () => {
     expect(html).toContain(
       'aria-label="Operational clock controls; each step advances 1 second"',
     );
+    expect(html).toContain("01:00:00 PM");
   });
 });

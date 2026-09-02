@@ -309,6 +309,12 @@ export function recordCommandInShift(shift, input) {
       `Train ${result?.insertion?.train?.id ?? "reinforcement"} inserted`,
       `${payload.lineCode} · ${payload.stationId} · direction ${payload.direction === 1 ? "outbound" : "inbound"}.`,
     ],
+    insert_native_shuttle: [
+      "operator-action",
+      "shuttle-ordered",
+      `Shuttle ${result?.insertion?.shuttle?.id ?? "service"} ordered`,
+      `${payload.lineCode} · ${payload.departureStationId} → ${payload.arrivalStationId} · 15 km/h · 100 passengers.`,
+    ],
     evaluate_native_response: ["decision-support", "response-evaluated", "Incident response options evaluated", `Evaluation ${result?.evaluation?.id ?? "recorded"}.`],
     apply_native_response: ["operator-action", "reviewed-response-applied", "Reviewed incident response applied", result?.applied?.message ?? result?.applied?.receipt?.summary ?? "The reviewed response was applied."],
     set_power_status: ["operator-action", "power-status-changed", `Power section ${payload.id} · ${payload.status}`, "The operator changed the traction-power state."],

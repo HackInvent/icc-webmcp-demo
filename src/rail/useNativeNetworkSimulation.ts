@@ -14,6 +14,8 @@ import {
   type NativeNetworkControllerOptions,
   type NativeResponseEvaluation,
   type NativeScenarioId,
+  type NativeShuttleInsertionInput,
+  type NativeShuttleInsertionReceipt,
   type NativeSimulationConfigurationState,
   type NativeSimulationSnapshot,
   type NativeSimulationSpeed,
@@ -37,6 +39,7 @@ export interface NativeNetworkControllerFacade {
   ) => Awaitable<NativeSimulationSnapshot>;
   createIncident: (input: NativeIncidentInput) => Awaitable<NativeIncident>;
   insertTrain: (input: NativeTrainInsertionInput) => Awaitable<NativeTrainInsertionReceipt>;
+  insertShuttle: (input: NativeShuttleInsertionInput) => Awaitable<NativeShuttleInsertionReceipt>;
   evaluateResponse: (input: { incidentId: string }) => Awaitable<NativeResponseEvaluation>;
   applyReviewedOption: (input: {
     evaluationId: string;
@@ -160,6 +163,16 @@ export function useNativeNetworkSimulation(
         if (!insertion) throw new Error("The server did not return the train-insertion receipt.");
         return insertion;
       },
+      insertShuttle: async (input) => {
+        if (!getRuntime()) return localController.insertShuttle(input);
+        const result = await operationsClient.command<
+          Record<string, unknown>,
+          { insertion: NativeShuttleInsertionReceipt }
+        >("insert_native_shuttle", input as unknown as Record<string, unknown>);
+        const insertion = result.result?.insertion;
+        if (!insertion) throw new Error("The server did not return the shuttle-insertion receipt.");
+        return insertion;
+      },
       evaluateResponse: async (input) => {
         if (!getRuntime()) return localController.evaluateResponse(input);
         const result = await operationsClient.command<
@@ -209,6 +222,7 @@ export function useNativeNetworkSimulation(
     activateScenario: controller.activateScenario,
     createIncident: controller.createIncident,
     insertTrain: controller.insertTrain,
+    insertShuttle: controller.insertShuttle,
     evaluateResponse: controller.evaluateResponse,
     applyReviewedOption: controller.applyReviewedOption,
   };

@@ -75,6 +75,7 @@ describe("registered WebMCP execution policy", () => {
     ]);
     expect(webMcpActivityKind("search_operational_procedures")).toBe("read");
     expect(webMcpActivityKind("get_operational_procedure")).toBe("read");
+    expect(webMcpActivityKind("assess_operator_procedure_choice")).toBe("read");
     expect(webMcpActivityKind("preview_schedule_change")).toBe("analysis");
     expect(webMcpActivityKind("simulate_regulation_action")).toBe("write");
     expect(webMcpActivityKind("inspect_network_digital_twin")).toBe("read");
@@ -200,9 +201,9 @@ describe("registered WebMCP execution policy", () => {
     );
 
     expect(registration.supported).toBe(true);
-    expect(registration.count).toBe(19);
-    expect(registration.names).toHaveLength(19);
-    expect(registered).toHaveLength(19);
+    expect(registration.count).toBe(21);
+    expect(registration.names).toHaveLength(21);
+    expect(registered).toHaveLength(21);
     expect(registration.names).toEqual(registered.map((tool) => tool.name));
     await registration.dispose();
   });

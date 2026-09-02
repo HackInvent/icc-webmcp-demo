@@ -277,22 +277,142 @@ export function EntityModal({ selection, snapshot, onClose, onIncidentStatus, on
       <Modal
         contentId="text-text-modal-data-source"
         title="Data source"
-        eyebrow="OPERATIONAL CONNECTOR"
+        eyebrow="WHERE PASSENGER INFORMATION COMES FROM"
         onClose={onClose}
-        footer={<><span className="footer-note"><Icon name="shield" size={15}/> Read-only passenger connector</span><button type="button" className="button button--secondary" disabled={feed?.status === "loading"} onClick={onRefreshPassengerFeed}><Icon name="reset" size={15}/> {feed?.status === "loading" ? "Refreshing…" : "Refresh source"}</button></>}
+        wide
+        footer={(
+          <>
+            <span className="footer-note">
+              <Icon name="shield" size={15}/> This setting only changes passenger-information arrival estimates.
+            </span>
+            <button
+              type="button"
+              className="button button--secondary"
+              disabled={activeMode === "simulation" || feed?.status === "loading"}
+              onClick={onRefreshPassengerFeed}
+            >
+              <Icon name="reset" size={15}/>
+              {activeMode === "simulation"
+                ? "No external source"
+                : feed?.status === "loading"
+                  ? "Refreshing…"
+                  : "Refresh selected source"}
+            </button>
+          </>
+        )}
       >
+        <section className="source-explainer" id="text-text-modal-data-source-explanation">
+          <Icon name="activity" size={20}/>
+          <div>
+            <h3>What does this setting change?</h3>
+            <p>
+              It chooses where Paris ICC gets estimated train arrivals used for passenger information.
+              It does not replace the trains, track occupation, incidents, power,
+              schedules or driver resources already managed by the application.
+            </p>
+          </div>
+        </section>
+
         <div className="source-options" id="text-text-modal-data-source-options">
-          <button type="button" className={`source-option${activeMode === "simulation" ? " source-option--active" : ""}`} onClick={() => onPassengerFeedMode("simulation")}><span className="source-option__icon"><Icon name="play" size={20}/></span><span><strong>ICC operational state</strong><small>Traffic, CDV, incidents, power and D-1 resources · passenger feed disabled</small></span><StatusPill tone={activeMode === "simulation" ? "ok" : "neutral"}>{activeMode === "simulation" ? "Active" : "Available"}</StatusPill></button>
-          <button type="button" className={`source-option${activeMode === "prim-replay" ? " source-option--active" : ""}`} onClick={() => onPassengerFeedMode("prim-replay")}><span className="source-option__icon"><Icon name="activity" size={20}/></span><span><strong>PRIM contract replay</strong><small>Offline fixture through the production SIRI Lite parser · estimated values</small></span><StatusPill tone={activeMode === "prim-replay" ? "ok" : "neutral"}>{activeMode === "prim-replay" ? "Active" : "Available"}</StatusPill></button>
-          <button type="button" className={`source-option${activeMode === "prim-live" ? " source-option--active" : ""}`} onClick={() => onPassengerFeedMode("prim-live")}><span className="source-option__icon"><Icon name="radio" size={20}/></span><span><strong>IDFM PRIM live</strong><small>Authenticated server proxy · four official line references · read-only</small></span><StatusPill tone={activeMode === "prim-live" && feed?.status === "ready" ? "ok" : activeMode === "prim-live" && feed?.status === "error" ? "danger" : "neutral"}>{activeMode === "prim-live" ? feed?.status ?? "loading" : "Requires server key"}</StatusPill></button>
+          <button
+            type="button"
+            id="text-text-modal-data-source-operational-state"
+            data-testid="data-source-operational-state"
+            className={`source-option${activeMode === "simulation" ? " source-option--active" : ""}`}
+            aria-pressed={activeMode === "simulation"}
+            onClick={() => onPassengerFeedMode("simulation")}
+          >
+            <span className="source-option__icon"><Icon name="play" size={20}/></span>
+            <span className="source-option__copy">
+              <strong>Paris ICC data only</strong>
+              <small>No external passenger feed is loaded. The application continues to use its own operational state.</small>
+              <em>Use this when you only want the built-in operational scenario.</em>
+            </span>
+            <StatusPill tone={activeMode === "simulation" ? "ok" : "neutral"}>
+              {activeMode === "simulation" ? "Active" : "Available"}
+            </StatusPill>
+          </button>
+
+          <button
+            type="button"
+            id="text-text-modal-data-source-replay"
+            data-testid="data-source-prim-replay"
+            className={`source-option${activeMode === "prim-replay" ? " source-option--active" : ""}`}
+            aria-pressed={activeMode === "prim-replay"}
+            onClick={() => onPassengerFeedMode("prim-replay")}
+          >
+            <span className="source-option__icon"><Icon name="activity" size={20}/></span>
+            <span className="source-option__copy">
+              <strong>Saved PRIM example</strong>
+              <small>A saved set of arrival data is read with the same SIRI Lite parser as the live source. No internet connection or API key is needed.</small>
+              <em>Use this for a repeatable demo. These are example arrivals, not current traffic.</em>
+            </span>
+            <StatusPill tone={activeMode === "prim-replay" ? "ok" : "neutral"}>
+              {activeMode === "prim-replay" ? "Active" : "Available"}
+            </StatusPill>
+          </button>
+
+          <button
+            type="button"
+            id="text-text-modal-data-source-live"
+            data-testid="data-source-prim-live"
+            className={`source-option${activeMode === "prim-live" ? " source-option--active" : ""}`}
+            aria-pressed={activeMode === "prim-live"}
+            onClick={() => onPassengerFeedMode("prim-live")}
+          >
+            <span className="source-option__icon"><Icon name="radio" size={20}/></span>
+            <span className="source-option__copy">
+              <strong>Current IDFM PRIM arrivals</strong>
+              <small>The server reads current estimated arrivals for the configured lines. The PRIM API key stays on the server.</small>
+              <em>Read only: Paris ICC can read this feed but cannot send commands back to IDFM.</em>
+            </span>
+            <StatusPill tone={activeMode === "prim-live" && feed?.status === "ready" ? "ok" : activeMode === "prim-live" && feed?.status === "error" ? "danger" : "neutral"}>
+              {activeMode === "prim-live" ? feed?.status ?? "loading" : "Server key needed"}
+            </StatusPill>
+          </button>
         </div>
+
         {feed && activeMode !== "simulation" && (
           <div className="source-contract" id="text-text-modal-data-source-contract">
-            <header><span><strong>{feed.provider}</strong><small>{feed.contract}</small></span><span><strong>{feed.observations.length}</strong><small>estimated calls · {formatFeedTimestamp(feed.receivedAt)}</small></span></header>
-            <div>{feed.lines.map((line) => <span key={line.lineId}><b>{line.lineId.replace("_", " ")}</b><code>{line.lineRef}</code><StatusPill tone={line.status === "ready" ? "ok" : "danger"}>{line.status === "ready" ? `${line.observationCount} calls` : "unavailable"}</StatusPill></span>)}</div>
+            <header>
+              <span>
+                <strong>{feed.provider}</strong>
+                <small>Format: {feed.contract}</small>
+              </span>
+              <span>
+                <strong>{feed.observations.length} arrival estimates</strong>
+                <small>Last refresh: {formatFeedTimestamp(feed.receivedAt)}</small>
+              </span>
+            </header>
+            <div>
+              {feed.lines.map((line) => (
+                <span key={line.lineId}>
+                  <b>{line.lineId.replace("_", " ")}</b>
+                  <code title={line.lineRef}>{line.lineRef}</code>
+                  <StatusPill tone={line.status === "ready" ? "ok" : "danger"}>
+                    {line.status === "ready" ? `${line.observationCount} arrivals` : "Unavailable"}
+                  </StatusPill>
+                </span>
+              ))}
+            </div>
           </div>
         )}
-        <div id="text-text-modal-data-source-provenance" className={`modal-note${feed?.error ? " modal-note--warning" : ""}`}><Icon name="shield" size={18}/><p>{feed?.error ?? "PRIM observations remain a separate read-only evidence layer. Every layer keeps its provenance visible to the operator and agent."}</p></div>
+
+        {feed?.error && (
+          <div id="text-text-modal-data-source-error" className="modal-note modal-note--warning" role="alert">
+            <Icon name="alert" size={18}/>
+            <p><strong>The selected source could not be fully refreshed.</strong> {feed.error}</p>
+          </div>
+        )}
+
+        <section className="source-boundaries" id="text-text-modal-data-source-provenance">
+          <header><Icon name="shield" size={18}/><h3>What comes from each source?</h3></header>
+          <ul>
+            <li><strong>Paris ICC:</strong> train occupation, incidents, electrical state, schedules, drivers and operator actions.</li>
+            <li><strong>IDFM PRIM:</strong> estimated train arrivals for passengers. It does not provide track-circuit occupation or continuous train positions.</li>
+            <li><strong>Agent:</strong> sees the source and refresh time, so it can distinguish current, replayed and application-generated information.</li>
+          </ul>
+        </section>
       </Modal>
     );
   }

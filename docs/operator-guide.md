@@ -30,7 +30,8 @@ special Nginx routing rules.
 | Network overview | `#/overview` | Native 21-line map, trains, delays and incident decisions |
 | Passenger flow | `#/passenger-flow` | Network heatmap, station queues, train loads and sourced demand rates |
 | Incident deep link | `#/overview/incident/:id` | Focus a native incident and open its decision workflow |
-| SimView | `#/simulator` | Inspect and filter simulated objects; create incidents and insert trains |
+| SimView | `#/simulator` | Inspect and filter simulated objects, including shuttles; create incidents and insert trains |
+| Bus services | `#/bus-services` | Order and monitor replacement shuttles between stations on one line |
 | Procedures | `#/procedures` | Inspect the versioned DEMO catalogue and publish controlled step revisions |
 | Schedules & drivers | `#/schedules-drivers` | Prepare and review D-1 schedule changes |
 | Incident management | `#/incidents` | Review detailed-corridor and native incidents |
@@ -136,10 +137,19 @@ publisher, source URL, station divisor, period divisor and exact per-station
 arrival rate. **All Metro + RER lines** aggregates the independent line/station
 queues at interchanges.
 
+The **Priority incidents** panel runs automatically whenever this page opens or
+the selected line changes. Its embedded agent first reads the exact current scope
+through `inspect_passenger_flow_impact`, then presents at most three incidents in
+descending queue-relief order. **Refresh** repeats the analysis against the latest
+telemetry and decision revisions. **Open incident** continues in the existing
+controlled procedure workflow; the analysis itself is read-only.
+
 Select a heat marker to inspect the waiting queue, generated/boarded/alighted
 totals, last exchange, arrival rate, and trains physically dwelling at that
-station. A queue grows linearly once per simulated second. At a station boundary,
-10% of a train's passengers alight (100% at a terminus), then waiting passengers
+station. A queue grows linearly once per simulated second during active service;
+new demand pauses from **01:00 AM to 05:00 AM Europe/Paris**. Existing waiting
+and onboard passengers remain available to clear. At a station boundary, 10% of
+a train's passengers alight (100% at a terminus), then waiting passengers
 board up to the train's reference capacity. Any excess remains visible at the
 station. The exchange occurs once on arrival, not on every dwell tick.
 
@@ -164,14 +174,25 @@ To revise a procedure step:
    role, preconditions, required evidence, completion criteria, or minimum/
    nominal/maximum planning duration. Publish or explicitly discard the current
    draft before navigating to another step.
-3. Review **Execution invariants**. Step ID, order, phase, mandatory status,
+3. Select **Ask agent for feedback**. The server checks the open procedure
+   revision, reads only linked previous edits, operator actions, procedure
+   executions and incident logs, then asks the configured OpenAI model to review
+   every editable field. The same request searches public sources; verified
+   citations appear as clickable links in the modal.
+4. Read the feedback directly below each field. Every item states whether it is
+   based on edit history, operational REX, a public source, or general guidance.
+   When no procedure-specific evidence exists, the agent still suggests a useful
+   drafting approach for every field without presenting it as a local rule. A
+   later draft change marks the review as stale. Feedback never edits or publishes
+   a field automatically.
+5. Review **Execution invariants**. Step ID, order, phase, mandatory status,
    capability, confirmation rule, applicability, machine evidence gate, and
    return-to-normal policy cannot be edited.
-4. Review **Pending changes** and resolve every validation message. Duration
+6. Review **Pending changes** and resolve every validation message. Duration
    values must remain ordered `minimum <= nominal <= maximum`.
-5. Select **Publish step revision**. The service checks the displayed revision
+7. Select **Publish step revision**. The service checks the displayed revision
    and hash again; stale drafts are rejected rather than overwriting a newer edit.
-6. Wait for the catalogue refresh. Confirm that the document displays its new
+8. Wait for the catalogue refresh. Confirm that the document displays its new
    revision and integrity hash.
 
 Each accepted publication is persisted in SQLite and adds a timestamped operator
@@ -284,6 +305,20 @@ Use **Traction power** to review constrained sections, measurements and the powe
 operations log. Selecting a section opens its simulated voltage, current and load.
 **Isolate in simulation** and **Restore power in simulation** never contact a
 substation or field system.
+
+### Bus services
+
+1. Open **Bus services**.
+2. Select a line, a departure station and an arrival station. The arrival list
+   contains only reachable stations on that same line.
+3. Select **Order shuttle**. The server records the operator command and creates
+   one persistent shuttle at the departure station.
+4. The shuttle dwells for 20 seconds, then moves through discrete station and
+   interstation states at a nominal 15 km/h. It carries up to 100 passengers,
+   exchanges passengers with station queues and reverses at both endpoints.
+5. Follow the vehicle on **Bus services**, **Network overview**, or the
+   **Shuttles** tab in **SimView**. The read-only WebMCP digital-twin tool also
+   exposes its current route, position, speed and load to the agent.
 
 ### Passenger-information source
 

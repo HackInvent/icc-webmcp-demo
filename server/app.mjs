@@ -13,6 +13,11 @@ import {
 import { createOperationsRepository, OperationsRepositoryConflictError } from "./operations-repository.mjs";
 import { createOperationsService, OperationsError } from "./operations-service.ts";
 import { buildShiftReportHtml, shiftReportEvidence } from "./shift-report.mjs";
+import {
+  buildProcedureFeedbackEvidence,
+  generalProcedureFeedback,
+  ProcedureFeedbackError,
+} from "./procedure-feedback.mjs";
 import { publicRuntimeConfiguration } from "./config.mjs";
 import {
   parseCookies,
@@ -622,6 +627,56 @@ export function createParisIccServer(config, options = {}) {
         const date = new Date(now()).toISOString().slice(0, 10);
         sendJson(response, 200, agentRuntimeStore.export(), {
           "Content-Disposition": `attachment; filename="paris-icc-agent-log-${date}.json"`,
+        });
+        return;
+      }
+      if (url.pathname === "/api/procedures/feedback") {
+        methodAllowed(request, "POST");
+        enforceSameOrigin(request, config);
+        const session = requireSession(request, config, sessionCodec);
+        const limit = agentLimiter.attempt(session.sid);
+        if (!limit.allowed) {
+          throw new HttpError(429, "agent_rate_limit", "The procedure-feedback request limit was reached.", {
+            "Retry-After": String(limit.retryAfterSeconds),
+          });
+        }
+        const body = await readJson(request, config.server.maxRequestBodyBytes);
+        const operations = await operationsPromise;
+        const snapshot = await operations.getSnapshot(operationsWorkspaceId(session));
+        let evidence;
+        try {
+          evidence = buildProcedureFeedbackEvidence(snapshot, body, now());
+        } catch (error) {
+          if (error instanceof ProcedureFeedbackError) {
+            throw new HttpError(error.status, error.code, error.message);
+          }
+          throw error;
+        }
+        let feedback;
+        let usage;
+        if (config.openai.enabled) {
+          try {
+            const reviewed = await agentService.reviewProcedureEdit(evidence);
+            feedback = reviewed.feedback;
+            usage = reviewed.usage;
+          } catch (error) {
+            if (!(error instanceof AgentProtocolError) && !(error instanceof ProcedureFeedbackError)) {
+              throw error;
+            }
+            feedback = generalProcedureFeedback(
+              evidence,
+              "The agent review could not be verified. General field guidance is shown; retry to obtain log-grounded and web-sourced feedback.",
+            );
+          }
+        } else {
+          feedback = generalProcedureFeedback(
+            evidence,
+            "OpenAI is disabled. General field guidance is shown without procedure-specific interpretation or web research.",
+          );
+        }
+        sendJson(response, 200, {
+          ...feedback,
+          ...(usage ? { usage } : {}),
         });
         return;
       }

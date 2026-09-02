@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { NATIVE_INTERSTATION_BY_ID, NATIVE_LINES } from "./nativeNetwork";
+import { NATIVE_INTERSTATIONS, NATIVE_INTERSTATION_BY_ID, NATIVE_LINE_COMPONENTS, NATIVE_LINES } from "./nativeNetwork";
 import { nativeStationPassengerId } from "./passengerDemand";
 import { getReferenceCapacity } from "./rollingStock";
 import {
@@ -8,11 +8,15 @@ import {
   createNativeNetworkController,
   createNativeSimulationSnapshot,
   nativeAlightingPassengerCount,
+  nativeShuttleDestinationOptions,
   nativeTrainOperationalLocation,
   nativeOperatorTrainInsertionOptions,
   nativeTrainInsertionOptions,
   nativeTrainInsertionStationIds,
   NativeSimulationError,
+  NATIVE_DEFAULT_TIMESTAMP,
+  NATIVE_SHUTTLE_CAPACITY_PASSENGERS,
+  NATIVE_SHUTTLE_SPEED_KMH,
   NATIVE_SIMULATION_STEP_MS,
   NATIVE_STATION_DWELL_MS,
   type NativeSimulationSnapshot,
@@ -60,6 +64,41 @@ function orientRouteTrain(
 }
 
 describe("native all-network simulation", () => {
+  it("starts at 01:00 PM Paris time", () => {
+    expect(NATIVE_DEFAULT_TIMESTAMP).toBe(Date.UTC(2026, 7, 28, 11, 0, 0));
+    expect(createNativeSimulationSnapshot({ scenarioId: "nominal" }).timestamp)
+      .toBe(NATIVE_DEFAULT_TIMESTAMP);
+  });
+
+  it("generates no new station passengers from 01:00 AM to 05:00 AM", () => {
+    const withControlledDemand = (startTimestamp: number): NativeSimulationSnapshot => {
+      const initial = createNativeSimulationSnapshot({ scenarioId: "nominal", startTimestamp });
+      return {
+        ...initial,
+        stationPassengers: initial.stationPassengers.map((state, index) => ({
+          ...state,
+          arrivalsPerSecond: index === 0 ? 1 : 0,
+        })),
+      };
+    };
+
+    const paused = advanceNativeSimulation(
+      withControlledDemand(Date.UTC(2026, 7, 27, 23, 0, 0)),
+    );
+    expect(paused.stationPassengers.reduce(
+      (sum, state) => sum + state.totalGeneratedPassengers,
+      0,
+    )).toBe(0);
+
+    const resumed = advanceNativeSimulation(
+      withControlledDemand(Date.UTC(2026, 7, 28, 3, 0, 0)),
+    );
+    expect(resumed.stationPassengers.reduce(
+      (sum, state) => sum + state.totalGeneratedPassengers,
+      0,
+    )).toBe(1);
+  });
+
   it("seeds two deterministic trains on every native line and the three showcase incidents", () => {
     const snapshot = createNativeSimulationSnapshot();
     expect(snapshot.trains).toHaveLength(42);
@@ -946,6 +985,123 @@ describe("native all-network simulation", () => {
       expect.objectContaining({ status: "planned", activatedAt: null }),
     );
     expect(afterTick.trains.find((train) => train.id === target.id)?.status).not.toBe("stopped");
+  });
+
+  it("runs a manually ordered shuttle as a discrete 15 km/h, 100-passenger round trip", () => {
+    const edge = NATIVE_INTERSTATIONS.find((interstation) => interstation.lineCode === "M1")!;
+    const initial = createNativeSimulationSnapshot({ scenarioId: "nominal" });
+    const passengerStateId = nativeStationPassengerId("M1", edge.fromStationCode);
+    const configured: NativeSimulationSnapshot = {
+      ...initial,
+      stationPassengers: initial.stationPassengers.map((state) => state.id === passengerStateId
+        ? { ...state, waitingPassengers: 150, totalGeneratedPassengers: 150 }
+        : state),
+    };
+    const controller = createNativeNetworkController({
+      restoredSnapshot: configured,
+      baselineSnapshot: configured,
+    });
+
+    const receipt = controller.insertShuttle({
+      lineCode: "M1",
+      departureStationId: edge.fromStationCode,
+      arrivalStationId: edge.toStationCode,
+    });
+    expect(receipt.capacityDeltaPassengers).toBe(NATIVE_SHUTTLE_CAPACITY_PASSENGERS);
+    expect(receipt.shuttle).toMatchObject({
+      nominalSpeedKmh: NATIVE_SHUTTLE_SPEED_KMH,
+      capacityPassengers: NATIVE_SHUTTLE_CAPACITY_PASSENGERS,
+      passengers: 100,
+      status: "dwelling",
+      dwellTicks: NATIVE_STATION_DWELL_MS / NATIVE_SIMULATION_STEP_MS,
+      location: { type: "station", id: edge.fromStationCode },
+    });
+    expect(controller.getSnapshot().stationPassengers.find((state) => state.id === passengerStateId)?.waitingPassengers).toBe(50);
+
+    const dwellTicks = NATIVE_STATION_DWELL_MS / NATIVE_SIMULATION_STEP_MS;
+    for (let tick = 1; tick < dwellTicks; tick += 1) {
+      const snapshot = controller.tick();
+      const shuttle = snapshot.shuttles[0];
+      expect(shuttle.location).toEqual({ type: "station", id: edge.fromStationCode });
+      expect(shuttle.dwellTicks).toBe(dwellTicks - tick);
+    }
+    const departed = controller.tick().shuttles[0];
+    expect(departed).toMatchObject({
+      status: "running",
+      speedKmh: NATIVE_SHUTTLE_SPEED_KMH,
+      location: { type: "interstation", id: edge.id },
+    });
+    expect(departed.travelTicksRemaining).toBe(departed.routeTravelTicks[0]);
+
+    const travelTicks = departed.travelTicksRemaining;
+    let arrived = departed;
+    for (let tick = 0; tick < travelTicks; tick += 1) {
+      const before = controller.getSnapshot();
+      const after = controller.tick();
+      expect(after.timestamp - before.timestamp).toBe(NATIVE_SIMULATION_STEP_MS);
+      arrived = after.shuttles[0];
+    }
+    expect(arrived).toMatchObject({
+      direction: -1,
+      status: "dwelling",
+      speedKmh: 0,
+      location: { type: "station", id: edge.toStationCode },
+    });
+    expect(arrived.passengers).toBeLessThanOrEqual(NATIVE_SHUTTLE_CAPACITY_PASSENGERS);
+
+    for (let tick = 0; tick < dwellTicks; tick += 1) controller.tick();
+    const returning = controller.getSnapshot().shuttles[0];
+    expect(returning).toMatchObject({
+      direction: -1,
+      status: "running",
+      speedKmh: NATIVE_SHUTTLE_SPEED_KMH,
+      location: { type: "interstation", id: edge.id },
+    });
+    expect(() => assertNativeSimulationInvariants(controller.getSnapshot())).not.toThrow();
+  });
+
+  it("rejects shuttle endpoints that are identical or not on the selected line", () => {
+    const controller = createNativeNetworkController({ scenarioId: "nominal" });
+    const m1 = NATIVE_INTERSTATIONS.find((edge) => edge.lineCode === "M1")!;
+    const m2Station = NATIVE_LINES.find((line) => line.code === "M2")!.stationCodes.find((stationId) =>
+      !NATIVE_LINES.find((line) => line.code === "M1")!.stationCodes.includes(stationId)
+    )!;
+    expect(() => controller.insertShuttle({
+      lineCode: "M1",
+      departureStationId: m1.fromStationCode,
+      arrivalStationId: m1.fromStationCode,
+    })).toThrowError(NativeSimulationError);
+    expect(() => controller.insertShuttle({
+      lineCode: "M1",
+      departureStationId: m1.fromStationCode,
+      arrivalStationId: m2Station,
+    })).toThrow(/not served by M1/);
+  });
+
+  it("offers and routes contracted RER branch endpoints through a virtual road leg", () => {
+    const line = NATIVE_LINES.find((candidate) => candidate.code === "RER_A")!;
+    const components = NATIVE_LINE_COMPONENTS.get("RER_A")!;
+    const mainComponent = components.find((component) => component.interstationIds.length > 0)!;
+    const contractedBranch = components.find((component) => component.interstationIds.length === 0)!;
+    const departureStationId = mainComponent.stationCodes[0];
+    const arrivalStationId = contractedBranch.stationCodes[0];
+
+    expect(nativeShuttleDestinationOptions("RER_A", departureStationId)).toHaveLength(
+      line.stationCodes.length - 1,
+    );
+    expect(nativeShuttleDestinationOptions("RER_A", departureStationId)).toContainEqual(
+      expect.objectContaining({ stationId: arrivalStationId }),
+    );
+
+    const controller = createNativeNetworkController({ scenarioId: "nominal" });
+    const receipt = controller.insertShuttle({
+      lineCode: "RER_A",
+      departureStationId,
+      arrivalStationId,
+    });
+    expect(receipt.shuttle.routeInterstationIds.some((id) => id.startsWith("shuttle-road-RER_A-"))).toBe(true);
+    expect(receipt.shuttle.routeStationIds.at(-1)).toBe(arrivalStationId);
+    expect(() => assertNativeSimulationInvariants(controller.getSnapshot())).not.toThrow();
   });
 
   it("advances at x2 and x4 exactly like sequential x1 ticks, including due incidents", () => {

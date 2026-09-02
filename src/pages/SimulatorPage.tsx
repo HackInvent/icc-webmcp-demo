@@ -19,6 +19,7 @@ import {
   NATIVE_SIMULATION_STEP_MS,
   nativeOperatorTrainInsertionOptions,
   type NativeIncident,
+  type NativeShuttleState,
   type NativeSimulationSnapshot,
   type NativeTrainInsertionInput,
   type NativeTrainInsertionReceipt,
@@ -26,6 +27,12 @@ import {
 } from "../rail/nativeSimulation";
 import type { SimulatorIncidentCreationResult, SimulatorIncidentDraft } from "../rail/simulatorIncident";
 import { getReferenceCapacity } from "../rail/rollingStock";
+import {
+  effectivePassengerArrivalRate,
+  formatParisOperationalTime,
+  isPassengerDemandActive,
+  PASSENGER_DEMAND_PAUSE_LABEL,
+} from "../rail/operationalTime";
 import { formatDelay } from "../utils";
 
 interface SimulatorPageProps {
@@ -40,6 +47,7 @@ interface SimulatorPageProps {
 
 type SimulatorTab =
   | "trains"
+  | "shuttles"
   | "incidents"
   | "stations"
   | "interstations"
@@ -58,9 +66,10 @@ const DEFAULT_INSERTION_LINE: NativeLineCode = "RER_A";
 const TABS: ReadonlyArray<{
   id: SimulatorTab;
   label: string;
-  icon: "train" | "alert" | "pin" | "network" | "bolt" | "panel" | "users" | "activity";
+  icon: "train" | "bus" | "alert" | "pin" | "network" | "bolt" | "panel" | "users" | "activity";
 }> = [
   { id: "trains", label: "Trains", icon: "train" },
+  { id: "shuttles", label: "Shuttles", icon: "bus" },
   { id: "incidents", label: "Incidents", icon: "alert" },
   { id: "stations", label: "Stations", icon: "pin" },
   { id: "interstations", label: "Interstations", icon: "network" },
@@ -71,12 +80,7 @@ const TABS: ReadonlyArray<{
 ];
 
 function formatSimulationTime(timestamp: number): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Paris",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(timestamp);
+  return formatParisOperationalTime(timestamp, true);
 }
 
 function lineTextColor(color: string): string {
@@ -125,6 +129,27 @@ function trainLocation(train: NativeTrainState): { title: string; detail: string
       " → " +
       stationName(interstation.toStationCode),
     detail: "Interstation · " + interstation.id,
+  };
+}
+
+function shuttleLocation(shuttle: NativeShuttleState): { title: string; detail: string } {
+  if (shuttle.location.type === "station") {
+    return {
+      title: stationName(shuttle.location.id),
+      detail: `Station · ${shuttle.location.id}`,
+    };
+  }
+  const interstation = NATIVE_INTERSTATION_BY_ID.get(shuttle.location.id);
+  if (!interstation) {
+    const nextStationIndex = shuttle.stationIndex + shuttle.direction;
+    return {
+      title: `${stationName(shuttle.routeStationIds[shuttle.stationIndex])} → ${stationName(shuttle.routeStationIds[nextStationIndex])}`,
+      detail: `Contracted road leg · ${shuttle.location.id}`,
+    };
+  }
+  return {
+    title: `${stationName(interstation.fromStationCode)} → ${stationName(interstation.toStationCode)}`,
+    detail: `Interstation · ${interstation.id}`,
   };
 }
 
@@ -263,6 +288,21 @@ export function SimulatorPage({
           ]);
         })
         .sort((left, right) => left.lineCode.localeCompare(right.lineCode) || left.id.localeCompare(right.id)),
+      shuttles: [...nativeSimulation.shuttles]
+        .filter((shuttle) => lineMatches([shuttle.lineCode]))
+        .filter((shuttle) => {
+          const location = shuttleLocation(shuttle);
+          return matchesSearch(normalizedSearch, [
+            shuttle.id,
+            shuttle.lineCode,
+            shuttle.status,
+            shuttle.departureStationId,
+            shuttle.arrivalStationId,
+            location.title,
+            location.detail,
+          ]);
+        })
+        .sort((left, right) => left.lineCode.localeCompare(right.lineCode) || left.id.localeCompare(right.id)),
       incidents: incidentRows
         .filter((row) => lineMatches(
           row.source === "Native network" ? [row.incident.lineCode] : row.incident.lineIds,
@@ -361,6 +401,7 @@ export function SimulatorPage({
     indexes,
     line,
     nativeSimulation.incidents,
+    nativeSimulation.shuttles,
     nativeSimulation.trains,
     normalizedSearch,
     snapshot.circuits,
@@ -415,6 +456,7 @@ export function SimulatorPage({
 
   const counts: Record<SimulatorTab, number> = {
     trains: nativeSimulation.trains.length,
+    shuttles: nativeSimulation.shuttles.length,
     incidents: nativeSimulation.incidents.length + snapshot.incidents.length,
     stations: NATIVE_STATIONS.length,
     interstations: NATIVE_INTERSTATIONS.length,
@@ -482,6 +524,37 @@ export function SimulatorPage({
         })}</tbody>
       </table>
     );
+  } else if (activeTab === "shuttles") {
+    table = (
+      <table className="data-table simulator-table simulator-table--shuttles">
+        <caption className="sr-only">All manually ordered shuttle simulator objects</caption>
+        <thead><tr>
+          <th>Shuttle</th><th>Line</th><th>Ordered route</th><th>Operational location</th>
+          <th>Direction</th><th>Status</th><th>Speed</th><th>Next transition</th><th>Passengers</th><th>Distance</th><th>Quality</th>
+        </tr></thead>
+        <tbody>{sliceRows(filtered.shuttles).map((shuttle) => {
+          const location = shuttleLocation(shuttle);
+          const transitionSeconds = shuttle.location.type === "station"
+            ? shuttle.dwellTicks
+            : shuttle.travelTicksRemaining;
+          return (
+            <tr key={shuttle.id}>
+              <td><strong>{shuttle.id}</strong><small className="cell-sub">Ordered {formatSimulationTime(shuttle.startedAt)}</small></td>
+              <td><Lines codes={[shuttle.lineCode]} /></td>
+              <td><strong>{stationName(shuttle.departureStationId)} → {stationName(shuttle.arrivalStationId)}</strong><small className="cell-sub">{shuttle.routeInterstationIds.length} road legs</small></td>
+              <td><strong>{location.title}</strong><small className="cell-sub" title={location.detail}>{location.detail}</small></td>
+              <td><strong>{shuttle.direction === 1 ? "Outbound" : "Return"}</strong></td>
+              <td><StatusPill tone={shuttle.status === "running" ? "info" : "ok"}>{shuttle.status}</StatusPill></td>
+              <td><strong>{shuttle.speedKmh} km/h</strong><small className="cell-sub">{shuttle.nominalSpeedKmh} km/h nominal</small></td>
+              <td><strong>{transitionSeconds} s</strong><small className="cell-sub">{shuttle.location.type === "station" ? "to departure" : "to next station"}</small></td>
+              <td><strong>{shuttle.passengers} / {shuttle.capacityPassengers}</strong><small className="cell-sub">{Math.round(shuttle.passengers / shuttle.capacityPassengers * 100)}% load</small></td>
+              <td><strong>{(shuttle.routeDistanceMeters / 1_000).toFixed(1)} km</strong><small className="cell-sub">one way</small></td>
+              <td><StatusPill tone="neutral">{shuttle.quality}</StatusPill></td>
+            </tr>
+          );
+        })}</tbody>
+      </table>
+    );
   } else if (activeTab === "incidents") {
     table = (
       <table className="data-table simulator-table simulator-table--incidents">
@@ -543,7 +616,13 @@ export function SimulatorPage({
             state.stationId === station.code && (line === "ALL" || state.lineCode === line)
           );
           const waitingPassengers = passengerStates.reduce((total, state) => total + state.waitingPassengers, 0);
-          const arrivalsPerSecond = passengerStates.reduce((total, state) => total + state.arrivalsPerSecond, 0);
+          const arrivalsPerSecond = passengerStates.reduce(
+            (total, state) => total + effectivePassengerArrivalRate(
+              state.arrivalsPerSecond,
+              nativeSimulation.timestamp,
+            ),
+            0,
+          );
           const totalBoarded = passengerStates.reduce((total, state) => total + state.totalBoardedPassengers, 0);
           const totalAlighted = passengerStates.reduce((total, state) => total + state.totalAlightedPassengers, 0);
           const lastExchangeAt = Math.max(0, ...passengerStates.map((state) => state.lastExchangeAt ?? 0));
@@ -554,7 +633,7 @@ export function SimulatorPage({
               <td><Lines codes={station.lines} /></td>
               <td><strong>{trains.length ? trains.join(", ") : "Free"}</strong></td>
               <td><strong>{waitingPassengers.toLocaleString("en-GB")}</strong><small className="cell-sub">{passengerStates.length} line queue{passengerStates.length === 1 ? "" : "s"}</small></td>
-              <td><strong>{arrivalsPerSecond.toFixed(4)} pax/s</strong><small className="cell-sub">linear accumulation</small></td>
+              <td><strong>{arrivalsPerSecond.toFixed(4)} pax/s</strong><small className="cell-sub">{isPassengerDemandActive(nativeSimulation.timestamp) ? "active service rate" : `paused · ${PASSENGER_DEMAND_PAUSE_LABEL}`}</small></td>
               <td><strong>{totalBoarded.toLocaleString("en-GB")} / {totalAlighted.toLocaleString("en-GB")}</strong><small className="cell-sub">since reset</small></td>
               <td><strong>{lastExchangeAt ? formatSimulationTime(lastExchangeAt) : "—"}</strong></td>
               <td><strong>{incidents.length ? incidents.join(", ") : "None"}</strong></td>
@@ -712,7 +791,7 @@ export function SimulatorPage({
 
       <section className="kpi-grid kpi-grid--compact simulator-summary" id="text-text-simulator-summary" aria-label="Simulation state summary">
         <KpiCard label="Simulation clock" value={formatSimulationTime(nativeSimulation.timestamp)} detail={nativeSimulation.scenarioName} icon="clock" />
-        <KpiCard label="Native fleet" value={nativeSimulation.trains.length} detail={nativeSimulation.metrics.delayedTrainCount + " delayed · " + nativeSimulation.metrics.heldTrainCount + " held"} icon="train" tone={nativeSimulation.metrics.heldTrainCount ? "warning" : "default"} />
+        <KpiCard label="Native fleet" value={nativeSimulation.trains.length + nativeSimulation.shuttles.length} detail={nativeSimulation.trains.length + " trains · " + nativeSimulation.shuttles.length + " shuttles"} icon="train" tone={nativeSimulation.metrics.heldTrainCount ? "warning" : "default"} />
         <KpiCard label="Operational objects" value={NATIVE_STATIONS.length + NATIVE_INTERSTATIONS.length} detail={NATIVE_STATIONS.length + " stations · " + NATIVE_INTERSTATIONS.length + " interstations"} icon="network" />
         <KpiCard label="Model revisions" value={"T" + nativeSimulation.telemetryRevision + " / D" + nativeSimulation.decisionRevision} detail={"Detailed corridor rev. " + snapshot.revision} icon="radio" />
         <KpiCard

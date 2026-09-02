@@ -1,5 +1,6 @@
 import { getOfficialLineRidership } from "./lineRidership";
 import { NATIVE_LINES, type NativeLineCode } from "./nativeNetwork";
+import { PASSENGER_SERVICE_SECONDS_PER_DAY } from "./operationalTime";
 
 export type NativePassengerDemandVolumeProvenance =
   | "official-annual-passenger-journeys"
@@ -32,8 +33,8 @@ function lineDemand(lineCode: NativeLineCode, stationCount: number): {
   const daily = official.dailyPassengerJourneys;
   return {
     passengersPerStationSecond: daily === null
-      ? official.annualPassengerJourneys / stationCount / (365 * 24 * 60 * 60)
-      : daily / stationCount / (24 * 60 * 60),
+      ? official.annualPassengerJourneys / stationCount / (365 * PASSENGER_SERVICE_SECONDS_PER_DAY)
+      : daily / stationCount / PASSENGER_SERVICE_SECONDS_PER_DAY,
     demandVolumeProvenance: daily === null
       ? "official-annual-passenger-journeys"
       : "official-daily-passenger-journeys",
@@ -51,8 +52,9 @@ export function nativeStationPassengerId(
 /**
  * Builds one deterministic passenger queue per line/station pair.
  * The rate is the published annual volume divided by line station count and
- * seconds per 365-day year. Daily RER references use station count and 86,400
- * seconds directly. There is no interchange, headway, capacity or load factor.
+ * active-service seconds per 365-day year. Daily references use station count
+ * and 72,000 active seconds directly. Generation pauses from 01:00 AM to
+ * 05:00 AM Paris time. There is no interchange, headway or load factor.
  */
 export function createNativeStationPassengerStates(): NativeStationPassengerState[] {
   return NATIVE_LINES.flatMap((line) => {

@@ -6,6 +6,11 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import nativeMapUrl from "../../artifacts/ratp-network-native.svg?url";
+import {
+  analyzePassengerFlowPriorities,
+  type PassengerFlowPriorityPackage,
+  type PassengerFlowPriorityProgress,
+} from "../agent/passengerFlowPriorityAgent";
 import { Icon } from "../components/Icon";
 import {
   buildPassengerFlowView,
@@ -15,17 +20,23 @@ import {
 import type { RailSnapshot } from "../rail/domain";
 import {
   NATIVE_LINES,
-  NATIVE_LINE_BY_CODE,
   NATIVE_NETWORK_BOUNDS,
   type NativeLineCode,
 } from "../rail/nativeNetwork";
 import type { NativeSimulationSnapshot } from "../rail/nativeSimulation";
-import { getOfficialLineRidership } from "../rail/lineRidership";
 import { getReferenceCapacity } from "../rail/rollingStock";
+import { formatParisOperationalTime } from "../rail/operationalTime";
 
 interface PassengerFlowPageProps {
   simulation: NativeSimulationSnapshot;
   detailedSnapshot: RailSnapshot;
+  expectedToolNames?: readonly string[];
+  inPageTools?: readonly WebMcpToolDefinition[];
+  toolsChecked?: boolean;
+  toolsPublished?: boolean;
+  agentEnabled?: boolean;
+  agentModel?: string | null;
+  onIncidentActivate?: (incidentId: string) => void;
 }
 
 interface PassengerMapDragState {
@@ -39,6 +50,14 @@ interface PassengerMapDragState {
 
 const PASSENGER_MAP_DRAG_THRESHOLD_PX = 4;
 const PASSENGER_MAP_CLICK_SUPPRESSION_MS = 300;
+const EMPTY_TOOL_NAMES: readonly string[] = Object.freeze([]);
+const EMPTY_IN_PAGE_TOOLS: readonly WebMcpToolDefinition[] = Object.freeze([]);
+
+const PRIORITY_PROGRESS_LABELS: Readonly<Record<PassengerFlowPriorityProgress, string>> = {
+  discovering: "Discovering the Passenger Flow WebMCP tool",
+  inspecting: "Inspecting queues and active incident scopes",
+  reasoning: "Agent is ranking queue-relief priorities",
+};
 
 const LEVEL_LABELS: ReadonlyArray<{ level: PassengerFlowLevel; label: string }> = [
   { level: "quiet", label: "0% · light green" },
@@ -48,47 +67,34 @@ const LEVEL_LABELS: ReadonlyArray<{ level: PassengerFlowLevel; label: string }> 
 ];
 
 function formatTime(timestamp: number): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Paris",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(timestamp);
+  return formatParisOperationalTime(timestamp, true);
 }
 
 function lineLabel(code: NativeLineCode): string {
   return NATIVE_LINES.find((line) => line.code === code)?.label ?? code;
 }
 
-function demandAudit(code: NativeLineCode) {
-  const record = getOfficialLineRidership(code);
-  const line = NATIVE_LINE_BY_CODE.get(code);
-  if (!record || !line) return null;
-  const daily = record.dailyPassengerJourneys;
-  const volume = daily ?? record.annualPassengerJourneys;
-  const period = daily === null ? "year" : "day";
-  const periodSeconds = daily === null ? 365 * 24 * 60 * 60 : 24 * 60 * 60;
-  const stationCount = line.stationCodes.length;
-  return {
-    volume,
-    period,
-    year: record.referenceYear,
-    publisher: record.source.publisher,
-    title: record.source.title,
-    url: record.source.url,
-    stationCount,
-    periodSeconds,
-    arrivalsPerSecond: volume / stationCount / periodSeconds,
-    qualifier: record.qualifier,
-  };
-}
-
-export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlowPageProps) {
+export function PassengerFlowPage({
+  simulation,
+  detailedSnapshot,
+  expectedToolNames = EMPTY_TOOL_NAMES,
+  inPageTools = EMPTY_IN_PAGE_TOOLS,
+  toolsChecked = false,
+  toolsPublished = false,
+  agentEnabled = false,
+  agentModel = null,
+  onIncidentActivate,
+}: PassengerFlowPageProps) {
   const [lineCode, setLineCode] = useState<NativeLineCode | "ALL">("ALL");
   const [selectedStationCode, setSelectedStationCode] = useState<string | null>(null);
   const [selectedTrainId, setSelectedTrainId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [isMapDragging, setIsMapDragging] = useState(false);
+  const [priorityAnalysis, setPriorityAnalysis] = useState<PassengerFlowPriorityPackage | null>(null);
+  const [priorityProgress, setPriorityProgress] = useState<PassengerFlowPriorityProgress>("discovering");
+  const [priorityLoading, setPriorityLoading] = useState(false);
+  const [priorityError, setPriorityError] = useState<string | null>(null);
+  const [priorityRefresh, setPriorityRefresh] = useState(0);
   const mapDragRef = useRef<PassengerMapDragState | null>(null);
   const suppressMapClickUntilRef = useRef(0);
   const view = useMemo(
@@ -99,7 +105,6 @@ export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlo
     ?? view.busiestStation
     ?? view.stations[0]
     ?? null;
-  const audit = lineCode === "ALL" ? null : demandAudit(lineCode);
   const selectedTrain = selectedStation?.contributions.find((item) => item.train.id === selectedTrainId)?.train ?? null;
 
   useEffect(() => {
@@ -107,6 +112,34 @@ export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlo
     setSelectedStationCode(view.busiestStation?.station.code ?? view.stations[0]?.station.code ?? null);
     setSelectedTrainId(null);
   }, [lineCode, selectedStationCode, view.busiestStation, view.stations]);
+
+  useEffect(() => {
+    if (!toolsPublished) return undefined;
+    const controller = new AbortController();
+    setPriorityLoading(true);
+    setPriorityError(null);
+    setPriorityProgress("discovering");
+    setPriorityAnalysis((current) => current?.context.line === lineCode ? current : null);
+    void analyzePassengerFlowPriorities({
+      line: lineCode,
+      expectedToolNames,
+      inPageTools,
+      modelEnabled: agentEnabled,
+      signal: controller.signal,
+      onProgress: setPriorityProgress,
+    }).then((result) => {
+      if (controller.signal.aborted) return;
+      setPriorityAnalysis(result);
+      setPriorityLoading(false);
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+      setPriorityLoading(false);
+      setPriorityError(error instanceof Error
+        ? error.message
+        : "The Passenger Flow agent could not complete its analysis.");
+    });
+    return () => controller.abort();
+  }, [agentEnabled, expectedToolNames, inPageTools, lineCode, priorityRefresh, toolsPublished]);
 
   const chooseStation = (stationCode: string) => {
     setSelectedStationCode(stationCode);
@@ -171,26 +204,114 @@ export function PassengerFlowPage({ simulation, detailedSnapshot }: PassengerFlo
       </header>
 
       <section className="passenger-flow-kpis" id="text-text-passenger-flow-kpis" aria-label="Passenger flow summary">
-        <article><span>Onboard passengers</span><strong>{view.totalOnboardPassengers.toLocaleString("en-GB")}</strong><small>{lineCode === "ALL" ? "All simulated lines" : `Line ${lineLabel(lineCode)}`}</small></article>
+        <article><span>Onboard passengers</span><strong>{view.totalOnboardPassengers.toLocaleString("en-GB")}</strong><small>{lineCode === "ALL" ? "All lines" : `Line ${lineLabel(lineCode)}`}</small></article>
         <article><span>Waiting queue</span><strong>{view.totalQueuePassengers.toLocaleString("en-GB")}</strong><small>{view.activeStationCount} active station estimates</small></article>
+        <article><span>Cumulative boardings</span><strong>{view.totalBoardedPassengers.toLocaleString("en-GB")}</strong><small>{view.totalGeneratedPassengers.toLocaleString("en-GB")} generated · {view.totalAlightedPassengers.toLocaleString("en-GB")} alighted since reset</small></article>
         <article className={view.highPressureStationCount ? "is-alert" : ""}><span>At-capacity stations</span><strong>{view.highPressureStationCount}</strong><small>Waiting queue ≥ maximum train capacity</small></article>
         <article><span>Mean queue ratio</span><strong>{view.averageLoadPercent}%</strong><small>Waiting queue ÷ train capacity</small></article>
         <article><span>Busiest station</span><strong>{view.busiestStation?.station.name ?? "No active flow"}</strong><small>{view.busiestStation ? `${view.busiestStation.passengerPressure.toLocaleString("en-GB")} passenger pressure` : view.feedStatus}</small></article>
       </section>
 
-      <section className="passenger-flow-method" id="text-text-passenger-flow-demand-method">
-        <div><Icon name="shield" size={17} /><span><strong>Auditable demand formula</strong>Current queues are calculated operational state; the arrival rate is derived from a cited volume, divided by rendered stations and period seconds.</span></div>
-        {audit ? (
-          <>
-            <dl>
-              <div><dt>Reference volume</dt><dd>{audit.volume.toLocaleString("en-GB")}</dd><small>{audit.qualifier} · {audit.period} · {audit.year}</small></div>
-              <div><dt>Station divisor</dt><dd>{audit.stationCount}</dd><small>Rendered stations on {lineLabel(lineCode as NativeLineCode)}</small></div>
-              <div><dt>Period divisor</dt><dd>{audit.periodSeconds.toLocaleString("en-GB")} s</dd><small>{audit.period === "year" ? "365 × 24 × 3,600" : "24 × 3,600"}</small></div>
-              <div><dt>Per-station rate</dt><dd>{audit.arrivalsPerSecond.toFixed(6)}/s</dd><small>volume ÷ stations ÷ seconds</small></div>
-            </dl>
-            <a href={audit.url} target="_blank" rel="noreferrer"><Icon name="external" size={13} /> {audit.publisher} · {audit.title}</a>
-          </>
-        ) : <p>Select one line to expose its exact volume, period, station divisor, computed rate and source URL.</p>}
+      <section
+        className={`passenger-flow-agent${priorityLoading ? " is-working" : ""}`}
+        id="text-text-passenger-flow-agent-priorities"
+        aria-labelledby="passenger-flow-agent-title"
+        aria-live="polite"
+      >
+        <header className="passenger-flow-agent__header">
+          <div className="passenger-flow-agent__identity">
+            <span className="passenger-flow-agent__icon"><Icon name="radio" size={19} /></span>
+            <div>
+              <span className="panel__eyebrow">AGENT DECISION SUPPORT · QUEUE RELIEF</span>
+              <h2 id="passenger-flow-agent-title">Priority incidents</h2>
+              <p>{priorityAnalysis?.summary ?? (
+                priorityLoading
+                  ? PRIORITY_PROGRESS_LABELS[priorityProgress]
+                  : toolsChecked && !toolsPublished
+                    ? "The Passenger Flow WebMCP tool is unavailable."
+                    : "Preparing the current operational context."
+              )}</p>
+            </div>
+          </div>
+          <div className="passenger-flow-agent__controls">
+            <div className="passenger-flow-agent__trust">
+              {priorityLoading && <span className="is-live"><i />{PRIORITY_PROGRESS_LABELS[priorityProgress]}</span>}
+              {!priorityLoading && priorityAnalysis && (
+                <>
+                  <span><Icon name="radio" size={13} />{priorityAnalysis.modelAssisted ? agentModel ?? "OpenAI" : "Verified fallback"}</span>
+                  <span><Icon name="network" size={13} />{priorityAnalysis.transport === "native" ? "Native WebMCP" : "In-page WebMCP"}</span>
+                  <span><Icon name="clock" size={13} />{formatTime(priorityAnalysis.context.observedAt)}</span>
+                </>
+              )}
+            </div>
+            <button
+              type="button"
+              className="button button--secondary passenger-flow-agent__refresh"
+              data-testid="passenger-flow-agent-refresh"
+              disabled={priorityLoading || !toolsPublished}
+              onClick={() => setPriorityRefresh((value) => value + 1)}
+            >
+              <Icon name="reset" size={14} /> {priorityLoading ? "Analyzing…" : "Refresh"}
+            </button>
+          </div>
+        </header>
+
+        {priorityError && (
+          <div className="passenger-flow-agent__message is-error" role="alert">
+            <Icon name="alert" size={16} /><span><strong>Analysis unavailable</strong>{priorityError}</span>
+          </div>
+        )}
+
+        {!priorityAnalysis && priorityLoading && (
+          <div className="passenger-flow-agent__loading" data-testid="passenger-flow-agent-loading">
+            {[1, 2, 3].map((rank) => <span key={rank}><i>{rank}</i><b /><b /></span>)}
+          </div>
+        )}
+
+        {priorityAnalysis && priorityAnalysis.priorities.length > 0 && (
+          <ol className="passenger-flow-agent__priorities" data-testid="passenger-flow-agent-priorities">
+            {priorityAnalysis.priorities.map((priority) => (
+              <li key={priority.incidentId} className={`passenger-flow-agent-card is-${priority.severity}`}>
+                <header>
+                  <span className="passenger-flow-agent-card__rank">#{priority.evidenceRank}</span>
+                  <div><small>{priority.lineCode} · {priority.incidentCode}</small><h3>{priority.title}</h3></div>
+                  <div className="passenger-flow-agent-card__queue"><strong>{priority.waitingQueuePassengers.toLocaleString("en-GB")}</strong><span>waiting in scope</span></div>
+                </header>
+                <p className="passenger-flow-agent-card__recommendation">{priority.recommendation}</p>
+                <p className="passenger-flow-agent-card__rationale">{priority.rationale}</p>
+                {priority.queueHotspots.length > 0 && (
+                  <div className="passenger-flow-agent-card__hotspots">
+                    {priority.queueHotspots.map((hotspot) => (
+                      <span key={hotspot.stationCode}>{hotspot.stationName} <b>{hotspot.waitingPassengers.toLocaleString("en-GB")}</b></span>
+                    ))}
+                  </div>
+                )}
+                <footer>
+                  <span><Icon name="users" size={13} />+{priority.arrivalsPerMinute.toLocaleString("en-GB")} pax/min</span>
+                  <span><Icon name="train" size={13} />{priority.impactedTrainCount} impacted trains</span>
+                  <span><Icon name="clock" size={13} />since {formatTime(Date.parse(priority.occurrenceTime))}</span>
+                  {onIncidentActivate && (
+                    <button type="button" onClick={() => onIncidentActivate(priority.incidentId)}>
+                      Open incident <Icon name="arrow" size={13} />
+                    </button>
+                  )}
+                </footer>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        {priorityAnalysis && priorityAnalysis.priorities.length === 0 && (
+          <div className="passenger-flow-agent__empty">
+            <Icon name="shield" size={19} /><span><strong>No incident priority</strong>No active incident currently constrains a measured waiting queue in this scope.</span>
+          </div>
+        )}
+
+        {priorityAnalysis?.agentWarning && (
+          <p className="passenger-flow-agent__fallback" title={priorityAnalysis.agentWarning}>
+            <Icon name="shield" size={12} /> Verified WebMCP queue ordering is active; operator review remains required.
+          </p>
+        )}
       </section>
 
       <section className="passenger-flow-workspace" id="text-text-passenger-flow-workspace">

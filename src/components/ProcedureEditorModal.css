@@ -31,7 +31,7 @@
 
 .procedure-editor {
   display: grid;
-  grid-template-columns: minmax(230px, 0.7fr) minmax(520px, 1.8fr) minmax(280px, 0.9fr);
+  grid-template-columns: minmax(215px, 0.62fr) minmax(560px, 1.7fr) minmax(340px, 0.98fr);
   min-height: 0;
   height: 100%;
   color: #1d342c;
@@ -201,6 +201,64 @@
   font-size: 13px;
 }
 
+.procedure-editor__form-actions {
+  display: grid;
+  justify-items: end;
+  gap: 9px;
+  flex: 0 0 auto;
+}
+
+.procedure-editor__agent-button {
+  min-height: 39px;
+  white-space: nowrap;
+}
+
+.procedure-editor__spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  border: 2px solid #b9d4c9;
+  border-top-color: #20775a;
+  border-radius: 50%;
+  animation: procedure-editor-spin 0.8s linear infinite;
+}
+
+@keyframes procedure-editor-spin {
+  to { transform: rotate(360deg); }
+}
+
+.procedure-editor__agent-progress,
+.procedure-editor__agent-stale {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 11px 13px;
+  color: #235442;
+  background: #eef7f3;
+  border: 1px solid #bfddd0;
+  border-radius: 9px;
+}
+
+.procedure-editor__agent-progress > div {
+  display: grid;
+  gap: 2px;
+}
+
+.procedure-editor__agent-progress small {
+  color: #657c73;
+  font-size: 12px;
+}
+
+.procedure-editor__agent-stale {
+  color: #7b5c14;
+  background: #fff8e8;
+  border-color: #e6d39e;
+  font-size: 12px;
+  font-weight: 750;
+}
+
 .procedure-editor__form form {
   display: grid;
   gap: 18px;
@@ -284,6 +342,96 @@
   font-weight: 700;
 }
 
+.procedure-editor__field-feedback {
+  display: grid;
+  gap: 7px;
+  margin-top: 2px;
+  padding: 11px 12px;
+  color: #294a3f;
+  background: #eef7f3;
+  border: 1px solid #c6dfd4;
+  border-left: 3px solid #278161;
+  border-radius: 8px;
+}
+
+.procedure-editor__field-feedback.is-stale {
+  background: #faf8f0;
+  border-color: #ded4b8;
+  border-left-color: #a9852d;
+}
+
+.procedure-editor__field-feedback > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.procedure-editor__field-feedback > header > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #176a4d;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.procedure-editor__field-feedback > header > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.procedure-editor__field-feedback > header small {
+  padding: 2px 5px;
+  color: #567067;
+  background: #fff;
+  border: 1px solid #d4e2dc;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.procedure-editor__field-feedback p,
+.procedure-editor__field-feedback > small {
+  margin: 0;
+  color: #496158;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.procedure-editor__field-feedback p strong {
+  display: block;
+  margin-bottom: 2px;
+  color: #214b3c;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.procedure-editor__field-feedback footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding-top: 6px;
+  color: #657a72;
+  border-top: 1px solid #d7e7e0;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.procedure-editor__field-feedback code {
+  padding: 2px 4px;
+  color: #245c47;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 9px;
+}
+
 .procedure-editor__duration-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -355,6 +503,162 @@
 }
 
 .procedure-editor__review code {
+  font-size: 11px;
+}
+
+.procedure-editor__agent-review {
+  border-color: #b9d9cc !important;
+}
+
+.procedure-editor__agent-review.is-stale {
+  border-color: #dccb9e !important;
+}
+
+.procedure-editor__agent-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.procedure-editor__agent-summary {
+  color: #2f4e42 !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+}
+
+.procedure-editor__evidence-counts {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px !important;
+}
+
+.procedure-editor__evidence-counts > div {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 2px !important;
+  padding: 8px !important;
+  background: #f3f7f5;
+  border: 1px solid #e0e9e5 !important;
+  border-radius: 7px;
+}
+
+.procedure-editor__evidence-counts dt {
+  font-size: 10px !important;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.procedure-editor__evidence-counts dd {
+  color: #174d39 !important;
+  font-size: 16px !important;
+}
+
+.procedure-editor__agent-warning,
+.procedure-editor__review-loading {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px;
+  color: #795c18;
+  background: #fff8e7;
+  border: 1px solid #e5d19b;
+  border-radius: 7px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.procedure-editor__review-loading {
+  color: #315c4c;
+  background: #eef7f3;
+  border-color: #c5dfd4;
+}
+
+.procedure-editor__review-loading > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.procedure-editor__review-loading small {
+  color: #637870;
+}
+
+.procedure-editor__review-error {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  color: #903d46;
+  background: #fff4f4;
+  border: 1px solid #ecc4c8;
+  border-radius: 7px;
+}
+
+.procedure-editor__review-error .button {
+  justify-self: start;
+}
+
+.procedure-editor__web-summary,
+.procedure-editor__sources,
+.procedure-editor__cautions {
+  display: grid;
+  gap: 6px;
+  padding-top: 9px;
+  border-top: 1px solid #e6ece9;
+}
+
+.procedure-editor__web-summary > strong,
+.procedure-editor__sources > strong,
+.procedure-editor__cautions > strong {
+  color: #31594a;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.procedure-editor__sources ul,
+.procedure-editor__cautions ul {
+  gap: 6px;
+}
+
+.procedure-editor__sources li {
+  padding: 0;
+  background: transparent;
+}
+
+.procedure-editor__sources a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  color: #1d654b;
+  background: #f2f7f5;
+  border: 1px solid #d7e6df;
+  border-radius: 7px;
+  text-decoration: none;
+}
+
+.procedure-editor__sources a:hover {
+  border-color: #87b9a5;
+  text-decoration: underline;
+}
+
+.procedure-editor__sources a span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.procedure-editor__sources a small {
+  overflow: hidden;
+  color: #6b7e76;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.procedure-editor__cautions li {
+  padding: 7px 8px;
   font-size: 11px;
 }
 
@@ -440,6 +744,10 @@
     border-top: 1px solid #d7e2dd;
     border-left: 0;
   }
+
+  .procedure-editor__agent-review {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 760px) {
@@ -453,6 +761,11 @@
 
   .procedure-editor__form-header {
     flex-direction: column;
+  }
+
+  .procedure-editor__form-actions {
+    width: 100%;
+    justify-items: stretch;
   }
 
   .procedure-editor__duration-grid,

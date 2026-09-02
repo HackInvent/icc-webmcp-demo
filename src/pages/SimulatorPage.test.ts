@@ -26,7 +26,8 @@ describe("SimulatorPage", () => {
     expect(html).not.toContain('data-testid="import-simulation-configuration"');
     expect(html).not.toContain("configuration-file-input");
     expect(html).toContain('role="tablist"');
-    expect(html.match(/role="tab"/g)).toHaveLength(8);
+    expect(html.match(/role="tab"/g)).toHaveLength(9);
+    expect(html).toContain("Shuttles");
     expect(html).toContain("Operational location");
     expect(html).toContain("Dwell remaining");
     expect(html).toContain(native.trains[0].id);

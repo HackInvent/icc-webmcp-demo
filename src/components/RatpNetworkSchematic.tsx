@@ -86,7 +86,7 @@ interface PositionedIncident {
 
 interface PositionedBusService {
   id: string;
-  incidentId: string;
+  incidentId: string | null;
   lineCode: NativeLineCode;
   status: string;
   cyclePhase: string;
@@ -849,8 +849,36 @@ export function RatpNetworkSchematic({
     ]);
 
   const activeBusServices = useMemo(
-    () => positionedBusServices(operationalResponse).filter((service) => lineInScope(service.lineCode)),
-    [focusedLine, operationalResponse, visibleLineCodes],
+    () => [
+      ...positionedBusServices(operationalResponse),
+      ...simulation.shuttles.flatMap((shuttle): PositionedBusService[] => {
+        if (!lineInScope(shuttle.lineCode)) return [];
+        const point = shuttle.location.type === "station"
+          ? NATIVE_STATION_BY_CODE.get(shuttle.location.id)?.anchor ?? null
+          : pointOnInterstation(shuttle.location.id, 0.5) ?? (() => {
+              const nextStationIndex = shuttle.stationIndex + shuttle.direction;
+              const from = NATIVE_STATION_BY_CODE.get(
+                shuttle.routeStationIds[shuttle.stationIndex],
+              )?.anchor;
+              const to = NATIVE_STATION_BY_CODE.get(
+                shuttle.routeStationIds[nextStationIndex],
+              )?.anchor;
+              return from && to
+                ? { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }
+                : null;
+            })();
+        if (!point) return [];
+        return [{
+          id: shuttle.id,
+          incidentId: null,
+          lineCode: shuttle.lineCode,
+          status: shuttle.status,
+          cyclePhase: shuttle.direction === 1 ? "manual-outbound" : "manual-return",
+          point,
+        }];
+      }),
+    ].filter((service) => lineInScope(service.lineCode)),
+    [artworkEpoch, focusedLine, operationalResponse, simulation.shuttles, visibleLineCodes],
   );
 
   const delayClusters = useMemo<DelayCluster[]>(() => {
@@ -1462,9 +1490,11 @@ export function RatpNetworkSchematic({
               <g
                 className="native-bus-marker"
                 data-bus-service-id={service.id}
-                data-incident-id={service.incidentId}
+                data-incident-id={service.incidentId ?? undefined}
                 transform={"translate(" + service.point.x + " " + service.point.y + ")"}
-                aria-label={"Replacement bus service " + service.id + " for " + service.incidentId}
+                aria-label={service.incidentId
+                  ? "Replacement bus service " + service.id + " for " + service.incidentId
+                  : "Manual shuttle " + service.id + " · " + service.cyclePhase}
               >
                 <g transform={"scale(" + scale + ")"}>
                   <circle r="17" className="native-bus-marker__plate"/>
@@ -1473,7 +1503,7 @@ export function RatpNetworkSchematic({
                   <circle cx="-5" cy="3" r="1.4"/><circle cx="5" cy="3" r="1.4"/>
                   <text x="13" y="-9">BUS</text>
                 </g>
-                <title>{service.id + " · " + service.cyclePhase + " · shuttle for " + service.incidentId}</title>
+                <title>{service.id + " · " + service.cyclePhase + (service.incidentId ? " · shuttle for " + service.incidentId : " · manual operator order")}</title>
               </g>,
               foreground,
               "bus-service-" + service.id,
@@ -1786,7 +1816,8 @@ export function RatpNetworkSchematic({
                   </p>
                   <code>
                     inspect_incident_decision_context → search_operational_procedures →
-                    get_operational_procedure → apply_reviewed_procedure_step
+                    get_operational_procedure → assess_operator_procedure_choice →
+                    apply_reviewed_procedure_step
                   </code>
                   <button type="button" className="button button--secondary" onClick={() => {
                     window.location.hash = "/incidents";

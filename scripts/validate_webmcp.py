@@ -44,9 +44,11 @@ LEGACY_TOOLS = {
 }
 NATIVE_NETWORK_TOOLS = {
     "inspect_network_digital_twin",
+    "inspect_passenger_flow_impact",
     "inspect_incident_decision_context",
     "search_operational_procedures",
     "get_operational_procedure",
+    "assess_operator_procedure_choice",
     "apply_reviewed_procedure_step",
     "create_simulated_network_incident",
     "control_network_simulation",
@@ -61,9 +63,11 @@ READ_ONLY_TOOLS = {
     "list_operational_incidents",
     "prepare_shift_brief",
     "inspect_network_digital_twin",
+    "inspect_passenger_flow_impact",
     "inspect_incident_decision_context",
     "search_operational_procedures",
     "get_operational_procedure",
+    "assess_operator_procedure_choice",
 }
 DEFAULT_URL = "http://127.0.0.1:5173/#/overview"
 
@@ -556,6 +560,30 @@ def validate_native_network_decision(client: WebMcpClient) -> dict[str, Any]:
         "confirmSimulation": True,
     }
 
+    choice_advice = client.invoke_completed(
+        "assess_operator_procedure_choice",
+        {
+            "incidentId": incident_id,
+            "procedureId": procedure_id,
+            "procedureRevision": procedure_revision,
+            "procedureContentHash": procedure_hash,
+            "stepId": step_id,
+            "agentSuggestedStepId": acknowledgement_step_id,
+            "expectedDecisionRevision": decision_revision,
+        },
+    )
+    require(
+        choice_advice.get("status") == "procedure_choice_assessed"
+        and choice_advice.get("agentSuggestion", {}).get("stepId")
+        == acknowledgement_step_id
+        and choice_advice.get("agentSuggestion", {}).get("matchesSelection")
+        is False
+        and choice_advice.get("advisory", {}).get("verdict") == "caution"
+        and choice_advice.get("advisory", {}).get("operatorMayProceed") is True
+        and choice_advice.get("advisory", {}).get("nonBlocking") is True,
+        f"The operator-choice advisory is incomplete: {choice_advice}",
+    )
+
     stale_step = client.invoke_completed(
         "apply_reviewed_procedure_step",
         {
@@ -771,7 +799,8 @@ def validate_native_network_decision(client: WebMcpClient) -> dict[str, Any]:
         and incident_code in modal_text
         and procedure_id in modal_text
         and procedure_revision in modal_text
-        and "Agent proposal for the operator" in modal_text
+        and "Agent recommendation and operator choices" in modal_text
+        and "AGENT SUGGESTS NOW" in modal_text
         and "Native WebMCP" in modal_text
         and "NOT AN OFFICIAL RATP/IDFM INSTRUCTION" not in modal_text
         and action_count >= 1
@@ -791,6 +820,10 @@ def validate_native_network_decision(client: WebMcpClient) -> dict[str, Any]:
         "[data-testid^=\"incident-procedure-step-\"]"
     )
     execution_card.wait_for(state="visible")
+    choice_advice_panel = execution_card.locator(
+        '[data-testid="incident-procedure-choice-advice"]'
+    )
+    choice_advice_panel.wait_for(state="visible")
     require(
         execution_card.locator(".procedure-citation").count() == 1
         and execution_card.locator(":scope > footer button").count() == 1,
@@ -803,14 +836,16 @@ def validate_native_network_decision(client: WebMcpClient) -> dict[str, Any]:
     approval.wait_for(state="visible")
     approval_text = approval.inner_text()
     require(
-        "apply_reviewed_procedure_step" in approval_text
-        and incident_id in approval_text
-        and procedure_id in approval_text
-        and procedure_revision in approval_text
-        and procedure_hash in approval_text
-        and "stepId" in approval_text
+        "FINAL OPERATOR CONFIRMATION" in approval_text
+        and "Apply reviewed procedure step" in approval_text
+        and "One-use approval for this procedure step" in approval_text
+        and "apply_reviewed_procedure_step" not in approval_text
+        and incident_id not in approval_text
+        and procedure_hash not in approval_text
+        and "Arguments bound to this action" not in approval_text
+        and "stepId" not in approval_text
         and "confirmSimulation" not in approval_text,
-        "The exact procedure-bound WebMCP approval is not visible.",
+        "The business-readable procedure approval is incomplete or leaks raw arguments.",
     )
     client.page.get_by_test_id("agent-tool-reject").click()
     modal.get_by_text(
@@ -842,6 +877,7 @@ def validate_native_network_decision(client: WebMcpClient) -> dict[str, Any]:
         "procedureId": procedure_id,
         "procedureRevision": procedure_revision,
         "procedureHash": procedure_hash,
+        "choiceAdvice": choice_advice["advisory"]["verdict"],
         "acknowledgementStep": acknowledgement_step_id,
         "acknowledgement": acknowledged["status"],
         "duplicateAcknowledgement": duplicate_acknowledgement["reason"],
@@ -1589,17 +1625,17 @@ def run_validation(args: argparse.Namespace) -> dict[str, Any]:
                 )
                 page.wait_for_function(
                     "document.querySelector('#main-content') || "
-                    "document.querySelector('#access-code')",
+                    "document.querySelector('#jury-access-code')",
                     timeout=args.timeout * 1000,
                 )
                 access_input = page.locator(
-                    "#access-code"
+                    "#jury-access-code"
                 )
                 if access_input.is_visible():
                     require(
                         bool(args.access_code),
                         (
-                            "The target requires an access code. "
+                            "The target requires a jury access code. "
                             "Set WEBMCP_ACCESS_CODE."
                         ),
                     )

@@ -354,7 +354,7 @@ describe("persisted agent configuration and bounded execution log", () => {
       await application.close();
       const persistedRuntime = JSON.parse(readFileSync(config.storage.agentRuntimePath, "utf8"));
       expect(persistedRuntime).toMatchObject({
-        schemaVersion: "paris-icc-agent-runtime.v4",
+        schemaVersion: "paris-icc-agent-runtime.v5",
         incidentInstructionOverrides: [{
           type: "infrastructure",
           instruction: editedInstruction,
@@ -414,6 +414,36 @@ describe("persisted agent configuration and bounded execution log", () => {
       expect(requestBody.model).toBe("gpt-4.1");
       expect(requestBody).not.toHaveProperty("reasoning");
       expect(store.currentReasoningEffort()).toBeNull();
+    } finally {
+      await store.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("migrates v4 instruction overrides without losing operator customisation", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "paris-icc-agent-v4-migration-"));
+    const config = parsedServerConfig();
+    config.storage.agentRuntimePath = path.join(directory, "agent-runtime.json");
+    const editedInstruction = "V4 CUSTOM INSTRUCTION: preserve this operator-authored control after migration.";
+    writeFileSync(config.storage.agentRuntimePath, JSON.stringify({
+      schemaVersion: "paris-icc-agent-runtime.v4",
+      model: "gpt-5.6-sol",
+      reasoningEffort: "high",
+      updatedAt: "2026-08-31T09:15:00.000Z",
+      incidentInstructionOverrides: [{
+        type: "infrastructure",
+        instruction: editedInstruction,
+      }],
+      entries: [],
+    }));
+
+    const store = new AgentRuntimeStore(config);
+    try {
+      expect(store.currentModel()).toBe("gpt-5.6-sol");
+      expect(store.currentReasoningEffort()).toBe("high");
+      expect(store.currentIncidentInstruction("infrastructure")).toMatchObject({
+        instruction: editedInstruction,
+      });
     } finally {
       await store.close();
       rmSync(directory, { recursive: true, force: true });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NATIVE_INTERSTATION_BY_ID, NATIVE_STATIONS } from "../rail/nativeNetwork";
+import { NATIVE_INTERSTATIONS, NATIVE_INTERSTATION_BY_ID, NATIVE_STATIONS } from "../rail/nativeNetwork";
 import {
   NATIVE_SIMULATION_STEP_MS,
   createNativeNetworkController,
@@ -15,9 +15,11 @@ import { createNativeSimulationTools } from "./nativeTools";
 
 const TOOL_NAMES = [
   "inspect_network_digital_twin",
+  "inspect_passenger_flow_impact",
   "inspect_incident_decision_context",
   "search_operational_procedures",
   "get_operational_procedure",
+  "assess_operator_procedure_choice",
   "apply_reviewed_procedure_step",
   "create_simulated_network_incident",
   "control_network_simulation",
@@ -74,7 +76,7 @@ function expectOperationalReadContext(value: unknown): asserts value is Record<s
 }
 
 describe("native-network WebMCP tools", () => {
-  it("publishes the exact seven-tool catalog with strict schemas and the full native line set", () => {
+  it("publishes the exact nine-tool catalog with strict schemas and the full native line set", () => {
     const tools = createNativeSimulationTools(createNativeNetworkController());
     expect(tools.map((candidate) => candidate.name)).toEqual(TOOL_NAMES);
 
@@ -88,13 +90,29 @@ describe("native-network WebMCP tools", () => {
     expect(inspectSchema.properties.line.enum).toHaveLength(21);
     expect(inspectSchema.properties.line.enum).toContain("RER_D");
 
+    const passengerImpact = tool(tools, "inspect_passenger_flow_impact");
+    expect(passengerImpact.annotations).toEqual({ readOnlyHint: true, untrustedContentHint: true });
+    expect(passengerImpact.inputSchema).toEqual(expect.objectContaining({
+      required: ["line"],
+      additionalProperties: false,
+      properties: {
+        line: { type: "string", enum: ["ALL", ...inspectSchema.properties.line.enum] },
+      },
+    }));
+
     for (const name of [
       "inspect_incident_decision_context",
+      "inspect_passenger_flow_impact",
       "search_operational_procedures",
       "get_operational_procedure",
+      "assess_operator_procedure_choice",
     ]) {
       expect(tool(tools, name).description).not.toMatch(FORBIDDEN_OPERATIONAL_READ_PROVENANCE);
     }
+    expect(tool(tools, "assess_operator_procedure_choice").annotations).toEqual({
+      readOnlyHint: true,
+      untrustedContentHint: true,
+    });
 
     for (const name of [
       "apply_reviewed_procedure_step",
@@ -142,6 +160,11 @@ describe("native-network WebMCP tools", () => {
       operational: expect.objectContaining({
         scenarioId: "multi-event",
         decisionRevision: 0,
+        passengerDemand: {
+          status: "active",
+          pauseWindow: "01:00 AM–05:00 AM",
+          timeZone: "Europe/Paris",
+        },
       }),
       scope: { line: "RER_A", incidentStatus: "active" },
       indicators: expect.objectContaining({ trainsInScope: 2 }),
@@ -183,6 +206,102 @@ describe("native-network WebMCP tools", () => {
     expectCommonContext(result);
     expect(JSON.stringify(result)).toContain("deterministic");
     expect(JSON.stringify(result)).not.toContain("live signalling");
+  });
+
+  it("ranks at most three active incidents by the waiting queue in each incident scope", async () => {
+    const controller = createNativeNetworkController({ scenarioId: "multi-event", speed: 1 });
+    for (let second = 0; second < 120; second += 1) controller.tick();
+    const inspect = tool(createNativeSimulationTools(controller), "inspect_passenger_flow_impact");
+    const result = await inspect.execute({ line: "ALL" }) as Record<string, any>;
+
+    expect(result).toEqual(expect.objectContaining({
+      status: "passenger_flow_context_ready",
+      activeIncidentCount: 3,
+      resultTruncated: false,
+      scope: expect.objectContaining({
+        line: "ALL",
+        telemetryRevision: expect.any(Number),
+        decisionRevision: 0,
+      }),
+      selectionMethod: expect.objectContaining({
+        primary: "waitingQueuePassengers descending",
+        maximumPriorities: 3,
+      }),
+    }));
+    expect(result.candidates).toHaveLength(3);
+    expect(result.candidates.map((candidate: Record<string, unknown>) => candidate.evidenceRank))
+      .toEqual([1, 2, 3]);
+    expect(result.candidates[0]).toEqual(expect.objectContaining({
+      incidentId: "INC-RERA-SIGNAL",
+      lineCode: "RER_A",
+      waitingQueuePassengers: expect.any(Number),
+      arrivalsPerMinute: expect.any(Number),
+      queueHotspots: expect.arrayContaining([
+        expect.objectContaining({ stationName: "Châtelet - Les Halles" }),
+      ]),
+    }));
+    expect(result.candidates[0].waitingQueuePassengers)
+      .toBeGreaterThanOrEqual(result.candidates[1].waitingQueuePassengers);
+    expect(result.candidates[1].waitingQueuePassengers)
+      .toBeGreaterThanOrEqual(result.candidates[2].waitingQueuePassengers);
+    expectOperationalReadContext(result);
+    expect(JSON.stringify(result)).not.toMatch(FORBIDDEN_OPERATIONAL_READ_PROVENANCE);
+
+    const rerA = await inspect.execute({ line: "RER_A" }) as Record<string, any>;
+    expect(rerA.candidates).toHaveLength(1);
+    expect(rerA.candidates[0].incidentId).toBe("INC-RERA-SIGNAL");
+  });
+
+  it("exposes zero effective passenger demand during the overnight pause", async () => {
+    const controller = createNativeNetworkController({
+      scenarioId: "nominal",
+      startTimestamp: Date.UTC(2026, 7, 27, 23, 0, 0),
+    });
+    const result = await tool(
+      createNativeSimulationTools(controller),
+      "inspect_network_digital_twin",
+    ).execute({ limit: 12 }) as Record<string, any>;
+
+    expect(result.operational.passengerDemand).toEqual({
+      status: "paused",
+      pauseWindow: "01:00 AM–05:00 AM",
+      timeZone: "Europe/Paris",
+    });
+    expect(result.indicators.stationPassengerArrivalRatePerSecond).toBe(0);
+    expect(result.busiestStationQueues.every(
+      (station: Record<string, unknown>) => station.arrivalsPerSecond === 0,
+    )).toBe(true);
+  });
+
+  it("exposes manually ordered shuttle state in the read-only digital-twin context", async () => {
+    const controller = createNativeNetworkController({ scenarioId: "nominal" });
+    const edge = NATIVE_INTERSTATIONS.find((candidate) => candidate.lineCode === "M1")!;
+    const ordered = controller.insertShuttle({
+      lineCode: "M1",
+      departureStationId: edge.fromStationCode,
+      arrivalStationId: edge.toStationCode,
+    });
+    const tools = createNativeSimulationTools(controller);
+    const result = await tool(tools, "inspect_network_digital_twin").execute({
+      line: "M1",
+      limit: 12,
+    }) as Record<string, unknown>;
+
+    expect(result.indicators).toEqual(expect.objectContaining({ manualShuttlesInScope: 1 }));
+    expect(result.manualShuttles).toEqual([
+      expect.objectContaining({
+        id: ordered.shuttle.id,
+        lineCode: "M1",
+        route: {
+          departureStationId: edge.fromStationCode,
+          arrivalStationId: edge.toStationCode,
+        },
+        operationalLocation: { type: "station", id: edge.fromStationCode },
+        status: "dwelling",
+        nominalSpeedKmh: 15,
+        capacity: 100,
+      }),
+    ]);
   });
 
   it("returns an entity-bound incident context and safe unknown result", async () => {
@@ -279,6 +398,7 @@ describe("native-network WebMCP tools", () => {
     const tools = createNativeSimulationTools(controller);
     const search = tool(tools, "search_operational_procedures");
     const getProcedure = tool(tools, "get_operational_procedure");
+    const assessChoice = tool(tools, "assess_operator_procedure_choice");
     const apply = tool(tools, "apply_reviewed_procedure_step");
     const incident = controller.getSnapshot().incidents[0];
     const beforeReads = controller.getSnapshot();
@@ -411,10 +531,43 @@ describe("native-network WebMCP tools", () => {
       reason: "stale_procedure",
     }));
 
+    const choiceAdvice = await assessChoice.execute({
+      incidentId: base.incidentId,
+      procedureId: base.procedureId,
+      procedureRevision: base.procedureRevision,
+      procedureContentHash: base.procedureContentHash,
+      stepId: documentaryStep.stepId,
+      agentSuggestedStepId: acknowledgeStep.stepId,
+      expectedDecisionRevision: base.expectedDecisionRevision,
+    });
+    expect(choiceAdvice).toEqual(expect.objectContaining({
+      status: "procedure_choice_assessed",
+      agentSuggestion: expect.objectContaining({
+        stepId: acknowledgeStep.stepId,
+        matchesSelection: false,
+      }),
+      sequence: expect.objectContaining({
+        outOfSequence: true,
+        missingPreviousStepIds: expect.arrayContaining([acknowledgeStep.stepId]),
+      }),
+      advisory: expect.objectContaining({
+        verdict: "caution",
+        operatorMayProceed: true,
+        nonBlocking: true,
+      }),
+      nonMutating: true,
+    }));
+    expectOperationalReadContext(choiceAdvice);
+
     const documentary = await apply.execute({ ...base, stepId: documentaryStep.stepId });
     expect(documentary).toEqual(expect.objectContaining({
-      status: "blocked",
-      reason: "procedure_step_out_of_sequence",
+      status: "procedure_step_acknowledged",
+      stepId: documentaryStep.stepId,
+      sequenceAdvisory: {
+        outOfSequence: true,
+        missingPreviousStepIds: expect.arrayContaining([acknowledgeStep.stepId]),
+        operatorOverrideRecorded: true,
+      },
     }));
 
     const unconfirmed = await apply.execute({
@@ -469,11 +622,8 @@ describe("native-network WebMCP tools", () => {
       expectedDecisionRevision: 1,
     });
     expect(documented).toEqual(expect.objectContaining({
-      status: "procedure_step_acknowledged",
-      stepId: documentaryStep.stepId,
-      capability: "operator-check",
-      decisionRevision: 1,
-      mutationApplied: false,
+      status: "blocked",
+      reason: "no_op",
     }));
 
     const replay = await apply.execute({
@@ -831,7 +981,7 @@ describe("native-network WebMCP tools", () => {
     }));
   });
 
-  it("enforces the complete procedure sequence and observation window before returning to normal", async () => {
+  it("records procedure progress and enforces the observation window before returning to normal", async () => {
     const controller = createNativeNetworkController({
       scenarioId: "rer-a-signal",
       speed: 1,

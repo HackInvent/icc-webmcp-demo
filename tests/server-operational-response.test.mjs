@@ -80,7 +80,7 @@ describe("server operational-response persistence", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-30T06:15:00.000Z"));
     const repository = new MemoryRepository();
-    const workspaceId = "baggage-police-clearance-test";
+    const workspaceId = "baggage-police-clearance-jury";
     const actor = "security-clearance-operator";
     const service = await createOperationsService({
       repository,
@@ -170,7 +170,7 @@ describe("server operational-response persistence", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-30T06:00:00.000Z"));
     const repository = new MemoryRepository();
-    const workspaceId = "works-handback-evidence-test";
+    const workspaceId = "works-handback-evidence-jury";
     const actor = "works-handback-operator";
     let service = await createOperationsService({
       repository,
@@ -262,7 +262,7 @@ describe("server operational-response persistence", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-30T06:00:00.000Z"));
     const repository = new MemoryRepository();
-    const workspaceId = "paused-procedure-resolution-test";
+    const workspaceId = "paused-procedure-resolution-jury";
     const actor = "resolution-operator";
     const service = await createOperationsService({
       repository,
@@ -411,7 +411,7 @@ describe("server operational-response persistence", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-30T06:30:00.000Z"));
     const repository = new MemoryRepository();
-    const workspaceId = "station-works-split-service-test";
+    const workspaceId = "station-works-split-service-jury";
     const actor = "station-works-operator";
     const service = await createOperationsService({
       repository,
@@ -542,7 +542,7 @@ describe("server operational-response persistence", () => {
 
   it("persists and audits a direct operator train insertion selected by line, station, and direction", async () => {
     const repository = new MemoryRepository();
-    const workspaceId = "manual-train-insertion-test";
+    const workspaceId = "manual-train-insertion-jury";
     const service = await createOperationsService({ repository, tickIntervalMs: 60_000 });
     const initial = await service.getSnapshot(workspaceId);
     const manualOptions = nativeOperatorTrainInsertionOptions("RER_A");
@@ -553,7 +553,7 @@ describe("server operational-response persistence", () => {
     );
     expect(interiorOption).toBeDefined();
 
-    const inserted = await service.command(workspaceId, "test-operator", {
+    const inserted = await service.command(workspaceId, "jury-operator", {
       commandId: "CMD-MANUAL-INSERT-001",
       type: "insert_native_train",
       expectedStateRevision: initial.stateRevision,
@@ -602,14 +602,69 @@ describe("server operational-response persistence", () => {
     await restarted.close();
   });
 
+  it("persists and audits a manual same-line shuttle with fixed speed and capacity", async () => {
+    const repository = new MemoryRepository();
+    const workspaceId = "manual-shuttle-jury";
+    const service = await createOperationsService({ repository, tickIntervalMs: 60_000 });
+    const initial = await service.getSnapshot(workspaceId);
+    const edge = NATIVE_INTERSTATIONS.find((candidate) => candidate.lineCode === "M4");
+    expect(edge).toBeDefined();
+
+    const ordered = await service.command(workspaceId, "jury-operator", {
+      commandId: "CMD-MANUAL-SHUTTLE-001",
+      type: "insert_native_shuttle",
+      expectedStateRevision: initial.stateRevision,
+      payload: {
+        lineCode: "M4",
+        departureStationId: edge.fromStationCode,
+        arrivalStationId: edge.toStationCode,
+      },
+    });
+
+    expect(ordered.result.insertion).toMatchObject({
+      capacityDeltaPassengers: 100,
+      shuttle: {
+        lineCode: "M4",
+        departureStationId: edge.fromStationCode,
+        arrivalStationId: edge.toStationCode,
+        nominalSpeedKmh: 15,
+        capacityPassengers: 100,
+        location: { type: "station", id: edge.fromStationCode },
+        status: "dwelling",
+      },
+    });
+    expect(ordered.snapshot.native.shuttles).toHaveLength(1);
+    expect(ordered.snapshot.shift.logs.at(-1)).toMatchObject({
+      category: "operator-action",
+      eventType: "shuttle-ordered",
+      actor: "operator",
+      title: expect.stringContaining(ordered.result.insertion.shuttle.id),
+    });
+
+    await service.close();
+    const restarted = await createOperationsService({ repository, tickIntervalMs: 60_000 });
+    const restored = await restarted.getSnapshot(workspaceId);
+    expect(restored.native.shuttles).toContainEqual(expect.objectContaining({
+      id: ordered.result.insertion.shuttle.id,
+      nominalSpeedKmh: 15,
+      capacityPassengers: 100,
+      location: { type: "station", id: edge.fromStationCode },
+    }));
+    expect(restored.shift.logs).toContainEqual(expect.objectContaining({
+      eventType: "shuttle-ordered",
+      title: expect.stringContaining(ordered.result.insertion.shuttle.id),
+    }));
+    await restarted.close();
+  });
+
   it("projects a native line-communication incident into SCADA and maintenance dispatch state", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-30T07:00:00.000Z"));
     const repository = new MemoryRepository();
     const service = await createOperationsService({ repository, now: () => Date.now(), tickIntervalMs: 1_000 });
-    const workspaceId = "scada-response-test";
+    const workspaceId = "scada-response-jury";
     const initial = await service.getSnapshot(workspaceId);
-    const created = await service.command(workspaceId, "test-session", {
+    const created = await service.command(workspaceId, "jury-session", {
       commandId: "CMD-OPRESP-SCADA-001",
       type: "create_native_incident",
       expectedStateRevision: initial.stateRevision,
@@ -660,13 +715,13 @@ describe("server operational-response persistence", () => {
     await service.close();
   });
 
-  it("executes reviewed infrastructure and rolling-stock maintenance dispatch steps in sequence", async () => {
+  it("records a non-blocking sequence advisory and executes reviewed maintenance dispatch steps", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-30T07:30:00.000Z"));
     const repository = new MemoryRepository();
     const service = await createOperationsService({ repository, now: () => Date.now(), tickIntervalMs: 60_000 });
 
-    const infrastructureWorkspace = "maintenance-infrastructure-test";
+    const infrastructureWorkspace = "maintenance-infrastructure-jury";
     let infrastructureState = await service.getSnapshot(infrastructureWorkspace);
     const infrastructureScenario = await service.command(infrastructureWorkspace, "operator-infrastructure", {
       commandId: "CMD-MAINT-INFRA-SCENARIO",
@@ -683,29 +738,8 @@ describe("server operational-response persistence", () => {
       mandatory: false,
       durationRangeSeconds: { minSeconds: 600, nominalSeconds: 1_200, maxSeconds: 3_600 },
     });
-    await expect(service.command(infrastructureWorkspace, "operator-infrastructure", {
-      commandId: "CMD-MAINT-INFRA-EARLY",
-      type: "apply_procedure_step",
-      expectedStateRevision: infrastructureState.stateRevision,
-      payload: {
-        incidentId: infrastructureIncident.id,
-        procedureId: infrastructureProcedure.procedureId,
-        procedureRevision: infrastructureProcedure.revision,
-        procedureContentHash: infrastructureProcedure.contentHash,
-        stepId: infrastructureDispatchStep.stepId,
-        expectedDecisionRevision: infrastructureState.native.decisionRevision,
-      },
-    })).rejects.toMatchObject({
-      code: "procedure_step_out_of_sequence",
-      details: { missingPreviousStepIds: expect.any(Array) },
-    });
-    infrastructureState = await applyMandatoryBefore({
-      service, workspaceId: infrastructureWorkspace, actor: "operator-infrastructure",
-      state: infrastructureState, incident: infrastructureIncident, procedure: infrastructureProcedure,
-      order: infrastructureDispatchStep.order, commandPrefix: "CMD-MAINT-INFRA-PREQ",
-    });
     const infrastructureDispatched = await service.command(infrastructureWorkspace, "operator-infrastructure", {
-      commandId: "CMD-MAINT-INFRA-DISPATCH",
+      commandId: "CMD-MAINT-INFRA-EARLY",
       type: "apply_procedure_step",
       expectedStateRevision: infrastructureState.stateRevision,
       payload: {
@@ -720,6 +754,11 @@ describe("server operational-response persistence", () => {
     expect(infrastructureDispatched.result).toMatchObject({
       status: "applied_to_simulation",
       capability: "dispatch-maintenance",
+      sequenceAdvisory: {
+        outOfSequence: true,
+        missingPreviousStepIds: expect.any(Array),
+        operatorOverrideRecorded: true,
+      },
       operationalReceipt: {
         incidentId: infrastructureIncident.id,
         capability: "dispatch-maintenance",
@@ -736,7 +775,7 @@ describe("server operational-response persistence", () => {
       },
     });
 
-    const rollingWorkspace = "maintenance-rolling-test";
+    const rollingWorkspace = "maintenance-rolling-jury";
     let rollingState = await service.getSnapshot(rollingWorkspace);
     const nominal = await service.command(rollingWorkspace, "operator-rolling", {
       commandId: "CMD-MAINT-ROLLING-NOMINAL",
@@ -803,7 +842,7 @@ describe("server operational-response persistence", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-30T08:00:00.000Z"));
     const repository = new MemoryRepository();
-    const workspaceId = "operational-response-test";
+    const workspaceId = "operational-response-jury";
     const service = await createOperationsService({
       repository,
       now: () => Date.now(),
@@ -813,7 +852,7 @@ describe("server operational-response persistence", () => {
     let state = await service.getSnapshot(workspaceId);
     expect(state.operationalResponse.lineScada).toHaveLength(21);
 
-    const activated = await service.command(workspaceId, "test-session", {
+    const activated = await service.command(workspaceId, "jury-session", {
       commandId: "CMD-OPRESP-SCENARIO-01",
       type: "activate_native_scenario",
       expectedStateRevision: state.stateRevision,
@@ -823,7 +862,7 @@ describe("server operational-response persistence", () => {
     const incident = state.native.incidents.find((item) => item.status === "active");
     expect(incident).toBeTruthy();
 
-    const accelerated = await service.command(workspaceId, "test-session", {
+    const accelerated = await service.command(workspaceId, "jury-session", {
       commandId: "CMD-OPRESP-SPEED-04",
       type: "set_speed",
       expectedStateRevision: state.stateRevision,
@@ -854,7 +893,7 @@ describe("server operational-response persistence", () => {
     let commandSequence = 0;
     for (const step of prerequisiteSteps) {
       commandSequence += 1;
-      const applied = await service.command(workspaceId, "test-session", {
+      const applied = await service.command(workspaceId, "jury-session", {
         commandId: `CMD-OPRESP-STEP-${String(commandSequence).padStart(3, "0")}`,
         type: "apply_procedure_step",
         expectedStateRevision: state.stateRevision,
@@ -875,7 +914,7 @@ describe("server operational-response persistence", () => {
     const informationStep = procedure.steps.find(
       (step) => step.capability === "publish-passenger-information",
     );
-    const approved = await service.command(workspaceId, "test-session", {
+    const approved = await service.command(workspaceId, "jury-session", {
       commandId: "CMD-OPRESP-INFO-001",
       type: "apply_procedure_step",
       expectedStateRevision: state.stateRevision,
@@ -891,15 +930,15 @@ describe("server operational-response persistence", () => {
     expect(approved.result.operationalReceipt).toMatchObject({
       incidentId: incident.id,
       capability: "publish-passenger-information",
-      operatorId: "test-session",
+      operatorId: "jury-session",
     });
     expect(approved.snapshot.operationalResponse.continuityMeasures.find(
       (item) => item.incidentId === incident.id && item.kind === "passenger-information",
-    )).toMatchObject({ status: "active", approvedBy: "test-session" });
+    )).toMatchObject({ status: "active", approvedBy: "jury-session" });
 
     state = approved.snapshot;
     const insertionStep = procedure.steps.find((step) => step.capability === "insert-train");
-    const inserted = await service.command(workspaceId, "test-session", {
+    const inserted = await service.command(workspaceId, "jury-session", {
       commandId: "CMD-OPRESP-INSERT-001",
       type: "apply_procedure_step",
       expectedStateRevision: state.stateRevision,
@@ -957,7 +996,7 @@ describe("server operational-response persistence", () => {
 
   it("migrates a v1 runtime without the new aggregate to a nominal 21-line state", async () => {
     const repository = new MemoryRepository();
-    const workspaceId = "legacy-runtime-test";
+    const workspaceId = "legacy-runtime-jury";
     const first = await createOperationsService({ repository, tickIntervalMs: 60_000 });
     await first.getSnapshot(workspaceId);
     await first.close();

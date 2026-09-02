@@ -11,6 +11,7 @@ import {
   OPERATIONAL_PROCEDURE_CATALOGUE_METADATA,
   type OperationalProcedure,
 } from "../procedures";
+import type { ProcedureFeedbackHandler } from "../procedures/feedback";
 
 function dateLabel(timestamp: number): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -38,6 +39,7 @@ export interface ProceduresPageProps {
     readonly contentHash: string;
   };
   onPublishStep?: PublishProcedureStepHandler;
+  onRequestAgentFeedback?: ProcedureFeedbackHandler;
 }
 
 interface OpenEditor {
@@ -50,6 +52,7 @@ export function ProceduresPage({
   procedures = OPERATIONAL_PROCEDURE_CATALOGUE,
   metadata = OPERATIONAL_PROCEDURE_CATALOGUE_METADATA,
   onPublishStep,
+  onRequestAgentFeedback,
 }: ProceduresPageProps) {
   const [query, setQuery] = useState("");
   const [openEditor, setOpenEditor] = useState<OpenEditor | null>(null);
@@ -260,6 +263,7 @@ export function ProceduresPage({
           initialStepId={openEditor?.stepId}
           onClose={() => setOpenEditor(null)}
           onPublishStep={onPublishStep}
+          onRequestAgentFeedback={onRequestAgentFeedback}
         />
       )}
     </div>

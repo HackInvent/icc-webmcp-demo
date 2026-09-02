@@ -13,6 +13,7 @@ import {
   createNativeSimulationSnapshotFromConfiguration,
   type NativeIncident,
   type NativeScenarioId,
+  type NativeShuttleState,
   type NativeSimulationSnapshot,
   type NativeSimulationSpeed,
   type NativeStationPassengerState,
@@ -49,6 +50,7 @@ export interface SimulationConfigurationV1 {
     scenarioId: NativeScenarioId;
     scenarioName: string;
     trains: NativeTrainState[];
+    shuttles: NativeShuttleState[];
     stationPassengers: NativeStationPassengerState[];
     incidents: SerializedNativeIncident[];
   };
@@ -178,6 +180,7 @@ export function createSimulationConfiguration(
       scenarioId: nativeSnapshot.scenarioId,
       scenarioName: nativeSnapshot.scenarioName,
       trains: cloneJson(nativeSnapshot.trains) as NativeTrainState[],
+      shuttles: cloneJson(nativeSnapshot.shuttles) as NativeShuttleState[],
       stationPassengers: cloneJson(nativeSnapshot.stationPassengers) as NativeStationPassengerState[],
       incidents: nativeSnapshot.incidents.map(serializeNativeIncident),
     },
@@ -256,6 +259,12 @@ export function parseSimulationConfiguration(
       native.trains,
       "nativeNetwork.trains",
     ) as unknown as NativeTrainState[];
+    const nativeShuttles = native.shuttles === undefined
+      ? []
+      : asObjectArray(
+        native.shuttles,
+        "nativeNetwork.shuttles",
+      ) as unknown as NativeShuttleState[];
     const nativeStationPassengers = native.stationPassengers === undefined
       ? undefined
       : asObjectArray(
@@ -278,6 +287,7 @@ export function parseSimulationConfiguration(
       scenarioId,
       scenarioName,
       trains: nativeTrains,
+      shuttles: nativeShuttles,
       stationPassengers: nativeStationPassengers,
       incidents: nativeIncidents,
     });

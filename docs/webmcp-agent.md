@@ -17,13 +17,13 @@ The tool catalogue is assembled by [`createIccTools`](../src/webmcp/tools.ts), e
 | Execution | `document.modelContext.executeTool(...)` with JSON-string arguments | Calls the wrapped `execute(...)` function directly. |
 | Origin handling | Discovered tools are filtered to the current page origin. | Definitions are supplied by the current application instance. |
 | Browser requirement | Requires native `document.modelContext` discovery and execution. | Works in a conventional browser for the embedded application flow. |
-| Intended role | Demonstrates native page-tool discovery and execution. | Keeps the embedded decision workflow usable for development and conventional-browser access when native browser support is absent. |
+| Intended role | Demonstrates native page-tool discovery and execution. | Keeps the embedded decision workflow usable for development and jury access when native browser support is absent. |
 
 Both paths use the same tool schemas, validators, simulation controller, activity reporting, and approval wrapper. The bridge is an application compatibility mechanism; it should not be described as native browser WebMCP. Transport selection and execution are in [`src/agent/nativeWebMcp.ts`](../src/agent/nativeWebMcp.ts).
 
 ## Exact tool catalogue
 
-The current application publishes 19 tools when the native-network controller is present. The runtime classifier in [`webMcpActivityKind`](../src/webmcp/register.ts) distinguishes 11 reads, two non-committing analysis/staging operations, and six writes.
+The current application publishes 21 tools when the native-network controller is present. The runtime classifier in [`webMcpActivityKind`](../src/webmcp/register.ts) distinguishes 13 reads, two non-committing analysis/staging operations, and six writes.
 
 | Class | Tool | Purpose | Primary source |
 |---|---|---|---|
@@ -40,14 +40,33 @@ The current application publishes 19 tools when the native-network controller is
 | Write | `simulate_track_circuit_closure` | Close or reopen one CDV in the detailed deterministic simulation. | [`tools.ts`](../src/webmcp/tools.ts) |
 | Write | `simulate_regulation_action` | Apply a guarded regulation action to one simulated train. | [`tools.ts`](../src/webmcp/tools.ts) |
 | Read | `inspect_network_digital_twin` | Read a bounded summary of the native 21-line network twin. | [`nativeTools.ts`](../src/webmcp/nativeTools.ts) |
+| Read | `inspect_passenger_flow_impact` | Rank active incidents by the current waiting queues inside their affected station, interstation, train, or line scope. | [`nativeTools.ts`](../src/webmcp/nativeTools.ts) |
 | Read | `inspect_incident_decision_context` | Read one incident's codification, impact, restrictions, revision, and procedure execution state. | [`nativeTools.ts`](../src/webmcp/nativeTools.ts) |
 | Read | `search_operational_procedures` | Search the active workspace catalogue for the exact code of an incident present in the twin. | [`nativeTools.ts`](../src/webmcp/nativeTools.ts) |
 | Read | `get_operational_procedure` | Retrieve one exact document identity: procedure ID, revision and SHA-256 content hash. | [`nativeTools.ts`](../src/webmcp/nativeTools.ts) |
+| Read | `assess_operator_procedure_choice` | Compare one operator-selected step with the agent suggestion, current evidence, documented sequence and observation state without blocking or changing state. | [`nativeTools.ts`](../src/webmcp/nativeTools.ts) |
 | Write | `apply_reviewed_procedure_step` | Record or apply one exact operator-reviewed capability from a matching procedure step. | [`nativeTools.ts`](../src/webmcp/nativeTools.ts) |
 | Write | `create_simulated_network_incident` | Create or schedule one bounded incident on a known train, station, or interstation. | [`nativeTools.ts`](../src/webmcp/nativeTools.ts) |
 | Write | `control_network_simulation` | Pause, resume, change speed, reset, or activate a curated native scenario. | [`nativeTools.ts`](../src/webmcp/nativeTools.ts) |
 
 The two schedule tools classified as **Analysis** have `readOnlyHint: false` because they create pending preview or impact artifacts in the authenticated schedule workspace. They do not commit the schedule plan and are not in [`MUTATING_WEBMCP_TOOL_NAMES`](../src/webmcp/register.ts), so the common write-approval dialog is reserved for the six actions listed as **Write**. They should be presented as non-committing staging operations, not as pure reads.
+
+## Passenger-flow priority contract
+
+Opening **Passenger flow**, changing its line filter, or selecting **Refresh** starts
+a fresh bounded analysis. The server-side model receives exactly one page tool:
+`inspect_passenger_flow_impact({ line })`. The tool maps every active incident to
+its affected station scope, sums the current waiting queues in that scope, and
+ranks candidates by waiting passengers, then severity, onboard exposure, and
+incident ID.
+
+The server forces that exact read-only call and validates the returned telemetry
+and decision revisions. Strict structured output may explain only the first three
+verified candidates and cannot reorder or invent an incident. The browser checks
+the IDs and ranks again before rendering. If model analysis is disabled or fails,
+the same verified WebMCP order remains visible with a clearly labelled fallback.
+Opening an incident hands control to the existing human-reviewed procedure flow;
+this ranking mode has no write tool.
 
 ## Incident decision contract
 
@@ -116,6 +135,30 @@ audit an older execution after a later edit. Procedure publication is an
 authenticated human workspace command; it is deliberately not exposed to the
 incident agent as a WebMCP write tool.
 
+### Agent feedback while editing a procedure
+
+The procedure editor has a separate **Ask agent for feedback** action. It posts
+the current draft to `POST /api/procedures/feedback`; the server rechecks the
+procedure ID, revision, content hash and step ID before any model call. It then
+builds a bounded context from only the linked procedure-revision logs, operator
+actions, incident REX and execution receipts. Unrelated shift logs do not leave
+the server.
+
+The configured OpenAI model receives a strict ten-field output schema and the
+Responses API `web_search` tool. Web search is required for a model-assisted
+review. Only URLs returned in web-search source data or `url_citation`
+annotations are rendered, and every source is a visible, clickable link. Public
+material is labelled as context, never as an internal operating rule. Each field
+also lists the exact log IDs used and labels its basis as previous edits,
+operational REX, public source, or general guidance.
+
+If OpenAI is disabled, unavailable, or returns an unverifiable contract, the
+same modal returns bounded general drafting guidance for all ten fields and says
+that no web source was used. Editing after a response marks it stale. The agent
+cannot apply its wording: only the human-controlled publication command can
+create a new procedure revision. Each model attempt is captured as a
+metadata-only `procedure` entry in the existing agent execution log.
+
 ### `incident-decision.v2`
 
 The final model response uses the strict JSON schema [`INCIDENT_DECISION_SCHEMA`](../server/agent.mjs). It contains only these top-level fields:
@@ -148,6 +191,13 @@ The final model response uses the strict JSON schema [`INCIDENT_DECISION_SCHEMA`
 `additionalProperties` is false throughout the schema. The final action list may cite only step IDs from the retrieved document and may not omit the next mandatory unfinished step. The client independently parses and cross-checks the context, search, procedure, identifiers, revision, hash, steps, and normal-state criteria before rendering them. See [`parseContext`, `parseSearch`, `parseProcedure`, and `parseRecommendation`](../src/agent/procedureDecisionAgent.ts).
 
 The agent may prioritize steps and explain their relevance. It cannot invent an executable capability: the displayed instruction and any mapped capability remain those of the retrieved procedure document.
+
+When the operator selects a step, the browser agent calls the separate read-only
+`assess_operator_procedure_choice` tool. The result says whether the choice
+matches the current agent suggestion and identifies missing earlier controls,
+evidence references, or observation time. This is advice only: every exact step
+from the retrieved procedure remains selectable, and a sequence deviation is
+recorded as an advisory rather than rejected.
 
 ## Model and browser round trips
 
@@ -183,7 +233,7 @@ model answers, API keys, and server instructions are deliberately excluded.
 
 ## Operator approval and write execution
 
-The model-generated recommendation is not an authorization. When the operator selects the next cited procedure step, [`applyIncidentProcedureStep`](../src/agent/procedureDecisionAgent.ts) builds this exact tool input:
+The model-generated recommendation is not an authorization. When the operator selects any exact step from the retrieved procedure, [`applyIncidentProcedureStep`](../src/agent/procedureDecisionAgent.ts) builds the bound tool input internally:
 
 ```json
 {
@@ -197,7 +247,7 @@ The model-generated recommendation is not an authorization. When the operator se
 }
 ```
 
-[`wrapToolDefinition`](../src/webmcp/register.ts) recognizes the tool as a write, clones and freezes the arguments, and sends the exact serialized JSON to [`WebMcpApprovalDialog`](../src/components/WebMcpApprovalDialog.tsx). The application allows one pending approval, expires it after 90 seconds, and blocks execution if approval is unavailable, rejected, expired, or aborted. Changed arguments require a new approval.
+[`wrapToolDefinition`](../src/webmcp/register.ts) recognizes the tool as a write, clones and freezes the arguments, and binds the exact serialized value to the one-use approval. The incident modal shows a business-readable confirmation rather than raw JSON. The application allows one pending approval, expires it after 90 seconds, and blocks execution if approval is unavailable, rejected, expired, or aborted. Changed arguments require a new approval.
 
 Approval is necessary but not sufficient. [`apply_reviewed_procedure_step`](../src/webmcp/nativeTools.ts) then verifies:
 
@@ -208,7 +258,7 @@ Approval is necessary but not sufficient. [`apply_reviewed_procedure_step`](../s
 - the exact procedure revision exists and its SHA-256 content hash is unchanged;
 - the incident code is included in the document's applicability;
 - the requested step exists and has not already been recorded;
-- all preceding mandatory steps are complete;
+- any missing preceding mandatory steps are returned and persisted as a non-blocking `sequenceAdvisory`;
 - verify and close phases respect the procedure observation window;
 - a state-changing capability is one of the four modelled primitives and is available for this incident.
 
@@ -230,7 +280,7 @@ The procedure's textual normal-state criteria are displayed alongside that resul
 
 If server-side model analysis is disabled or unavailable, the browser still executes the same inspect, search, and retrieve sequence. [`fallbackRecommendation`](../src/agent/procedureDecisionAgent.ts) builds an ordered plan only from mandatory unfinished steps in the retrieved document. The UI labels this state as a procedure-derived fallback and does not substitute a generic response-option catalogue.
 
-The fallback preserves useful decision support without pretending that model reasoning succeeded. It does not relax operator approval, revision guards, procedure identity checks, step ordering, or return-to-normal conditions.
+The fallback preserves useful decision support without pretending that model reasoning succeeded. It does not relax operator approval, revision guards, procedure identity checks, or return-to-normal conditions. Document order remains visible guidance, while the operator may deliberately select a different exact step.
 
 ## Cross-tool safeguards
 
@@ -239,7 +289,7 @@ The fallback preserves useful decision support without pretending that model rea
 | JSON object and bounded schemas | All tools | Input schemas use bounded fields and generally `additionalProperties: false`; executors also reject unknown fields. |
 | Result bounds | Read and analysis tools | Native and detailed tool outputs are normally capped at 12 items and bounded text lengths. |
 | Same-origin discovery | Native WebMCP | Discovered tools with another origin are excluded. |
-| Visible one-shot approval | Six write tools | Exact frozen arguments are displayed before execution; procedure steps use an inline panel in the existing incident modal. |
+| Visible one-shot approval | Six write tools | Exact frozen arguments are bound to the approval; procedure steps use a business-readable inline panel in the existing incident modal. |
 | Stable decision revision | Native writes, CDV, regulation | Stale operational context blocks mutation; ordinary telemetry ticks do not invalidate the guard. |
 | Explicit simulation confirmation | Native writes, CDV, regulation | `confirmSimulation: true` is mandatory. |
 | Live-source prohibition | Simulation writes | Writes reject live snapshots or live commands. |
@@ -247,7 +297,7 @@ The fallback preserves useful decision support without pretending that model rea
 | Versioned schedule review | Schedule commit | Exact plan hash, preview ID, impact ID, absence of hard blocks, and a one-use visible authorization are required. |
 | Immutable procedure citation | Procedure step apply | Exact incident code, document ID, revision, hash, and step ID are revalidated. |
 | Controlled procedure publication | Human procedure editor | Expected revision/hash, strict editable-field allowlist, immutable execution fields, new hash, SQLite persistence, and shift-log event. |
-| Sequential execution | Procedure steps | Preceding mandatory steps and observation window are enforced. |
+| Documented sequence advice | Procedure steps | Missing preceding mandatory steps produce a non-blocking advisory; the observation window remains enforced. |
 | Abort handling | Tool and approval flows | Calls are checked before approval and before mutation. |
 
 ## Public demonstration boundaries
@@ -258,7 +308,7 @@ The fallback preserves useful decision support without pretending that model rea
 - The server-side incident agent can read only the three procedural tools. It cannot autonomously call the procedure apply tool.
 - Procedure workspace revisions and execution progress are persisted with the authenticated operations workspace in embedded SQLite. They are not part of the portable simulator export and do not constitute an immutable regulatory document repository or audit record.
 - Native procedural targets currently cover train, station, interstation, and line-communication incidents. Power procedure documents exist, but the power simulator is a separate detailed-state path today.
-- Return-to-normal logic validates generic simulation signals and ordered procedural progress, not certified operational telemetry.
+- Return-to-normal logic validates generic simulation signals and recorded procedural progress, not certified operational telemetry.
 - Schedule preview and evaluation alter pending authenticated workspace artifacts even though they do not commit a plan; this is why their WebMCP annotation is not read-only.
 - The in-page bridge and native `document.modelContext` path share the application contract, but only the latter demonstrates native browser tool discovery and execution.
 - The controls described here are demonstrator safeguards. They are not a security certification, a railway safety case, or authorization for operational use.

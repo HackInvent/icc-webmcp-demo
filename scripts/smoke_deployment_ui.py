@@ -382,12 +382,13 @@ def main() -> None:
             tool_names = sorted(tool["name"] for tool in tools)
             required_native_tools = {
                 "inspect_network_digital_twin",
+                "inspect_passenger_flow_impact",
                 "inspect_incident_decision_context",
                 "search_operational_procedures",
                 "get_operational_procedure",
                 "apply_reviewed_procedure_step",
             }
-            assert len(tool_names) == 19, tool_names
+            assert len(tool_names) == 21, tool_names
             assert required_native_tools.issubset(tool_names), tool_names
 
             procedure_evidence = page.evaluate(

@@ -2,16 +2,62 @@ import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { EntityModal } from "../src/components/EntityModal.tsx";
 import { SimulatorIncidentModal } from "../src/components/SimulatorIncidentModal.tsx";
 import { createOperationalResponseState } from "../src/operations/operationalResponse.ts";
 import { BusServicesPage } from "../src/pages/BusServicesPage.tsx";
 import { ScadaPage } from "../src/pages/ScadaPage.tsx";
 import { createNativeSimulationSnapshot } from "../src/rail/nativeSimulation.ts";
+import { emptyPassengerFeed } from "../src/rail/prim/feed.ts";
 import { createSimulationState } from "../src/rail/simulation.ts";
 
 const OPERATIONAL_TIME = Date.UTC(2026, 7, 28, 9, 0, 0);
 
 describe("operational UI contracts", () => {
+  it("explains the passenger data-source choices and their boundaries in plain language", () => {
+    const baseSnapshot = createSimulationState().snapshot;
+    const replay = emptyPassengerFeed("prim-replay");
+    const snapshot = {
+      ...baseSnapshot,
+      passengerFeed: {
+        ...replay,
+        status: "ready",
+        receivedAt: "2026-08-28T09:00:00.000Z",
+        lines: replay.lines.map((line) => ({
+          ...line,
+          status: "ready",
+          observationCount: 2,
+          error: null,
+        })),
+      },
+    };
+    const html = renderToStaticMarkup(createElement(EntityModal, {
+      selection: { type: "source", id: "source" },
+      snapshot,
+      onClose: vi.fn(),
+      onIncidentStatus: vi.fn(),
+      onPower: vi.fn(),
+      onRegulate: vi.fn(),
+      onCreateIncident: vi.fn(),
+      onCloseCircuit: vi.fn(),
+      onReopenCircuit: vi.fn(),
+      onPassengerFeedMode: vi.fn(),
+      onRefreshPassengerFeed: vi.fn(),
+    }));
+
+    expect(html).toContain("What does this setting change?");
+    expect(html).toContain("estimated train arrivals used for passenger information");
+    expect(html).toContain("Paris ICC data only");
+    expect(html).toContain("Saved PRIM example");
+    expect(html).toContain("No internet connection or API key is needed");
+    expect(html).toContain("Current IDFM PRIM arrivals");
+    expect(html).toContain("The PRIM API key stays on the server");
+    expect(html).toContain("What comes from each source?");
+    expect(html).toContain("does not provide track-circuit occupation or continuous train positions");
+    expect(html).toContain('data-testid="data-source-prim-replay"');
+    expect(html).toContain('aria-pressed="true"');
+  });
+
   it("renders all 21 SCADA line selectors and maps an unavailable line to offline with its dispatch", () => {
     const simulation = createNativeSimulationSnapshot({
       scenarioId: "nominal",
@@ -71,7 +117,7 @@ describe("operational UI contracts", () => {
         status: "active",
         proposedAt: OPERATIONAL_TIME - 300_000,
         approvedAt: OPERATIONAL_TIME,
-        approvedBy: "operator-test",
+        approvedBy: "operator-jury",
         completedAt: null,
         stationIds: ["IDFM:68385", "IDFM:72881"],
         connectionIds: [],
@@ -110,9 +156,18 @@ describe("operational UI contracts", () => {
       simulation,
       operationalResponse,
       onIncidentActivate: vi.fn(),
+      onInsertShuttle: vi.fn(),
     }));
 
     expect(html).toContain("Bus shuttle operations");
+    expect(html).toContain("Order a shuttle");
+    expect(html).toContain('data-testid="bus-shuttle-line"');
+    expect(html).toContain('data-testid="bus-shuttle-departure"');
+    expect(html).toContain('data-testid="bus-shuttle-arrival"');
+    expect(html).toContain('data-testid="bus-shuttle-order-button"');
+    expect(html).toContain("15 km/h");
+    expect(html).toContain("100 passengers");
+    expect(html).toContain("Discrete station / interstation");
     expect(html).toContain("MEASURE:INC-RERA-LONG:shuttle-bus");
     expect(html).toContain("Marne-la-Vallée - Chessy");
     expect(html).toContain("Boissy-Saint-Léger");

@@ -15,6 +15,7 @@ import type { NativeIncidentEffect } from "./rail/nativeSimulation";
 import type { NativeLineCode } from "./rail/nativeNetwork";
 import type { SimulatorIncidentCreationResult, SimulatorIncidentDraft } from "./rail/simulatorIncident";
 import { operationsClient } from "./runtime/operationsClient";
+import { useRuntimeConfiguration } from "./runtime/RuntimeGate";
 import { scheduleWorkspace } from "./schedules/workspace";
 import { createSampleSchedulePlan } from "./schedules/sample";
 import { DetailPage } from "./pages/DetailPage";
@@ -37,6 +38,7 @@ import {
   PROCEDURE_CATALOG_REVISION,
 } from "./procedures";
 import type { PublishProcedureStepInput } from "./components/ProcedureEditorModal";
+import { requestProcedureFeedback } from "./procedures/feedback";
 import {
   registerIccTools,
   type WebMcpActivity,
@@ -75,6 +77,7 @@ interface PendingToolApproval {
 }
 
 function App() {
+  const { configuration } = useRuntimeConfiguration();
   const route = useHashRoute();
   const rail = useRailSimulation();
   const nativeNetwork = useNativeNetworkSimulation();
@@ -393,7 +396,7 @@ function App() {
                   await scheduleWorkspace.loadPlan(createSampleSchedulePlan());
                 }
                 setSelection(null);
-                notify("Complete scenario reset: traffic 05:42 and D-1 sample plan restored");
+                notify("Complete scenario reset: traffic 01:00 PM and D-1 sample plan restored");
               } catch (error) {
                 notify(error instanceof Error ? error.message : "The scenario reset failed.");
               }
@@ -412,7 +415,20 @@ function App() {
             />
           )}
           {route.page === "passenger-flow" && (
-            <PassengerFlowPage simulation={nativeNetwork.snapshot} detailedSnapshot={snapshot} />
+            <PassengerFlowPage
+              simulation={nativeNetwork.snapshot}
+              detailedSnapshot={snapshot}
+              expectedToolNames={webMcpAvailability.names}
+              inPageTools={webMcpTools}
+              toolsChecked={webMcpAvailability.checked}
+              toolsPublished={
+                webMcpAvailability.names.includes("inspect_passenger_flow_impact") &&
+                webMcpTools.some((tool) => tool.name === "inspect_passenger_flow_impact")
+              }
+              agentEnabled={configuration.agent.enabled}
+              agentModel={configuration.agent.model}
+              onIncidentActivate={setNativeDecisionIncidentId}
+            />
           )}
           {route.page === "simulator" && (
             <SimulatorPage
@@ -433,6 +449,7 @@ function App() {
               procedures={activeProcedures}
               metadata={procedureMetadata}
               onPublishStep={serverSnapshot ? publishProcedureStep : undefined}
+              onRequestAgentFeedback={serverSnapshot ? requestProcedureFeedback : undefined}
             />
           )}
           {route.page === "schedules" && <SchedulesPage snapshot={snapshot} onSelect={setSelection} />}
@@ -444,7 +461,7 @@ function App() {
             />
           )}
           {route.page === "regulation" && <RegulationPage nativeSimulation={nativeNetwork.snapshot} snapshot={snapshot} onSelect={setSelection} />}
-          {route.page === "power" && <PowerPage snapshot={snapshot} onSelect={setSelection} />}
+          {route.page === "power" && <PowerPage snapshot={snapshot} nativeSimulation={nativeNetwork.snapshot} onSelect={setSelection} />}
           {route.page === "scada" && (
             <ScadaPage
               simulation={nativeNetwork.snapshot}
@@ -457,6 +474,11 @@ function App() {
               simulation={nativeNetwork.snapshot}
               operationalResponse={(operationsClient.getServerSnapshot() as unknown as { operationalResponse?: unknown } | null)?.operationalResponse}
               onIncidentActivate={setNativeDecisionIncidentId}
+              onInsertShuttle={async (input) => {
+                const receipt = await nativeNetwork.insertShuttle(input);
+                notify(`${receipt.shuttle.id} ordered · ${receipt.shuttle.nominalSpeedKmh} km/h · ${receipt.shuttle.capacityPassengers} passengers`);
+                return receipt;
+              }}
             />
           )}
           {route.page === "rolling-stock" && <RollingStockPage />}
@@ -566,6 +588,7 @@ function App() {
               "inspect_incident_decision_context",
               "search_operational_procedures",
               "get_operational_procedure",
+              "assess_operator_procedure_choice",
               "apply_reviewed_procedure_step",
             ].every((name) =>
               webMcpAvailability.names.includes(name) &&

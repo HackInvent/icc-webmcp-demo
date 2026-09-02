@@ -22,6 +22,7 @@ const READ_TOOLS = [
   "search_operational_procedures",
   "get_operational_procedure",
 ] as const;
+const CHOICE_TOOL = "assess_operator_procedure_choice";
 const APPLY_TOOL = "apply_reviewed_procedure_step";
 const MAX_ROUNDS = 9;
 
@@ -271,6 +272,19 @@ export interface IncidentDecisionPackage {
   agentWarning?: string;
   usage?: { inputTokens: number; outputTokens: number };
   generatedAt: number;
+}
+
+export interface ProcedureChoiceAdvice {
+  selectedStepId: string;
+  selectedStepTitle: string;
+  suggestedStepId: string;
+  suggestedStepTitle: string;
+  matchesAgentSuggestion: boolean;
+  verdict: "recommended" | "caution" | "already_recorded";
+  statement: string;
+  reasons: string[];
+  operatorMayProceed: boolean;
+  missingPreviousStepIds: string[];
 }
 
 interface AgentCall {
@@ -1875,15 +1889,12 @@ export async function applyIncidentProcedureStep(input: {
   inPageTools?: readonly WebMcpToolDefinition[];
   signal: AbortSignal;
 }): Promise<Record<string, unknown>> {
-  const action = input.package.recommendation.actions.find(
-    (candidate) => candidate.stepId === input.stepId,
-  );
   const step = input.package.procedure.steps.find(
     (candidate) => candidate.stepId === input.stepId,
   );
-  if (!action || !step) {
+  if (!step) {
     throw new IncidentDecisionAgentError(
-      "This action is not cited by the retrieved procedure plan.",
+      "This step is not present in the retrieved procedure revision.",
       "unknown_procedure_step",
     );
   }
@@ -1927,4 +1938,90 @@ export async function applyIncidentProcedureStep(input: {
   }
   clearIncidentDecisionCache();
   return output;
+}
+
+export async function assessIncidentProcedureChoice(input: {
+  package: IncidentDecisionPackage;
+  stepId: string;
+  agentSuggestedStepId: string;
+  inPageTools?: readonly WebMcpToolDefinition[];
+  signal: AbortSignal;
+}): Promise<ProcedureChoiceAdvice> {
+  const selectedStep = input.package.procedure.steps.find(
+    (candidate) => candidate.stepId === input.stepId,
+  );
+  const suggestedStep = input.package.procedure.steps.find(
+    (candidate) => candidate.stepId === input.agentSuggestedStepId,
+  );
+  if (!selectedStep || !suggestedStep) {
+    throw new IncidentDecisionAgentError(
+      "The selected or suggested step is not present in the retrieved procedure revision.",
+      "unknown_procedure_step",
+    );
+  }
+  const catalog = await discoverPageWebMcpTools(
+    [CHOICE_TOOL],
+    input.inPageTools,
+  );
+  const output = toolJson(
+    await executeNativeWebMcpTool(
+      catalog,
+      CHOICE_TOOL,
+      {
+        incidentId: input.package.incidentId,
+        procedureId: input.package.procedure.procedureId,
+        procedureRevision: input.package.procedure.revision,
+        procedureContentHash: input.package.procedure.contentHash,
+        stepId: selectedStep.stepId,
+        agentSuggestedStepId: suggestedStep.stepId,
+        expectedDecisionRevision:
+          input.package.context.evidence.decisionRevision,
+      },
+      input.signal,
+    ),
+    CHOICE_TOOL,
+  );
+  if (output.status !== "procedure_choice_assessed") {
+    throw new IncidentDecisionAgentError(
+      typeof output.message === "string"
+        ? output.message
+        : "The agent could not assess this procedure choice against the current state.",
+      typeof output.reason === "string"
+        ? output.reason
+        : "procedure_choice_assessment_unavailable",
+    );
+  }
+  const advisory = object(output.advisory, "procedure choice advisory");
+  const selected = object(output.selectedStep, "selected procedure step");
+  const suggestion = object(output.agentSuggestion, "agent suggestion");
+  const sequence = object(output.sequence, "procedure sequence");
+  if (
+    typeof advisory.operatorMayProceed !== "boolean" ||
+    typeof suggestion.matchesSelection !== "boolean"
+  ) {
+    throw new IncidentDecisionAgentError(
+      "The procedure-choice advisory is incomplete.",
+      "invalid_webmcp_output",
+    );
+  }
+  return {
+    selectedStepId: textValue(selected.stepId, "selectedStep.stepId", 100),
+    selectedStepTitle: textValue(selected.title, "selectedStep.title"),
+    suggestedStepId: textValue(suggestion.stepId, "agentSuggestion.stepId", 100),
+    suggestedStepTitle: textValue(suggestion.title, "agentSuggestion.title"),
+    matchesAgentSuggestion: suggestion.matchesSelection,
+    verdict: enumValue(
+      advisory.verdict,
+      ["recommended", "caution", "already_recorded"] as const,
+      "advisory.verdict",
+    ),
+    statement: textValue(advisory.statement, "advisory.statement"),
+    reasons: textList(advisory.reasons, "advisory.reasons", 12),
+    operatorMayProceed: advisory.operatorMayProceed,
+    missingPreviousStepIds: textList(
+      sequence.missingPreviousStepIds,
+      "sequence.missingPreviousStepIds",
+      64,
+    ),
+  };
 }

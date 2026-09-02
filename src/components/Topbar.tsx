@@ -3,6 +3,7 @@ import { pathForPage, type PageKey } from "../navigation";
 import type { EntitySelection, RailSnapshot, SimulationState } from "../rail/domain";
 import { STEP_MS } from "../rail/simulation";
 import { scheduleWorkspace } from "../schedules/workspace";
+import { formatParisOperationalTime } from "../rail/operationalTime";
 import { Icon } from "./Icon";
 import { StatusPill } from "./StatusPill";
 
@@ -24,12 +25,7 @@ interface SearchResult extends EntitySelection {
 }
 
 function formatOperationalTime(timestamp: number): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Paris",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(timestamp);
+  return formatParisOperationalTime(timestamp, true);
 }
 
 function formatOperationalDate(timestamp: number): string {

@@ -1,5 +1,6 @@
 import {
   NATIVE_INTERSTATIONS,
+  NATIVE_INTERSTATION_BY_ID,
   NATIVE_LINES,
   NATIVE_NETWORK_MANIFEST,
   NATIVE_STATION_BY_CODE,
@@ -14,6 +15,12 @@ import {
   type NativeSimulationSnapshot as RailNativeSimulationSnapshot,
 } from "../rail/nativeSimulation";
 import { getReferenceCapacity } from "../rail/rollingStock";
+import {
+  effectivePassengerArrivalRate,
+  isPassengerDemandActive,
+  PARIS_TIME_ZONE,
+  PASSENGER_DEMAND_PAUSE_LABEL,
+} from "../rail/operationalTime";
 import type { Awaitable, NativeNetworkControllerFacade } from "../rail/useNativeNetworkSimulation";
 import type {
   ProcedureExecutionSnapshot,
@@ -84,6 +91,21 @@ export interface NativeNetworkToolTrain {
   quality?: string;
 }
 
+export interface NativeNetworkToolShuttle {
+  id: string;
+  lineCode: string;
+  departureStationId: string;
+  arrivalStationId: string;
+  locationType: "station" | "interstation";
+  locationId: string;
+  status: "running" | "dwelling";
+  direction: 1 | -1;
+  speedKmh: number;
+  nominalSpeedKmh: number;
+  passengers: number;
+  capacity: number;
+}
+
 export interface NativeNetworkToolStationPassengerState {
   id: string;
   lineCode: string;
@@ -134,6 +156,7 @@ export interface NativeNetworkToolSnapshot {
   scenarioName: string;
   source?: "simulation" | "live";
   trains: readonly NativeNetworkToolTrain[];
+  shuttles?: readonly NativeNetworkToolShuttle[];
   stationPassengers?: readonly NativeNetworkToolStationPassengerState[];
   incidents: readonly NativeNetworkToolIncident[];
   restrictions: readonly NativeNetworkToolRestriction[];
@@ -571,6 +594,7 @@ function publicTrain(train: NativeNetworkToolTrain): Record<string, unknown> {
 
 function publicStationPassengerQueues(
   states: readonly NativeNetworkToolStationPassengerState[],
+  timestamp: number,
 ): Array<Record<string, unknown>> {
   const byStation = new Map<string, {
     stationId: string;
@@ -604,7 +628,10 @@ function publicStationPassengerQueues(
       current.referenceYears.push(state.referenceYear);
     }
     current.waitingPassengers += Math.max(0, state.waitingPassengers);
-    current.arrivalsPerSecond += Math.max(0, state.arrivalsPerSecond);
+    current.arrivalsPerSecond += Math.max(
+      0,
+      effectivePassengerArrivalRate(state.arrivalsPerSecond, timestamp),
+    );
     current.totalGeneratedPassengers += Math.max(0, state.totalGeneratedPassengers);
     current.totalBoardedPassengers += Math.max(0, state.totalBoardedPassengers);
     current.totalAlightedPassengers += Math.max(0, state.totalAlightedPassengers);
@@ -631,6 +658,137 @@ function publicStationPassengerQueues(
       },
       referenceYears: state.referenceYears.sort((left, right) => left - right),
     }));
+}
+
+const PASSENGER_FLOW_PRIORITY_LIMIT = 3;
+const PASSENGER_FLOW_CANDIDATE_LIMIT = 12;
+const PASSENGER_FLOW_SEVERITY_ORDER: Readonly<Record<string, number>> = Object.freeze({
+  critical: 4,
+  high: 3,
+  medium: 2,
+  low: 1,
+});
+
+function addInterstationEndpoints(stationCodes: Set<string>, interstationId: string): void {
+  const interstation = NATIVE_INTERSTATION_BY_ID.get(interstationId);
+  if (!interstation) return;
+  stationCodes.add(interstation.fromStationCode);
+  stationCodes.add(interstation.toStationCode);
+}
+
+function incidentPassengerStationCodes(
+  snapshot: NativeNetworkToolSnapshot,
+  incident: NativeNetworkToolIncident,
+): Set<string> {
+  const stationCodes = new Set(incident.affectedStationCodes ?? []);
+  incident.affectedSegmentIds.forEach((id) => addInterstationEndpoints(stationCodes, id));
+
+  if (incident.target.type === "station") {
+    const station = NATIVE_STATION_BY_CODE.get(incident.target.id) ??
+      NATIVE_STATION_BY_SVG_ID.get(incident.target.id);
+    if (station) stationCodes.add(station.code);
+  } else if (incident.target.type === "interstation") {
+    addInterstationEndpoints(stationCodes, incident.target.id);
+  } else if (incident.target.type === "line") {
+    for (const lineCode of incident.lineCodes) {
+      const line = NATIVE_LINES.find((candidate) => candidate.code === lineCode);
+      line?.stationCodes.forEach((stationCode) => stationCodes.add(stationCode));
+    }
+  }
+
+  const trainIds = new Set(incident.impactedTrainIds);
+  if (incident.target.type === "train") trainIds.add(incident.target.id);
+  for (const trainId of trainIds) {
+    const train = snapshot.trains.find((candidate) => candidate.id === trainId);
+    if (!train) continue;
+    if (train.locationType === "station") stationCodes.add(train.locationId);
+    else addInterstationEndpoints(stationCodes, train.locationId);
+  }
+  return stationCodes;
+}
+
+function passengerFlowIncidentCandidates(
+  snapshot: NativeNetworkToolSnapshot,
+  scopeLine: NativeNetworkLineCode | "ALL",
+): Array<Record<string, unknown>> {
+  const activeIncidents = snapshot.incidents.filter((incident) =>
+    incident.status === "active" &&
+    (scopeLine === "ALL" || incident.lineCodes.includes(scopeLine))
+  );
+  return activeIncidents.map((incident) => {
+    const stationCodes = incidentPassengerStationCodes(snapshot, incident);
+    const incidentLines = new Set(
+      scopeLine === "ALL" ? incident.lineCodes : [scopeLine],
+    );
+    const queueByStation = new Map<string, { waitingPassengers: number; arrivalsPerSecond: number }>();
+    for (const state of snapshot.stationPassengers ?? []) {
+      if (!stationCodes.has(state.stationId) || !incidentLines.has(state.lineCode)) continue;
+      const current = queueByStation.get(state.stationId) ?? {
+        waitingPassengers: 0,
+        arrivalsPerSecond: 0,
+      };
+      current.waitingPassengers += Math.max(0, Math.round(state.waitingPassengers));
+      current.arrivalsPerSecond += Math.max(
+        0,
+        effectivePassengerArrivalRate(state.arrivalsPerSecond, snapshot.timestamp),
+      );
+      queueByStation.set(state.stationId, current);
+    }
+    const hotspots = [...queueByStation.entries()]
+      .map(([stationCode, queue]) => ({
+        stationCode,
+        stationName: NATIVE_STATION_BY_CODE.get(stationCode)?.name ?? stationCode,
+        waitingPassengers: queue.waitingPassengers,
+      }))
+      .filter((station) => station.waitingPassengers > 0)
+      .sort((left, right) =>
+        right.waitingPassengers - left.waitingPassengers ||
+        left.stationCode.localeCompare(right.stationCode)
+      );
+    const impactedTrainIds = new Set(incident.impactedTrainIds);
+    if (incident.target.type === "train") impactedTrainIds.add(incident.target.id);
+    const impactedTrains = snapshot.trains.filter((train) => impactedTrainIds.has(train.id));
+    return {
+      incidentId: boundedText(incident.id),
+      incidentCode: boundedText(incident.incidentCode),
+      title: boundedText(incident.title),
+      lineCode: boundedText(
+        scopeLine === "ALL" ? incident.lineCodes[0] ?? "UNKNOWN" : scopeLine,
+      ),
+      location: boundedText(
+        incident.target.type === "line" ? incident.target.id : incident.target.id,
+      ),
+      severity: boundedText(incident.severity),
+      occurrenceTime: boundedText(incident.occurrenceTime),
+      waitingQueuePassengers: hotspots.reduce(
+        (total, station) => total + station.waitingPassengers,
+        0,
+      ),
+      arrivalsPerMinute: Math.round(
+        [...queueByStation.values()].reduce(
+          (total, queue) => total + queue.arrivalsPerSecond,
+          0,
+        ) * 6_000,
+      ) / 100,
+      affectedStationCount: stationCodes.size,
+      impactedTrainCount: impactedTrains.length,
+      passengersOnImpactedTrains: impactedTrains.reduce(
+        (total, train) => total + Math.max(0, train.passengers),
+        0,
+      ),
+      queueHotspots: hotspots.slice(0, 3),
+    };
+  }).sort((left, right) => {
+    const leftQueue = Number(left.waitingQueuePassengers);
+    const rightQueue = Number(right.waitingQueuePassengers);
+    if (leftQueue !== rightQueue) return rightQueue - leftQueue;
+    const severityDelta = (PASSENGER_FLOW_SEVERITY_ORDER[String(right.severity)] ?? 0) -
+      (PASSENGER_FLOW_SEVERITY_ORDER[String(left.severity)] ?? 0);
+    if (severityDelta !== 0) return severityDelta;
+    const passengerDelta = Number(right.passengersOnImpactedTrains) -
+      Number(left.passengersOnImpactedTrains);
+    return passengerDelta || String(left.incidentId).localeCompare(String(right.incidentId));
+  });
 }
 
 type ProcedureCapabilityCommand =
@@ -756,6 +914,7 @@ export function createNativeNetworkTools(
         const limit = rawLimit === undefined ? 8 : Number(rawLimit);
         const snapshot = snapshotOf(dependencies.controller);
         const trains = snapshot.trains.filter((train) => !line || train.lineCode === line);
+        const shuttles = (snapshot.shuttles ?? []).filter((shuttle) => !line || shuttle.lineCode === line);
         const incidents = snapshot.incidents.filter((incident) =>
           (!line || incident.lineCodes.includes(line)) &&
           (!incidentStatus || incident.status === incidentStatus)
@@ -765,7 +924,11 @@ export function createNativeNetworkTools(
           .sort((left, right) => right.delaySeconds - left.delaySeconds);
         const passengerStates = (snapshot.stationPassengers ?? [])
           .filter((state) => !line || state.lineCode === line);
-        const stationPassengerQueues = publicStationPassengerQueues(passengerStates);
+        const stationPassengerQueues = publicStationPassengerQueues(
+          passengerStates,
+          snapshot.timestamp,
+        );
+        const passengerDemandActive = isPassengerDemandActive(snapshot.timestamp);
 
         return result(dependencies, snapshot, {
           status: "ok",
@@ -777,10 +940,16 @@ export function createNativeNetworkTools(
             telemetryRevision: snapshot.telemetryRevision,
             decisionRevision: snapshot.decisionRevision,
             speed: snapshot.speed,
+            passengerDemand: {
+              status: passengerDemandActive ? "active" : "paused",
+              pauseWindow: PASSENGER_DEMAND_PAUSE_LABEL,
+              timeZone: PARIS_TIME_ZONE,
+            },
           },
           scope: { line: line ?? "ALL", incidentStatus: incidentStatus ?? "ALL" },
           indicators: {
             trainsInScope: trains.length,
+            manualShuttlesInScope: shuttles.length,
             movingTrains: trains.filter((train) => train.status === "running").length,
             heldOrStoppedTrains: trains.filter((train) => train.status === "held" || train.status === "stopped").length,
             delayedOverThreeMinutes: delayed.length,
@@ -790,7 +959,13 @@ export function createNativeNetworkTools(
             passengersOnDelayedTrains: delayed.reduce((sum, train) => sum + Math.max(0, train.passengers), 0),
             passengersWaitingAtStations: passengerStates.reduce((sum, state) => sum + Math.max(0, state.waitingPassengers), 0),
             stationPassengerArrivalRatePerSecond: Math.round(
-              passengerStates.reduce((sum, state) => sum + Math.max(0, state.arrivalsPerSecond), 0) * 1_000_000,
+              passengerStates.reduce(
+                (sum, state) => sum + Math.max(
+                  0,
+                  effectivePassengerArrivalRate(state.arrivalsPerSecond, snapshot.timestamp),
+                ),
+                0,
+              ) * 1_000_000,
             ) / 1_000_000,
             stationsWithWaitingPassengers: stationPassengerQueues.filter((station) => Number(station.waitingPassengers) > 0).length,
             degradedOrUnavailableScadaLines: snapshot.operationalResponse?.lineScada.filter((item) => item.status !== "nominal").length ?? 0,
@@ -799,6 +974,24 @@ export function createNativeNetworkTools(
           },
           busiestStationQueues: stationPassengerQueues.slice(0, limit),
           delayedTrains: delayed.slice(0, limit).map(publicTrain),
+          manualShuttles: shuttles.slice(0, limit).map((shuttle) => ({
+            id: boundedText(shuttle.id),
+            lineCode: boundedText(shuttle.lineCode),
+            route: {
+              departureStationId: boundedText(shuttle.departureStationId),
+              arrivalStationId: boundedText(shuttle.arrivalStationId),
+            },
+            operationalLocation: {
+              type: shuttle.locationType,
+              id: boundedText(shuttle.locationId),
+            },
+            status: shuttle.status,
+            direction: shuttle.direction === 1 ? "outbound" : "return",
+            speedKmh: Math.max(0, Number(shuttle.speedKmh) || 0),
+            nominalSpeedKmh: Math.max(0, Number(shuttle.nominalSpeedKmh) || 0),
+            passengers: Math.max(0, Number(shuttle.passengers) || 0),
+            capacity: Math.max(0, Number(shuttle.capacity) || 0),
+          })),
           incidents: incidents.slice(0, limit).map(publicIncident),
           continuityPlans: snapshot.operationalResponse?.continuityMeasures
             .filter((measure) => !line || measure.lineCodes.includes(line))
@@ -826,10 +1019,56 @@ export function createNativeNetworkTools(
               plan: dispatch.plan,
               operatorApprovalRequired: dispatch.status === "proposed",
             })) ?? [],
-          resultTruncated: delayed.length > limit || incidents.length > limit || stationPassengerQueues.length > limit,
+          resultTruncated: delayed.length > limit || shuttles.length > limit || incidents.length > limit || stationPassengerQueues.length > limit,
           nextStep: incidents.length > 0
             ? "Inspect one incident decision context before evaluating response options."
             : "Continue monitoring the exact decision revision; no incident response is currently required in this scope.",
+        });
+      },
+    },
+    {
+      name: "inspect_passenger_flow_impact",
+      description: "Read the current station waiting queues within each active incident scope and return the bounded evidence required to prioritise up to three incidents for maximum queue relief. This is a read-only decision-support tool.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          line: { type: "string", enum: ["ALL", ...availableLines] },
+        },
+        required: ["line"],
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true, untrustedContentHint: true },
+      execute: (rawInput) => {
+        const input = inputRecord(rawInput);
+        allowOnly(input, ["line"]);
+        const line = requiredString(input, "line", 16);
+        if (line !== "ALL" && !availableLines.includes(line as NativeNetworkLineCode)) {
+          throw new Error(`line must be ALL or one of ${availableLines.join(", ")}.`);
+        }
+        const snapshot = snapshotOf(dependencies.controller);
+        const candidates = passengerFlowIncidentCandidates(
+          snapshot,
+          line as NativeNetworkLineCode | "ALL",
+        );
+        return operationalReadResult(dependencies, snapshot, {
+          status: "passenger_flow_context_ready",
+          objective: "Prioritise up to three active incidents whose controlled resolution can release the largest observed station waiting queues.",
+          scope: {
+            line,
+            observedAt: snapshot.timestamp,
+            telemetryRevision: snapshot.telemetryRevision,
+            decisionRevision: snapshot.decisionRevision,
+          },
+          selectionMethod: {
+            primary: "waitingQueuePassengers descending",
+            tieBreakers: ["severity descending", "passengersOnImpactedTrains descending", "incidentId ascending"],
+            maximumPriorities: PASSENGER_FLOW_PRIORITY_LIMIT,
+          },
+          activeIncidentCount: candidates.length,
+          candidates: candidates.slice(0, PASSENGER_FLOW_CANDIDATE_LIMIT).map(
+            (candidate, index) => ({ ...candidate, evidenceRank: index + 1 }),
+          ),
+          resultTruncated: candidates.length > PASSENGER_FLOW_CANDIDATE_LIMIT,
         });
       },
     },
@@ -1128,6 +1367,216 @@ export function createNativeNetworkTools(
       },
     },
     {
+      name: "assess_operator_procedure_choice",
+      description: "Read-only decision support for one operator-selected step from the exact active procedure. Compares the choice with the agent-suggested step, current completion state, documented sequence, evidence gates and observation window. Returns a non-blocking advisory and never changes operational state.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          incidentId: { type: "string", pattern: ID_PATTERN_SOURCE, maxLength: 96 },
+          procedureId: { type: "string", pattern: ID_PATTERN_SOURCE, maxLength: 96 },
+          procedureRevision: { type: "string", minLength: 1, maxLength: 80 },
+          procedureContentHash: { type: "string", minLength: 8, maxLength: 128 },
+          stepId: { type: "string", pattern: ID_PATTERN_SOURCE, maxLength: 96 },
+          agentSuggestedStepId: { type: "string", pattern: ID_PATTERN_SOURCE, maxLength: 96 },
+          expectedDecisionRevision: { type: "integer", minimum: 0 },
+        },
+        required: [
+          "incidentId", "procedureId", "procedureRevision", "procedureContentHash",
+          "stepId", "agentSuggestedStepId", "expectedDecisionRevision",
+        ],
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true, untrustedContentHint: true },
+      execute: (rawInput) => {
+        const input = inputRecord(rawInput);
+        allowOnly(input, [
+          "incidentId", "procedureId", "procedureRevision", "procedureContentHash",
+          "stepId", "agentSuggestedStepId", "expectedDecisionRevision",
+        ]);
+        const incidentId = requiredId(input, "incidentId");
+        const procedureId = requiredId(input, "procedureId");
+        const procedureRevision = requiredString(input, "procedureRevision", 80);
+        const procedureContentHash = requiredString(input, "procedureContentHash", 128);
+        const stepId = requiredId(input, "stepId");
+        const agentSuggestedStepId = requiredId(input, "agentSuggestedStepId");
+        const expectedRevision = expectedDecisionRevision(input);
+        const snapshot = snapshotOf(dependencies.controller);
+        if (snapshot.decisionRevision !== expectedRevision) {
+          return operationalReadResult(dependencies, snapshot, {
+            status: "procedure_choice_assessment_unavailable",
+            reason: "stale_decision_context",
+            message: "The operational decision context changed. Refresh the incident analysis before relying on this advice.",
+            expectedDecisionRevision: expectedRevision,
+            currentDecisionRevision: snapshot.decisionRevision,
+            nonMutating: true,
+          });
+        }
+        const incident = incidentById(snapshot, incidentId);
+        if (!incident || incident.status !== "active") {
+          return operationalReadResult(dependencies, snapshot, {
+            status: "procedure_choice_assessment_unavailable",
+            reason: incident ? "incident_not_active" : "unknown_incident",
+            message: incident
+              ? "The incident is no longer active."
+              : "The requested incident is unavailable.",
+            incidentId,
+            nonMutating: true,
+          });
+        }
+        const procedure = getProcedureRevision(
+          procedureWorkspaceOf(dependencies.controller),
+          procedureId,
+          procedureRevision,
+        );
+        if (
+          !procedure ||
+          procedure.contentHash !== procedureContentHash ||
+          !procedure.applicability.incidentCodes.includes(incident.incidentCode as never)
+        ) {
+          return operationalReadResult(dependencies, snapshot, {
+            status: "procedure_choice_assessment_unavailable",
+            reason: !procedure
+              ? "unknown_procedure_revision"
+              : procedure.contentHash !== procedureContentHash
+                ? "stale_procedure"
+                : "procedure_not_applicable",
+            message: "The exact active procedure could not be verified for this incident.",
+            incidentId,
+            procedureId,
+            procedureRevision,
+            nonMutating: true,
+          });
+        }
+        const selectedStep = procedure.steps.find((candidate) => candidate.stepId === stepId);
+        const suggestedStep = procedure.steps.find(
+          (candidate) => candidate.stepId === agentSuggestedStepId,
+        );
+        if (!selectedStep || !suggestedStep) {
+          return operationalReadResult(dependencies, snapshot, {
+            status: "procedure_choice_assessment_unavailable",
+            reason: "unknown_procedure_step",
+            message: "The selected or agent-suggested step is not present in the exact procedure revision.",
+            procedureId,
+            stepId,
+            agentSuggestedStepId,
+            nonMutating: true,
+          });
+        }
+        const execution = executionForIncident(incidentId);
+        const completedStepIds = execution?.procedureId === procedureId &&
+            execution.procedureRevision === procedureRevision
+          ? execution.completedStepIds
+          : new Set<string>();
+        const nextDocumentedStep = procedure.steps.find(
+          (candidate) => candidate.mandatory && !completedStepIds.has(candidate.stepId),
+        ) ?? null;
+        const missingPreviousStepIds = procedure.steps
+          .filter((candidate) =>
+            candidate.mandatory &&
+            candidate.order < selectedStep.order &&
+            !completedStepIds.has(candidate.stepId)
+          )
+          .map((candidate) => candidate.stepId);
+        const alreadyRecorded = completedStepIds.has(stepId);
+        const evidenceRequirement = operatorEvidenceReferenceRequirement(selectedStep);
+        const reasons: string[] = [];
+        if (alreadyRecorded) {
+          reasons.push("This step is already recorded; applying it again would create no new operational evidence.");
+        }
+        if (stepId !== agentSuggestedStepId) {
+          reasons.push(
+            `The agent currently suggests “${suggestedStep.title}” first because it is the highest-priority documented response for the present state.`,
+          );
+        }
+        if (missingPreviousStepIds.length > 0) {
+          reasons.push(
+            `This choice skips ${missingPreviousStepIds.length} earlier mandatory documented step${missingPreviousStepIds.length === 1 ? "" : "s"}; their controls or evidence may still be missing.`,
+          );
+        }
+        if (
+          (selectedStep.phase === "verify" || selectedStep.phase === "close") &&
+          (execution === undefined || execution.recoveryStartedAt === null)
+        ) {
+          reasons.push("Recovery has not been recorded as started, so return-to-normal evidence may be incomplete.");
+        }
+        let observationRemainingSeconds = 0;
+        if (
+          (selectedStep.phase === "verify" || selectedStep.phase === "close") &&
+          execution?.recoveryStartedAt !== null &&
+          execution?.recoveryStartedAt !== undefined
+        ) {
+          const requiredMilliseconds =
+            procedure.returnToNormal.observationWindowSeconds * 1_000;
+          observationRemainingSeconds = Math.max(
+            0,
+            Math.ceil(
+              (requiredMilliseconds -
+                (snapshot.timestamp - execution.recoveryStartedAt)) / 1_000,
+            ),
+          );
+          if (observationRemainingSeconds > 0) {
+            reasons.push(
+              `The documented observation window still has ${observationRemainingSeconds} seconds remaining.`,
+            );
+          }
+        }
+        if (evidenceRequirement) {
+          reasons.push(
+            `${evidenceRequirement.label} must be recorded before this step can be completed.`,
+          );
+        }
+        const verdict = alreadyRecorded
+          ? "already_recorded"
+          : stepId === agentSuggestedStepId && missingPreviousStepIds.length === 0 &&
+              observationRemainingSeconds === 0
+            ? "recommended"
+            : "caution";
+        return operationalReadResult(dependencies, snapshot, {
+          status: "procedure_choice_assessed",
+          incidentId,
+          procedureId,
+          procedureRevision,
+          procedureContentHash,
+          selectedStep: {
+            stepId: boundedText(selectedStep.stepId),
+            title: boundedText(selectedStep.title),
+            order: selectedStep.order,
+            phase: boundedText(selectedStep.phase),
+            mandatory: selectedStep.mandatory === true,
+          },
+          agentSuggestion: {
+            stepId: boundedText(suggestedStep.stepId),
+            title: boundedText(suggestedStep.title),
+            matchesSelection: stepId === agentSuggestedStepId,
+          },
+          sequence: {
+            nextDocumentedStepId: nextDocumentedStep?.stepId ?? null,
+            missingPreviousStepIds: boundedStrings(missingPreviousStepIds, 64),
+            outOfSequence: missingPreviousStepIds.length > 0,
+          },
+          advisory: {
+            verdict,
+            reasons: boundedStrings(
+              reasons.length > 0
+                ? reasons
+                : ["This choice matches the agent recommendation and the current documented sequence."],
+              12,
+              500,
+            ),
+            operatorMayProceed: !alreadyRecorded,
+            nonBlocking: true,
+            statement: alreadyRecorded
+              ? "The operator can inspect this recorded step, but it cannot be recorded twice."
+              : verdict === "recommended"
+                ? "The agent recommends this step now. The operator retains the final decision."
+                : "The agent advises caution, but the operator may still select and approve this documented step.",
+          },
+          observationRemainingSeconds,
+          nonMutating: true,
+        });
+      },
+    },
+    {
       name: "apply_reviewed_procedure_step",
       description: "SIMULATION WRITE: Apply or record one exact operator-reviewed capability from a matching versioned procedure step for an active incident. Requires immutable procedure evidence, the exact decision revision and explicit simulation confirmation; no live railway system is contacted.",
       inputSchema: {
@@ -1241,15 +1690,11 @@ export function createNativeNetworkTools(
             !execution.completedStepIds.has(candidate.stepId)
           )
           .map((candidate) => candidate.stepId);
-        if (missingPreviousSteps.length > 0) {
-          return blocked(
-            dependencies,
-            preflight.snapshot,
-            "procedure_step_out_of_sequence",
-            "Complete the preceding mandatory procedure steps before reviewing this step.",
-            { procedureId, stepId, missingPreviousStepIds: missingPreviousSteps },
-          );
-        }
+        const sequenceAdvisory = {
+          outOfSequence: missingPreviousSteps.length > 0,
+          missingPreviousStepIds: missingPreviousSteps,
+          operatorOverrideRecorded: missingPreviousSteps.length > 0,
+        };
         if (execution.completedStepIds.has(stepId)) {
           return blocked(
             dependencies,
@@ -1303,6 +1748,7 @@ export function createNativeNetworkTools(
             const after = snapshotOf(dependencies.controller);
             return result(dependencies, after, {
               ...applied,
+              sequenceAdvisory,
               humanReviewRequired: true,
               simulationConfirmationRecorded: true,
             });
@@ -1349,6 +1795,7 @@ export function createNativeNetworkTools(
                 candidate.mandatory &&
                 !execution.completedStepIds.has(candidate.stepId)
             )?.stepId ?? null,
+            sequenceAdvisory,
             ...procedureEvidence,
           });
         }
@@ -1427,6 +1874,7 @@ export function createNativeNetworkTools(
           simulationConfirmationRecorded: true,
           completedStepIds: [...execution.completedStepIds],
           nextRequiredStepId,
+          sequenceAdvisory,
           normalStateVerification,
           ...procedureEvidence,
           safety: "Only the local native-network simulation changed. Re-inspect the incident and its normal-state criteria.",
@@ -1716,6 +2164,20 @@ function adaptRailSnapshot(
         quality: train.quality,
       };
     }),
+    shuttles: snapshot.shuttles.map((shuttle) => ({
+      id: shuttle.id,
+      lineCode: shuttle.lineCode,
+      departureStationId: shuttle.departureStationId,
+      arrivalStationId: shuttle.arrivalStationId,
+      locationType: shuttle.location.type,
+      locationId: shuttle.location.id,
+      status: shuttle.status,
+      direction: shuttle.direction,
+      speedKmh: shuttle.speedKmh,
+      nominalSpeedKmh: shuttle.nominalSpeedKmh,
+      passengers: shuttle.passengers,
+      capacity: shuttle.capacityPassengers,
+    })),
     stationPassengers: snapshot.stationPassengers.map((state) => ({ ...state })),
     incidents: snapshot.incidents.map(adaptRailIncident),
     restrictions: snapshot.restrictions.map((restriction) => ({

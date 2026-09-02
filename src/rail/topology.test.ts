@@ -48,12 +48,12 @@ describe("realistic Paris ICC topology", () => {
     );
   });
 
-  it("anchors the D-1 view at 05:42 Paris time and planned works at 23:00", () => {
-    expect(SCENARIO_EPOCH).toBe(Date.UTC(2026, 7, 26, 3, 42, 0));
+  it("anchors the operational view at 01:00 PM Paris time and planned works at 11:00 PM", () => {
+    expect(SCENARIO_EPOCH).toBe(Date.UTC(2026, 7, 28, 11, 0, 0));
     const plannedWorks = createInitialSnapshot().incidents.find(
       (incident) => incident.id === "INC-J1-32",
     );
-    expect(plannedWorks?.startedAt).toBe(Date.UTC(2026, 7, 26, 21, 0, 0));
+    expect(plannedWorks?.startedAt).toBe(Date.UTC(2026, 7, 28, 21, 0, 0));
   });
   it("uses consecutive, ordered central-Paris corridors", () => {
     expect(LINES.find((line) => line.id === "RER_A")?.stations).toEqual([

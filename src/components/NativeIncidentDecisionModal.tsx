@@ -2,10 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   analyzeIncidentDecision,
   applyIncidentProcedureStep,
+  assessIncidentProcedureChoice,
   type IncidentDecisionPackage,
   type IncidentDecisionProgress,
   type IncidentOperationalResponse,
   type OperationalProcedureStep,
+  type ProcedureChoiceAdvice,
 } from "../agent/incidentDecisionAgent";
 import { useRuntimeConfiguration } from "../runtime/RuntimeGate";
 import { operatorEvidenceReferenceRequirement } from "../procedures";
@@ -321,9 +323,6 @@ function InlineWebMcpApproval({
   request: WebMcpApprovalView;
   onDecision: (approved: boolean) => void;
 }) {
-  const visibleInput = Object.fromEntries(
-    Object.entries(request.input).filter(([key]) => key !== "confirmSimulation"),
-  );
   return (
     <section
       className={"webmcp-approval webmcp-approval--" + request.kind + " procedure-step-approval"}
@@ -334,19 +333,14 @@ function InlineWebMcpApproval({
       <div className="webmcp-approval__summary">
         <span><Icon name="alert" size={21}/></span>
         <div>
-          <small>FINAL OPERATOR CONFIRMATION · EXACT WEBMCP ACTION</small>
+          <small>FINAL OPERATOR CONFIRMATION</small>
           <strong>{request.label}</strong>
-          <code>{request.toolName}</code>
         </div>
       </div>
       <p>
-        Review the exact procedure-bound action below. It remains inside this incident
-        workflow and is applied only after your explicit confirmation.
+        Confirm the selected documented step. Its incident, procedure revision and
+        decision revision remain pinned in the background.
       </p>
-      <div className="webmcp-approval__arguments">
-        <span>Arguments bound to this action</span>
-        <pre>{JSON.stringify(visibleInput, null, 2)}</pre>
-      </div>
       <div className="webmcp-approval__guard">
         <Icon name="shield" size={17}/>
         <span>
@@ -400,9 +394,13 @@ export function NativeIncidentDecisionModal({
   const [retry, setRetry] = useState(0);
   const [activeStage, setActiveStage] = useState<WorkflowStage>("situation");
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [choiceAdvice, setChoiceAdvice] = useState<ProcedureChoiceAdvice | null>(null);
+  const [choiceAdviceStepId, setChoiceAdviceStepId] = useState<string | null>(null);
+  const [choiceAdviceError, setChoiceAdviceError] = useState<string | null>(null);
   const [operatorEvidenceReferences, setOperatorEvidenceReferences] = useState<Record<string, string>>({});
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const applyAbortRef = useRef<AbortController | null>(null);
+  const choiceAbortRef = useRef<AbortController | null>(null);
   const refreshDecisionRevisionRef = useRef<number | null>(null);
   const decisionRef = useRef<IncidentDecisionPackage | null>(null);
   const decisionIncidentIdRef = useRef<string | null>(null);
@@ -419,6 +417,9 @@ export function NativeIncidentDecisionModal({
       setWorkflowReceipts([]);
       setActiveStage("situation");
       setSelectedStepId(null);
+      setChoiceAdvice(null);
+      setChoiceAdviceStepId(null);
+      setChoiceAdviceError(null);
       setOperatorEvidenceReferences({});
       setEvidenceOpen(false);
     }
@@ -468,7 +469,10 @@ export function NativeIncidentDecisionModal({
     toolsPublished,
   ]);
 
-  useEffect(() => () => applyAbortRef.current?.abort(), []);
+  useEffect(() => () => {
+    applyAbortRef.current?.abort();
+    choiceAbortRef.current?.abort();
+  }, []);
 
   const stale = Boolean(
     decision &&
@@ -501,6 +505,13 @@ export function NativeIncidentDecisionModal({
         return left.action.priority - right.action.priority;
       });
   }, [completedStepIds, decision, nextRequiredStepId]);
+  const agentSuggestedStepId = orderedActions[0]?.step.stepId ?? null;
+  const agentSuggestedStep = decision?.procedure.steps.find(
+    (step) => step.stepId === agentSuggestedStepId,
+  ) ?? null;
+  const agentSuggestedAction = decision?.recommendation.actions.find(
+    (action) => action.stepId === agentSuggestedStepId,
+  ) ?? null;
   const completedProcedureSteps = decision
     ? decision.procedure.steps.filter((step) => completedStepIds.has(step.stepId))
     : [];
@@ -527,12 +538,6 @@ export function NativeIncidentDecisionModal({
     .slice()
     .reverse()
     .find((item) => item.stepId === stepId);
-  const stepPrerequisitesComplete = (step: OperationalProcedureStep): boolean => Boolean(
-    decision && decision.procedure.steps
-      .filter((candidate) => candidate.mandatory && candidate.order < step.order)
-      .every((candidate) => completedStepIds.has(candidate.stepId)),
-  );
-
   useEffect(() => {
     if (!decision) return;
     const fallback = nextRequiredStepId ?? orderedActions[0]?.step.stepId ?? null;
@@ -576,13 +581,6 @@ export function NativeIncidentDecisionModal({
   const selectedOperationalPlan = selectedStep
     ? operationalPlanForStep(selectedStep, operationalResponse)
     : null;
-  const selectedStepReady = Boolean(
-    selectedStep && (
-      selectedStep.mandatory
-        ? selectedStep.stepId === nextRequiredStepId
-        : stepPrerequisitesComplete(selectedStep)
-    ),
-  );
 
   const applyStep = async (stepId: string) => {
     if (!decision || stale || applyingStepId || isRefreshing) return;
@@ -634,6 +632,9 @@ export function NativeIncidentDecisionModal({
         ...current.filter((item) => item.stepId !== stepId),
         applied,
       ]);
+      setChoiceAdvice(null);
+      setChoiceAdviceStepId(null);
+      setChoiceAdviceError(null);
       refreshDecisionRevisionRef.current = applied.decisionRevision;
       onApplied(applied.message);
       setRetry((value) => value + 1);
@@ -672,6 +673,36 @@ export function NativeIncidentDecisionModal({
   const chooseStep = (stepId: string) => {
     setSelectedStepId(stepId);
     setActiveStage("execution");
+    setChoiceAdvice(null);
+    setChoiceAdviceError(null);
+    choiceAbortRef.current?.abort();
+    if (!decision || !agentSuggestedStepId || completedStepIds.has(stepId)) {
+      setChoiceAdviceStepId(null);
+      return;
+    }
+    const controller = new AbortController();
+    choiceAbortRef.current = controller;
+    setChoiceAdviceStepId(stepId);
+    void assessIncidentProcedureChoice({
+      package: decision,
+      stepId,
+      agentSuggestedStepId,
+      inPageTools,
+      signal: controller.signal,
+    }).then((advice) => {
+      if (!controller.signal.aborted) setChoiceAdvice(advice);
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) {
+        setChoiceAdviceError(
+          error instanceof Error
+            ? error.message
+            : "The agent could not assess this choice against the current operational state.",
+        );
+      }
+    }).finally(() => {
+      if (choiceAbortRef.current === controller) choiceAbortRef.current = null;
+      if (!controller.signal.aborted) setChoiceAdviceStepId(null);
+    });
   };
 
   return (
@@ -746,7 +777,7 @@ export function NativeIncidentDecisionModal({
             <div className="incident-workspace__procedure-ribbon">
               <span><Icon name="shield" size={16}/></span>
               <div>
-                <small>ACTIVE CONTROLLED PROCEDURE</small>
+                <small>AGENT-SELECTED CONTROLLED PROCEDURE</small>
                 <strong>{decision.procedure.procedureId} · rev. {decision.procedure.revision}</strong>
               </div>
               <a
@@ -933,9 +964,23 @@ export function NativeIncidentDecisionModal({
                 <p>Compare only actions cited by the active procedure, then open one step for controlled execution.</p>
               </header>
               <div className="incident-stage__section-title">
-                <div><small>PROCEDURE-DERIVED NEXT STEPS</small><h4>Agent proposal for the operator</h4></div>
+                <div><small>PROCEDURE-DERIVED NEXT STEPS</small><h4>Agent recommendation and operator choices</h4></div>
                 <StatusPill tone="purple">{orderedActions.length} remaining</StatusPill>
               </div>
+
+              {agentSuggestedStep && (
+                <section className="incident-agent-suggestion" id="text-text-modal-native-incident-agent-suggestion">
+                  <span><Icon name="activity" size={22}/></span>
+                  <div>
+                    <small>AGENT SUGGESTS NOW</small>
+                    <h4>{agentSuggestedStep.title}</h4>
+                    <p>{agentSuggestedAction?.rationale ?? agentSuggestedStep.rationale}</p>
+                  </div>
+                  <button type="button" className="button button--primary" onClick={() => chooseStep(agentSuggestedStep.stepId)}>
+                    Review suggested step <Icon name="arrow" size={14}/>
+                  </button>
+                </section>
+              )}
 
               {orderedActions.length === 0 ? (
                 <div className="procedure-workflow-complete" role="status">
@@ -945,18 +990,18 @@ export function NativeIncidentDecisionModal({
               ) : (
                 <div className="incident-options-grid">
                   {orderedActions.map(({ action, step }) => {
-                    const required = step.stepId === nextRequiredStepId;
+                    const suggested = step.stepId === agentSuggestedStepId;
                     return (
                       <article
                         key={step.stepId}
-                        className={`incident-option${required ? " incident-option--required" : ""}`}
+                        className={`incident-option${suggested ? " incident-option--required" : ""}`}
                         data-testid={`incident-procedure-option-${step.stepId}`}
                         data-step-id={step.stepId}
                       >
                         <header>
                           <span><Icon name={stepIcon(step)} size={18}/></span>
                           <div><small>#{action.priority} · {step.phase} · {step.responsibleRole}</small><h4>{step.title}</h4></div>
-                          {required && <StatusPill tone="purple">Next required</StatusPill>}
+                          {suggested && <StatusPill tone="purple">Agent suggests now</StatusPill>}
                         </header>
                         <p>{step.instruction}</p>
                         <div className="incident-option__consequence"><small>OPERATIONAL CONSEQUENCE</small><strong>{consequenceLabel(step)}</strong></div>
@@ -972,7 +1017,7 @@ export function NativeIncidentDecisionModal({
                         </dl>
                         <footer>
                           <code>{step.stepId}</code>
-                          <button type="button" className={required ? "button button--primary" : "button button--secondary"} onClick={() => chooseStep(step.stepId)}>
+                          <button type="button" className={suggested ? "button button--primary" : "button button--secondary"} onClick={() => chooseStep(step.stepId)}>
                             Review this step <Icon name="arrow" size={14}/>
                           </button>
                         </footer>
@@ -982,8 +1027,9 @@ export function NativeIncidentDecisionModal({
                 </div>
               )}
               <div className="incident-stage__actions incident-stage__actions--split">
+                <span>Every documented step remains selectable. The agent advises; the operator decides.</span>
                 <button type="button" className="button button--secondary" onClick={() => setActiveStage("situation")}>Back to situation</button>
-                <button type="button" className="button button--primary" disabled={!selectedStepId} onClick={() => setActiveStage("execution")}>Open procedure execution <Icon name="arrow" size={14}/></button>
+                <button type="button" className="button button--primary" disabled={!selectedStepId} onClick={() => selectedStepId && chooseStep(selectedStepId)}>Open procedure execution <Icon name="arrow" size={14}/></button>
               </div>
             </section>
           )}
@@ -999,33 +1045,38 @@ export function NativeIncidentDecisionModal({
                 {decision.procedure.steps.map((step) => {
                   const complete = completedStepIds.has(step.stepId);
                   const active = !complete && selectedStepId === step.stepId;
-                  const required = !complete && nextRequiredStepId === step.stepId;
-                  const ready = step.mandatory ? required : stepPrerequisitesComplete(step);
-                  const locked = !complete && !ready;
+                  const suggested = !complete && agentSuggestedStepId === step.stepId;
+                  const missingPreviousSteps = decision.procedure.steps.filter(
+                    (candidate) =>
+                      candidate.mandatory &&
+                      candidate.order < step.order &&
+                      !completedStepIds.has(candidate.stepId),
+                  );
+                  const advisoryCaution = !complete && missingPreviousSteps.length > 0;
                   return (
-                    <li key={step.stepId} className={`${complete ? "is-complete" : ""}${active ? " is-active" : ""}${locked ? " is-locked" : ""}`}>
+                    <li key={step.stepId} className={`${complete ? "is-complete" : ""}${active ? " is-active" : ""}${advisoryCaution ? " is-advisory-caution" : ""}`}>
                       <button
                         type="button"
                         onClick={() => complete
                           ? document.getElementById("text-text-modal-native-incident-completed-step-" + step.stepId.toLowerCase())?.scrollIntoView({ block: "nearest" })
-                          : setSelectedStepId(step.stepId)}
+                          : chooseStep(step.stepId)}
                       >
                         <i>{complete ? "✓" : step.order / 10}</i>
                         <span><small>{step.phase} · {step.responsibleRole}</small><strong>{step.title}</strong></span>
-                        <b>{complete ? "Recorded" : active ? "Open" : required ? "Required" : "Queued"}</b>
+                        <b>{complete ? "Recorded" : active ? "Open" : suggested ? "Agent suggests" : "Operator choice"}</b>
                       </button>
                     </li>
                   );
                 })}
               </ol>
 
-              {procedureComplete ? (
+              {procedureComplete && !selectedStep ? (
                 <div className="procedure-workflow-complete" id="text-text-modal-native-incident-workflow-complete" role="status" data-testid="incident-procedure-workflow-complete">
                   <span><Icon name="shield" size={20}/></span>
                   <div><strong>All mandatory procedure steps are recorded</strong><p>Review closure evidence and the return-to-normal criteria before leaving the incident workflow.</p></div>
                   <button type="button" className="button button--primary" onClick={() => setActiveStage("closure")}>Review closure</button>
                 </div>
-              ) : selectedStep && selectedAction ? (
+              ) : selectedStep ? (
                 <article
                   id={"text-text-modal-native-incident-step-" + selectedStep.stepId.toLowerCase()}
                   className="incident-execution-card"
@@ -1033,13 +1084,38 @@ export function NativeIncidentDecisionModal({
                 >
                   <header>
                     <span><Icon name={stepIcon(selectedStep)} size={21}/></span>
-                    <div><small>ACTIVE STEP · {selectedStep.phase} · {selectedStep.responsibleRole}</small><h4>{selectedStep.title}</h4></div>
-                    {selectedStep.stepId === nextRequiredStepId && <StatusPill tone="purple">Next required</StatusPill>}
+                    <div><small>OPERATOR-SELECTED STEP · {selectedStep.phase} · {selectedStep.responsibleRole}</small><h4>{selectedStep.title}</h4></div>
+                    {selectedStep.stepId === agentSuggestedStepId
+                      ? <StatusPill tone="purple">Agent suggests now</StatusPill>
+                      : <StatusPill tone="warning">Operator choice</StatusPill>}
                   </header>
                   <p className="incident-execution-card__instruction">{selectedStep.instruction}</p>
                   <div className="procedure-citation"><Icon name="shield" size={13}/><span>Citation: {decision.procedure.procedureId} rev. {decision.procedure.revision} · {selectedStep.stepId}</span></div>
+                  {choiceAdviceStepId === selectedStep.stepId && (
+                    <section className="incident-choice-advice is-loading" role="status">
+                      <span><Icon name="activity" size={18}/></span>
+                      <div><small>AGENT REVIEWING OPERATOR CHOICE</small><strong>Comparing this step with the current state and documented procedure…</strong></div>
+                    </section>
+                  )}
+                  {choiceAdvice?.selectedStepId === selectedStep.stepId && (
+                    <section className={`incident-choice-advice is-${choiceAdvice.verdict}`} data-testid="incident-procedure-choice-advice">
+                      <span><Icon name={choiceAdvice.verdict === "recommended" ? "shield" : "alert"} size={18}/></span>
+                      <div>
+                        <small>{choiceAdvice.verdict === "recommended" ? "AGENT RECOMMENDATION CONFIRMED" : "AGENT ADVISES CAUTION"}</small>
+                        <strong>{choiceAdvice.statement}</strong>
+                        <ul>{choiceAdvice.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+                        <p>This advice is non-blocking. The operator retains authority to approve any documented step.</p>
+                      </div>
+                    </section>
+                  )}
+                  {choiceAdviceError && choiceAdviceStepId === null && (
+                    <section className="incident-choice-advice is-unavailable" role="status">
+                      <span><Icon name="alert" size={18}/></span>
+                      <div><small>AGENT ADVICE UNAVAILABLE</small><strong>{choiceAdviceError}</strong><p>The selected procedure step remains available to the operator.</p></div>
+                    </section>
+                  )}
                   <div className="incident-execution-card__decision-grid">
-                    <section><small>AGENT RATIONALE</small><p>{selectedAction.rationale}</p></section>
+                    <section><small>AGENT RATIONALE</small><p>{selectedAction?.rationale ?? "This step is available in the cited procedure. Select it to obtain a current agent assessment."}</p></section>
                     <section><small>DOCUMENT RATIONALE</small><p>{selectedStep.rationale}</p></section>
                     <section><small>OPERATIONAL CONSEQUENCE</small><p>{consequenceLabel(selectedStep)}</p></section>
                     <section><small>ESTIMATED INTERVENTION</small><p>{durationRangeLabel(selectedStep)}. Planning envelope only; elapsed time never proves completion or clearance.</p></section>
@@ -1054,7 +1130,7 @@ export function NativeIncidentDecisionModal({
                     </section>
                     <section>
                       <small>OPERATOR CHECKS</small>
-                      {selectedAction.operatorChecks.length > 0
+                      {selectedAction?.operatorChecks.length
                         ? <ul>{selectedAction.operatorChecks.map((item) => <li key={item}>{item}</li>)}</ul>
                         : <p>Confirm the cited instruction and current decision revision.</p>}
                     </section>
@@ -1098,16 +1174,14 @@ export function NativeIncidentDecisionModal({
                       <button
                         type="button"
                         className="button button--primary"
-                        disabled={stale || isRefreshing || Boolean(applyingStepId) || !selectedStepReady || Boolean(selectedEvidenceRequirement && !selectedEvidenceReference.trim())}
+                        disabled={stale || isRefreshing || Boolean(applyingStepId) || Boolean(selectedEvidenceRequirement && !selectedEvidenceReference.trim())}
                         onClick={() => void applyStep(selectedStep.stepId)}
                       >
                         {applyingStepId === selectedStep.stepId
                           ? "Awaiting operator approval…"
                           : isRefreshing
                             ? "Updating context…"
-                            : !selectedStepReady
-                              ? "Complete earlier mandatory step"
-                              : selectedEvidenceRequirement && !selectedEvidenceReference.trim()
+                            : selectedEvidenceRequirement && !selectedEvidenceReference.trim()
                                 ? "Enter authority reference"
                               : actionLabel(selectedStep)}
                         {applyingStepId !== selectedStep.stepId && <Icon name="arrow" size={14}/>}
@@ -1116,7 +1190,7 @@ export function NativeIncidentDecisionModal({
                   )}
                 </article>
               ) : (
-                <div className="incident-decision__message"><Icon name="activity" size={20}/><div><strong>Select a procedure step</strong><p>Choose the current required step from the roadmap.</p></div></div>
+                <div className="incident-decision__message"><Icon name="activity" size={20}/><div><strong>Select a procedure step</strong><p>Every documented step is available. The agent will assess your choice without blocking it.</p></div></div>
               )}
 
               {completedProcedureSteps.length > 0 && (
@@ -1163,7 +1237,7 @@ export function NativeIncidentDecisionModal({
                     ? "The documented workflow is complete. Retain the recorded evidence and verify the live operational state before handover."
                     : closurePrerequisitesComplete
                       ? "Protection and recovery prerequisites are recorded. The operator can now review the documented closure action."
-                      : `Complete ${nextRequiredStepId ?? "the next required procedure step"} before attempting return to normal.`}</p>
+                      : `The agent recommends completing ${nextRequiredStepId ?? "the next documented procedure step"} before return to normal. The operator may still review the closure step.`}</p>
                 </div>
               </section>
               <div className="incident-stage__two-column incident-closure-grid">
@@ -1198,10 +1272,10 @@ export function NativeIncidentDecisionModal({
                   <button
                     type="button"
                     className="button button--primary"
-                    disabled={!closeStep && !nextRequiredStepId}
-                    onClick={() => chooseStep(closurePrerequisitesComplete && closeStep ? closeStep.stepId : nextRequiredStepId ?? orderedActions[0]?.step.stepId ?? "")}
+                    disabled={!closeStep && !agentSuggestedStepId}
+                    onClick={() => chooseStep(closeStep?.stepId ?? agentSuggestedStepId ?? "")}
                   >
-                    {closurePrerequisitesComplete && closeStep ? "Prepare closure step" : "Review next required step"} <Icon name="arrow" size={14}/>
+                    {closeStep ? "Review closure step" : "Review agent suggestion"} <Icon name="arrow" size={14}/>
                   </button>
                 )}
               </div>

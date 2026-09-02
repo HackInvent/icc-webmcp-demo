@@ -17,7 +17,7 @@ official RATP, IDFM, infrastructure-manager, or regulatory instructions.
 flowchart LR
   Operator["Operator"]
   Browser["React operations workspace"]
-  Tools["19 page-published WebMCP tools"]
+  Tools["21 page-published WebMCP tools"]
   Client["Operations client\nGET + POST + SSE"]
   Http["Authenticated Node server"]
   Service["Operations service\nserver-authoritative clock"]
