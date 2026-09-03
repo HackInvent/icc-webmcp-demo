@@ -77,7 +77,7 @@ interface PendingToolApproval {
 }
 
 function App() {
-  const { configuration } = useRuntimeConfiguration();
+  const { configuration, signOut } = useRuntimeConfiguration();
   const route = useHashRoute();
   const rail = useRailSimulation();
   const nativeNetwork = useNativeNetworkSimulation();
@@ -383,6 +383,7 @@ function App() {
           onSource={() => setSelection({ type: "source", id: "source" })}
           onConfiguration={() => setConfigurationOpen(true)}
           configurationOpen={configurationOpen}
+          onSignOut={configuration.developmentBypass ? undefined : signOut}
           onReset={() => {
             void (async () => {
               try {

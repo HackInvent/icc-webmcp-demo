@@ -6146,6 +6146,17 @@ textarea:focus-visible,
   border-color: #b9d7ca;
 }
 
+.sign-out-button {
+  color: #5f6f6a;
+  background: #ffffff;
+}
+
+.sign-out-button:hover {
+  color: #9f2530;
+  background: #fff5f5;
+  border-color: #e8b9bd;
+}
+
 .simview-link--active {
   color: #ffffff;
   background: #177455;

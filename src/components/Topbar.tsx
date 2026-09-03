@@ -17,6 +17,7 @@ interface TopbarProps {
   onConfiguration: () => void;
   configurationOpen: boolean;
   onReset: () => void;
+  onSignOut?: () => void | Promise<void>;
 }
 
 interface SearchResult extends EntitySelection {
@@ -37,7 +38,7 @@ function formatOperationalDate(timestamp: number): string {
   }).format(timestamp);
 }
 
-export function Topbar({ currentPage, snapshot, speed, setSpeed, onSelect, onSource, onConfiguration, configurationOpen, onReset }: TopbarProps) {
+export function Topbar({ currentPage, snapshot, speed, setSpeed, onSelect, onSource, onConfiguration, configurationOpen, onReset, onSignOut }: TopbarProps) {
   const stepSeconds = STEP_MS / 1_000;
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
@@ -229,6 +230,20 @@ export function Topbar({ currentPage, snapshot, speed, setSpeed, onSelect, onSou
           <Icon name="clock" size={17} />
           <div><strong>{formatOperationalTime(snapshot.timestamp)}</strong><small>{formatOperationalDate(snapshot.timestamp)} · Paris</small></div>
         </div>
+
+        {onSignOut && (
+          <button
+            type="button"
+            className="simview-link sign-out-button"
+            id="text-text-global-sign-out"
+            onClick={() => void onSignOut()}
+            aria-label="Sign out"
+            title="Sign out"
+          >
+            <Icon name="logout" size={16} />
+            <span>Sign out</span>
+          </button>
+        )}
       </div>
     </header>
   );

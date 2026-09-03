@@ -44,11 +44,13 @@ describe("browser fallback simulation cadence", () => {
       onConfiguration: vi.fn(),
       configurationOpen: false,
       onReset: vi.fn(),
+      onSignOut: vi.fn(),
     }));
 
     expect(html).toContain(
       'aria-label="Operational clock controls; each step advances 1 second"',
     );
     expect(html).toContain("01:00:00 PM");
+    expect(html).toContain('aria-label="Sign out"');
   });
 });

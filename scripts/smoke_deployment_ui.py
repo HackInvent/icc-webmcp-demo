@@ -839,6 +839,20 @@ def main() -> None:
                     page, expected_root
                 )
 
+            sign_out_button = page.get_by_role(
+                "button", name="Sign out", exact=True
+            )
+            sign_out_button.wait_for(state="visible")
+            sign_out_button.click()
+            page.locator("#access-code").wait_for(state="visible")
+            signed_out_session = page.evaluate(
+                """async () => {
+                    const response = await fetch('/api/session');
+                    return response.json();
+                }"""
+            )
+            assert signed_out_session["authenticated"] is False
+
             print(json.dumps({
                 "status": "passed",
                 "url": args.url,
@@ -890,6 +904,7 @@ def main() -> None:
                 "modalClosed": True,
                 "contentZoneRouteCounts": content_zone_counts,
                 "contentZoneIdsUnique": True,
+                "signOutVerified": True,
                 "browserErrors": errors,
             }, indent=2))
         finally:
