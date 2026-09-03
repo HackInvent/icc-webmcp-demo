@@ -21,7 +21,7 @@ describe("SimulatorPage", () => {
       onInsertTrain: vi.fn(),
     }));
 
-    expect(html).toContain("Simulation data");
+    expect(html).toContain("SimView");
     expect(html).toContain("SIMULATED OBJECT REGISTRY");
     expect(html).not.toContain("Export config");
     expect(html).not.toContain("Import config");

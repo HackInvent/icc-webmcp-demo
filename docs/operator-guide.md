@@ -394,7 +394,7 @@ available for technical investigation.
 | `The request origin is not allowed` | The browser origin must exactly match `application.publicOrigin`, including scheme, hostname and port. Correct the server JSON or public URL, then restart the server. |
 | Application reports the server unavailable | Confirm the production build exists and the Node server and Nginx proxy are running. Retry `/api/session` through the public origin. |
 | Page tools remain on “Publishing…” | Reload the page. A native-capable browser uses Native WebMCP; a standard browser uses the explicitly labelled in-page bridge. |
-| OpenAI explanation unavailable | Continue with the labelled procedure fallback or select **Retry OpenAI analysis**. The fallback retrieves the same procedure and never uses a generic action catalogue. |
+| Agent unavailable — showing the cited procedure | Continue with the cited procedure or select **Retry OpenAI analysis**. The fallback retrieves the same procedure revision through WebMCP. |
 | Recommendation expired | Select **Refresh evidence**. Never reuse a plan from an older decision revision. |
 | Procedure step was blocked | Read the returned reason, close any other approval dialog, refresh evidence and verify procedure order and current state. Do not bypass the guard. |
 | Procedure edit reports a stale revision | Close or refresh the editor, review the newly active revision and reapply the intended descriptive change. Never overwrite the newer publication blindly. |

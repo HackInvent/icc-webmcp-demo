@@ -125,7 +125,7 @@ function AccessScreen({
       <section className="access-card" id="text-text-access-card" aria-labelledby="access-title">
         <div className="access-card__brand" id="text-text-access-brand">
           <span className="access-card__mark"><b>P</b><small>ICC</small></span>
-          <div><strong>Paris ICC</strong><span>Human-in-the-loop operations canvas</span></div>
+          <div><strong>Paris ICC</strong><span>Rail incident decision support</span></div>
         </div>
         <div className="access-card__intro" id="text-text-access-introduction">
           <span className="access-card__eyebrow"><i /> OPERATIONAL SIMULATION</span>
@@ -189,6 +189,10 @@ export function RuntimeGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     const controller = new AbortController();
     setUnavailable(null);
+    if (import.meta.env.DEV) {
+      setConfiguration(DEVELOPMENT_CONFIGURATION);
+      return () => controller.abort();
+    }
     void fetch("/api/session", {
       credentials: "same-origin",
       headers: { Accept: "application/json" },
@@ -198,10 +202,6 @@ export function RuntimeGate({ children }: { children: ReactNode }) {
       .then(setConfiguration)
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
-        if (import.meta.env.DEV) {
-          setConfiguration(DEVELOPMENT_CONFIGURATION);
-          return;
-        }
         setUnavailable(error instanceof Error ? error.message : "The server is unavailable.");
       });
     return () => controller.abort();

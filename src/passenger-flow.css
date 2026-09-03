@@ -96,6 +96,11 @@
 .passenger-flow-trains strong,
 .passenger-flow-trains b,
 .passenger-flow-train-detail dd { font-size:11px }
+.passenger-flow-agent__trust span,
+.passenger-flow-agent-card__hotspots span,
+.passenger-flow-agent-card>footer>span,
+.passenger-flow-agent-card>footer button,
+.passenger-flow-agent__fallback { font-size:10.5px }
 .passenger-flow-toolbar select,
 .passenger-flow-zoom button,
 .passenger-flow-zoom output,

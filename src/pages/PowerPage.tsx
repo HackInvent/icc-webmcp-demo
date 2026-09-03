@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import type { CSSProperties } from "react";
+import { useMemo, useRef, useState } from "react";
+import type { CSSProperties, KeyboardEvent } from "react";
 import type { EntitySelection, LineId, RailSnapshot } from "../rail/domain";
 import type { NativeLineCode } from "../rail/nativeNetwork";
 import type { NativeSimulationSnapshot } from "../rail/nativeSimulation";
@@ -30,6 +30,7 @@ interface PowerPageProps {
 export function PowerPage({ snapshot, nativeSimulation, initialLineCode = "RER_A", onSelect }: PowerPageProps) {
   const [showPowerLog, setShowPowerLog] = useState(false);
   const [requestedLineCode, setRequestedLineCode] = useState<NativeLineCode>(initialLineCode);
+  const lineTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const selectedNativeLine = TRACTION_POWER_LINES.find((line) => line.code === requestedLineCode) ?? TRACTION_POWER_LINES[0];
   if (!selectedNativeLine) throw new Error("The traction-power line catalogue is empty.");
 
@@ -81,20 +82,33 @@ export function PowerPage({ snapshot, nativeSimulation, initialLineCode = "RER_A
   );
   const selectedConstraintCount = detailedLineId ? degraded.length : projectedConstraints.length;
   const selectedSectionCount = detailedLineId ? sections.length : projectedLine.sections.length;
+  const moveLineTab = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let nextIndex = index;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = (index + 1) % TRACTION_POWER_LINES.length;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = (index - 1 + TRACTION_POWER_LINES.length) % TRACTION_POWER_LINES.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = TRACTION_POWER_LINES.length - 1;
+    else return;
+    event.preventDefault();
+    const nextLine = TRACTION_POWER_LINES[nextIndex];
+    if (!nextLine) return;
+    setRequestedLineCode(nextLine.code);
+    lineTabRefs.current[nextIndex]?.focus();
+  };
 
   return (
     <div className="page" id="text-text-power-page">
       <PageHeader
         contentId="text-text-power-header"
         eyebrow="TRACTION POWER"
-        title="Electrical power supply"
-        description="Select any of the 16 Metro or 5 RER lines. Every line shows train-linked simulated traction demand; four reference corridors also expose detailed section telemetry."
+        title="Traction power"
+        description="Select any of the 16 Metro or 5 RER lines. Every line shows train-linked demand from the operational simulation; four reference corridors also expose detailed simulated section readings."
         actions={<><StatusPill tone="neutral">21 selectable lines</StatusPill><StatusPill tone={globalDegraded.some((section) => section.status === "isolated") ? "danger" : globalConstraintCount ? "warning" : "ok"}>{globalConstraintCount} network constraint{globalConstraintCount === 1 ? "" : "s"}</StatusPill><button type="button" className="button button--secondary" aria-expanded={showPowerLog} aria-controls="text-text-power-operations-log" onClick={() => setShowPowerLog((visible) => !visible)}><Icon name="activity" size={16}/> {showPowerLog ? "Hide power log" : "Power log"}</button></>}
       />
-      <div className="notice notice--warning" id="text-text-power-safety-notice"><Icon name="bolt" size={18}/><div><strong>Operator approval required</strong><span>Isolation and re-energization are available only for sections linked to operational telemetry and remain bound to the current decision revision.</span></div></div>
+      <div className="notice notice--warning" id="text-text-power-safety-notice"><Icon name="bolt" size={18}/><div><strong>Operator approval required</strong><span>Isolation and re-energization are available only for modelled sections and remain bound to the current decision revision.</span></div></div>
       {showPowerLog && (
         <article className="panel power-log" id="text-text-power-operations-log" aria-labelledby="power-log-title">
-          <header className="panel__header"><div><span className="panel__eyebrow">AUDIT TRAIL</span><h2 id="power-log-title">Power operations log</h2></div><StatusPill tone="neutral">{powerEvents.length} event{powerEvents.length === 1 ? "" : "s"}</StatusPill></header>
+          <header className="panel__header"><div><span className="panel__eyebrow">SHIFT CHRONOLOGY</span><h2 id="power-log-title">Power operations log</h2></div><StatusPill tone="neutral">{powerEvents.length} event{powerEvents.length === 1 ? "" : "s"}</StatusPill></header>
           <div className="detail-events">
             {powerEvents.map((event) => <div key={event.id}><time>{formatTime(event.timestamp)}</time><i/><span><strong>{event.title}</strong><small>{event.detail}</small></span></div>)}
             {powerEvents.length === 0 && <div><span><strong>No power event recorded</strong><small>The current operational state contains no power-state change.</small></span></div>}
@@ -103,7 +117,7 @@ export function PowerPage({ snapshot, nativeSimulation, initialLineCode = "RER_A
       )}
 
       <nav className="power-line-tabs" role="tablist" aria-label="Traction power line">
-        {TRACTION_POWER_LINES.map((line) => {
+        {TRACTION_POWER_LINES.map((line, index) => {
           const detailedLineCode = isDetailedTractionPowerLine(line.code) ? line.code : null;
           const lineSections = detailedLineCode
             ? snapshot.powerSections.filter((section) => section.lineIds.includes(detailedLineCode))
@@ -114,6 +128,7 @@ export function PowerPage({ snapshot, nativeSimulation, initialLineCode = "RER_A
             : activeNativePowerIncidents.filter((incident) => incident.lineCode === line.code).length;
           return (
             <button
+              ref={(element) => { lineTabRefs.current[index] = element; }}
               id={`power-line-tab-${line.code}`}
               data-line-id={line.code}
               type="button"
@@ -123,9 +138,10 @@ export function PowerPage({ snapshot, nativeSimulation, initialLineCode = "RER_A
               tabIndex={line.code === selectedLineCode ? 0 : -1}
               key={line.code}
               onClick={() => setRequestedLineCode(line.code)}
+              onKeyDown={(event) => moveLineTab(event, index)}
               style={{ "--power-line-color": line.color } as CSSProperties}
-              aria-label={`${line.name}, ${sectionCount} ${detailedLineCode ? "telemetry" : "modelled"} sections${constrainedCount ? `, ${constrainedCount} constrained` : ""}`}
-              title={`${line.name} · ${sectionCount} ${detailedLineCode ? "telemetry" : "modelled"} sections`}
+              aria-label={`${line.name}, ${sectionCount} ${detailedLineCode ? "detailed simulated" : "modelled"} sections${constrainedCount ? `, ${constrainedCount} constrained` : ""}`}
+              title={`${line.name} · ${sectionCount} ${detailedLineCode ? "detailed simulated" : "modelled"} sections`}
             >
               <i className="power-line-tabs__dot" style={{ backgroundColor: line.color }} aria-hidden="true" />
               <span>{tractionPowerShortLabel(line.code)}</span>
@@ -173,7 +189,7 @@ export function PowerPage({ snapshot, nativeSimulation, initialLineCode = "RER_A
         </article>
 
         <aside className="panel section-list-panel" id="text-text-power-monitored-sections">
-          <header className="panel__header"><div><span className="panel__eyebrow">{selectedName.toUpperCase()} · {detailedLineId ? "MEASUREMENTS" : "COVERAGE MODEL"}</span><h2>{detailedLineId ? "Section telemetry" : "Modelled section boundaries"}</h2></div><StatusPill tone={isolated.length ? "danger" : selectedConstraintCount ? "warning" : "ok"}>{selectedSectionCount} sections</StatusPill></header>
+          <header className="panel__header"><div><span className="panel__eyebrow">{selectedName.toUpperCase()} · {detailedLineId ? "SIMULATED READINGS" : "COVERAGE MODEL"}</span><h2>{detailedLineId ? "Detailed section state" : "Modelled section boundaries"}</h2></div><StatusPill tone={isolated.length ? "danger" : selectedConstraintCount ? "warning" : "ok"}>{selectedSectionCount} sections</StatusPill></header>
           <div className="power-section-list" aria-label={`${selectedName} electrical sections`}>
             {detailedLineId ? sections.map((section) => (
               <button type="button" key={section.id} data-power-section-id={section.id} onClick={() => onSelect({ type: "power", id: section.id })}>

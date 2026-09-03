@@ -207,7 +207,13 @@ export function Topbar({ currentPage, snapshot, speed, setSpeed, onSelect, onSou
           <span>Configuration</span>
         </button>
 
-        <button type="button" className="source-chip" id="text-text-global-data-source" onClick={onSource}>
+        <button
+          type="button"
+          className="source-chip"
+          id="text-text-global-data-source"
+          aria-label={`Data source: ${sourceLabel}; ${sourceStatus}`}
+          onClick={onSource}
+        >
           <span className={`live-dot${feed?.status === "ready" ? " live-dot--ready" : ""}`} />
           <span>{sourceLabel}</span>
           <StatusPill tone={feed?.status === "error" ? "danger" : feed?.mode === "prim-live" ? "ok" : "purple"}>{sourceStatus}</StatusPill>

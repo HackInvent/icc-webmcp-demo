@@ -95,7 +95,7 @@ describe("operational UI contracts", () => {
     const lineStrip = html.match(/<nav class="line-tab-strip"[\s\S]*?<\/nav>/)?.[0] ?? "";
 
     expect(lineStrip.match(/<button/g)).toHaveLength(21);
-    expect(html).toContain("SCADA &amp; information architecture");
+    expect(html).toContain("SCADA supervision");
     expect(html).toContain("tone-offline");
     expect(html).toContain("Supervision link unavailable");
     expect(html).toContain("INC-M14-COMMS · maintenance dispatched");

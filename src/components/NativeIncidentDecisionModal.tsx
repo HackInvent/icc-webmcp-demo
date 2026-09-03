@@ -777,7 +777,7 @@ export function NativeIncidentDecisionModal({
             <div className="incident-workspace__procedure-ribbon">
               <span><Icon name="shield" size={16}/></span>
               <div>
-                <small>AGENT-SELECTED CONTROLLED PROCEDURE</small>
+                <small>{decision.modelAssisted ? "AGENT-SELECTED CONTROLLED PROCEDURE" : "CITED CONTROLLED PROCEDURE"}</small>
                 <strong>{decision.procedure.procedureId} · rev. {decision.procedure.revision}</strong>
               </div>
               <a
@@ -860,8 +860,8 @@ export function NativeIncidentDecisionModal({
             <div className="incident-decision__message incident-decision__message--warning">
               <Icon name="alert" size={20}/>
               <div>
-                <strong>OpenAI explanation unavailable · cited procedural fallback active</strong>
-                <p>{decision.agentWarning} No generic response catalogue is used.</p>
+                <strong>Agent unavailable — showing the cited procedure</strong>
+                <p>The current incident context and exact procedure revision were still retrieved through WebMCP.</p>
                 {configuration.agent.enabled && (
                   <button type="button" className="button button--secondary" onClick={() => setRetry((value) => value + 1)}>
                     Retry OpenAI analysis
@@ -1094,14 +1094,14 @@ export function NativeIncidentDecisionModal({
                   {choiceAdviceStepId === selectedStep.stepId && (
                     <section className="incident-choice-advice is-loading" role="status">
                       <span><Icon name="activity" size={18}/></span>
-                      <div><small>AGENT REVIEWING OPERATOR CHOICE</small><strong>Comparing this step with the current state and documented procedure…</strong></div>
+                      <div><small>WEBMCP PROCEDURE CHECK</small><strong>Comparing this step with the current state and documented procedure…</strong></div>
                     </section>
                   )}
                   {choiceAdvice?.selectedStepId === selectedStep.stepId && (
                     <section className={`incident-choice-advice is-${choiceAdvice.verdict}`} data-testid="incident-procedure-choice-advice">
                       <span><Icon name={choiceAdvice.verdict === "recommended" ? "shield" : "alert"} size={18}/></span>
                       <div>
-                        <small>{choiceAdvice.verdict === "recommended" ? "AGENT RECOMMENDATION CONFIRMED" : "AGENT ADVISES CAUTION"}</small>
+                        <small>{choiceAdvice.verdict === "recommended" ? "PROCEDURAL SEQUENCE CONFIRMED" : "PROCEDURAL CAUTION"}</small>
                         <strong>{choiceAdvice.statement}</strong>
                         <ul>{choiceAdvice.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
                         <p>This advice is non-blocking. The operator retains authority to approve any documented step.</p>
@@ -1111,7 +1111,7 @@ export function NativeIncidentDecisionModal({
                   {choiceAdviceError && choiceAdviceStepId === null && (
                     <section className="incident-choice-advice is-unavailable" role="status">
                       <span><Icon name="alert" size={18}/></span>
-                      <div><small>AGENT ADVICE UNAVAILABLE</small><strong>{choiceAdviceError}</strong><p>The selected procedure step remains available to the operator.</p></div>
+                      <div><small>PROCEDURE CHECK UNAVAILABLE</small><strong>{choiceAdviceError}</strong><p>The selected procedure step remains available to the operator.</p></div>
                     </section>
                   )}
                   <div className="incident-execution-card__decision-grid">

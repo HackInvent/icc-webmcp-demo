@@ -75,7 +75,7 @@ export function OperationsLogPage({ shift }: { shift: ShiftWorkspaceSnapshot }) 
     <div className="page operations-log-page" id="text-text-operations-log-page">
       <PageHeader
         contentId="text-text-operations-log-header"
-        eyebrow="PERSISTED SHIFT EVIDENCE"
+        eyebrow="PERSISTED SHIFT RECORD"
         title="Operations log"
         description="Server-recorded incidents, operator actions and decision-support events for the current shift. Newest entries are shown first; reset opens a fresh shift log."
         actions={<StatusPill tone="ok">SQLite · {shift.logs.length} entries</StatusPill>}

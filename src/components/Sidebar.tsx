@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { RailSnapshot } from "../rail/domain";
 import type { DetailType, PageKey } from "../navigation";
 import { navigate, pathForPage } from "../navigation";
@@ -21,6 +22,7 @@ interface NavItem {
 }
 
 export function Sidebar({ currentPage, currentDetailType, snapshot, collapsed, onToggle }: SidebarProps) {
+  const selectedItemRef = useRef<HTMLButtonElement | null>(null);
   const detailParent: Exclude<PageKey, "detail"> =
     currentDetailType === "driver"
       ? "schedules"
@@ -84,11 +86,16 @@ export function Sidebar({ currentPage, currentDetailType, snapshot, collapsed, o
     },
   ];
 
+  useEffect(() => {
+    if (!window.matchMedia("(max-width: 800px)").matches) return;
+    selectedItemRef.current?.scrollIntoView({ behavior: "auto", block: "nearest", inline: "center" });
+  }, [currentPage, currentDetailType]);
+
   return (
     <aside id="text-text-global-sidebar" className={`sidebar${collapsed ? " sidebar--collapsed" : ""}`}>
       <div className="sidebar__brand" id="text-text-global-brand">
         <div className="brand-mark"><span>P</span><span>ICC</span></div>
-        {!collapsed && <div><strong>Paris ICC</strong><small>Operations decision canvas</small></div>}
+        {!collapsed && <div><strong>Paris ICC</strong><small>Rail decision support</small></div>}
       </div>
 
       <div className="sidebar__scope" id="text-text-global-scope">
@@ -105,6 +112,7 @@ export function Sidebar({ currentPage, currentDetailType, snapshot, collapsed, o
           const selected = currentPage === item.page || (currentPage === "detail" && item.page === detailParent);
           return (
             <button
+              ref={selected ? selectedItemRef : undefined}
               type="button"
               key={item.page}
               className={`nav-item${selected ? " nav-item--active" : ""}`}

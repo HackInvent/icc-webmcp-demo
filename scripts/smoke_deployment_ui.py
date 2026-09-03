@@ -304,7 +304,11 @@ def main() -> None:
                 ".configuration-log-table-wrap"
             )
             log_rows = log_table_wrap.locator("tbody tr")
-            assert log_rows.count() == 40
+            log_rows.nth(39).wait_for(state="attached", timeout=15_000)
+            assert log_rows.count() == 40, {
+                "renderedRows": log_rows.count(),
+                "interceptions": intercepted,
+            }
             scroll_metrics = log_table_wrap.evaluate(
                 """element => ({
                     clientHeight: element.clientHeight,
@@ -451,7 +455,7 @@ def main() -> None:
             action_button_count = review_buttons.count()
             enabled_action_button_count = 1
             assert modal.get_by_text(
-                "cited procedural fallback active",
+                "Agent unavailable — showing the cited procedure",
                 exact=False,
             ).count() == 1
             assert modal.get_by_text(

@@ -1,6 +1,6 @@
 # Paris ICC
 
-Paris ICC is a complete, runnable **railway decision-support application** for
+Paris ICC is a **railway decision-support application** for
 the Paris Metro and RER network. It reproduces an end-to-end operational workflow
 in a simulated environment, from incident detection to recovery and shift reporting.
 
@@ -98,7 +98,7 @@ The passenger heatmap below is a concrete example. It shows where people are wai
 - **Incident workflow** — Situation, impact, proposed response, procedure steps and return to normal in one modal.
 - **Procedures** — Fourteen local procedures written for the operational simulation with versions, step durations, an editor and agent feedback for every editable field.
 - **Delays and regulation** — One line at a time with its full synoptic, trains, delays, production and crowding.
-- **SCADA** — Field signalling, traction, train telemetry, ATS and passenger-information links for each line.
+- **SCADA supervision** — Modelled field signalling, traction, train state, ATS and passenger-information links for each line.
 - **Bus services** — Manual shuttle ordering and operator-approved replacement services. Each manual shuttle runs at 15 km/h, carries up to 100 passengers and moves between discrete station and interstation states.
 - **Rolling stock** — Capacity references and a relative load/traction estimate for each line.
 - **Schedules and drivers** — CSV loading with preview, impact review, approval and application before D-1 service.
@@ -155,13 +155,13 @@ For an HTTPS deployment, put Nginx in front of the Node process and set `applica
 | --- | --- |
 | `#/overview` | Network map and incident workflow |
 | `#/passenger-flow` | Passenger heatmap, station queues and train loads |
-| `#/simulator` | Local data tables, including live shuttle state, incident creation and train insertion |
+| `#/simulator` | Local data tables, including current shuttle state, incident creation and train insertion |
 | `#/procedures` | Procedure library and step editor |
 | `#/schedules-drivers` | D-1 schedule and driver preparation |
 | `#/incidents` | Active, planned and past incidents |
 | `#/regulation` | Line synoptic, occupation, delays and crowding |
 | `#/power` | Traction-power state |
-| `#/scada` | Field-to-ATS architecture and communication incidents |
+| `#/scada` | SCADA supervision, field-to-ATS links and communication incidents |
 | `#/bus-services` | Manual same-line shuttle ordering, shuttle-bus plans and current services |
 | `#/rolling-stock` | Capacity and relative traction estimates |
 | `#/operations-log` | Current-shift incident and action history |

@@ -1030,7 +1030,7 @@ with sync_playwright() as playwright:
 
     route_report = {}
     route_titles = {
-        "simulator": "Simulation data",
+        "simulator": "SimView",
         "passenger-flow": "Passenger flow",
         "schedules-drivers": "Schedules",
         "incidents": "Incident management",
@@ -1059,7 +1059,49 @@ with sync_playwright() as playwright:
             if width == 390:
                 assert page.locator(".sidebar__nav .nav-item").count() == 12, route_report
 
+    mobile_nav = page.locator(".sidebar__nav")
+    mobile_nav_metrics = mobile_nav.evaluate(
+        """element => ({
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+          overflowX: getComputedStyle(element).overflowX,
+        })"""
+    )
+    assert mobile_nav_metrics["overflowX"] in ("auto", "scroll"), mobile_nav_metrics
+    assert mobile_nav_metrics["scrollWidth"] > mobile_nav_metrics["clientWidth"], mobile_nav_metrics
+    page.evaluate("window.location.hash = '/overview'")
+    procedures_nav = page.get_by_role("button", name="Procedures", exact=True)
+    procedures_nav.scroll_into_view_if_needed()
+    procedures_nav.click()
+    page.wait_for_selector("#text-text-procedures-page")
+    assert "procedures" in page.locator("main h1").first.inner_text().lower()
+    source_button_label = page.locator("#text-text-global-data-source").get_attribute("aria-label")
+    assert source_button_label and source_button_label.startswith("Data source:"), source_button_label
+    source_link = page.get_by_test_id("wikipedia-network-reference")
+    assert source_link.evaluate(
+        """element => {
+          const box = element.getBoundingClientRect();
+          const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+          return hit?.closest('a') === element;
+        }"""
+    )
+
     page.set_viewport_size({"width": 1440, "height": 960})
+    page.evaluate("window.location.hash = '/power'")
+    page.wait_for_selector(".power-line-tabs [role='tab'][aria-selected='true']")
+    selected_power_tab = page.locator(".power-line-tabs [role='tab'][aria-selected='true']")
+    selected_power_tab_id = selected_power_tab.get_attribute("id")
+    selected_power_tab.focus()
+    page.keyboard.press("ArrowRight")
+    page.wait_for_function(
+        "previous => document.querySelector('.power-line-tabs [role=tab][aria-selected=true]')?.id !== previous",
+        arg=selected_power_tab_id,
+    )
+    keyboard_selected_power_tab = page.locator(".power-line-tabs [role='tab'][aria-selected='true']")
+    keyboard_selected_power_tab_id = keyboard_selected_power_tab.get_attribute("id")
+    assert keyboard_selected_power_tab_id != selected_power_tab_id
+    assert keyboard_selected_power_tab.evaluate("element => document.activeElement === element")
+
     page.evaluate("window.location.hash = '/simulator'")
     page.wait_for_selector(".simulator-panel")
     simview_link = page.locator(".simview-link[href='#/simulator']")
@@ -1070,6 +1112,15 @@ with sync_playwright() as playwright:
     assert page.locator(".simulator-tabs [role='tab']").count() == 9
     assert page.locator("[data-testid='export-simulation-configuration']").count() == 0
     assert page.locator("[data-testid='import-simulation-configuration']").count() == 0
+    simulator_table_scroll = page.locator(".simulator-table-wrap").evaluate(
+        """element => ({
+          clientHeight: element.clientHeight,
+          scrollHeight: element.scrollHeight,
+          overflowY: getComputedStyle(element).overflowY,
+        })"""
+    )
+    assert simulator_table_scroll["overflowY"] in ("auto", "scroll"), simulator_table_scroll
+    assert simulator_table_scroll["scrollHeight"] > simulator_table_scroll["clientHeight"], simulator_table_scroll
     page.evaluate(
         """() => {
           window.__simulationConfigurationBlob = null;
@@ -1083,7 +1134,7 @@ with sync_playwright() as playwright:
     page.get_by_test_id("open-configuration").click()
     configuration_modal = page.get_by_test_id("configuration-modal")
     configuration_modal.wait_for(state="visible")
-    assert configuration_modal.get_by_role("tab").count() == 4
+    assert configuration_modal.get_by_role("tab").count() == 1
     configuration_modal.get_by_role(
         "tab", name="Simulator configuration", exact=True
     ).click()
@@ -1254,6 +1305,13 @@ report = {
     "browser_errors": errors,
     "responsive": responsive,
     "routes": route_report,
+    "mobile_navigation": mobile_nav_metrics,
+    "mobile_source_button_label": source_button_label,
+    "power_keyboard_navigation": {
+        "from": selected_power_tab_id,
+        "to": keyboard_selected_power_tab_id,
+    },
+    "simulator_table_scroll": simulator_table_scroll,
     "simulator_registry": simulator_registry_report,
     "webmcp_viewport": webmcp_viewport_report,
     "native_incident_deep_link": deep_link_incident,

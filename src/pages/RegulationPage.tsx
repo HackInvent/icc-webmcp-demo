@@ -131,14 +131,14 @@ export function RegulationPage(props: RegulationPageProps) {
           <span>Current shift evidence boundary</span>
           <strong>{metrics.shiftWindow.name} shift · {metrics.shiftWindow.asOfLabel}</strong>
         </div>
-        <p>Live object counters plus clearly labelled shift-to-now estimates. This view does not claim an unpersisted historical time series.</p>
+        <p>Current simulated object counters plus clearly labelled shift-to-now estimates. This view does not claim an unpersisted historical time series.</p>
       </section>
 
       <section className="native-regulation__kpis" aria-label={`${line.label} current shift performance indicators`}>
         <article>
           <span>Current cumulative train delay</span>
           <strong>{delayLabel(metrics.cumulativeDelaySeconds)}</strong>
-          <small>sum of live train delay counters · not historical</small>
+          <small>sum of current train delay counters · not historical</small>
         </article>
         <article>
           <span>Current production state</span>
@@ -148,7 +148,7 @@ export function RegulationPage(props: RegulationPageProps) {
         <article>
           <span>Current punctuality state</span>
           <strong>{metrics.punctualityPercent}%</strong>
-          <small>live trains below 3 minutes delay</small>
+          <small>current trains below 3 minutes delay</small>
         </article>
         <article>
           <span>Current load / capacity</span>
@@ -279,7 +279,7 @@ export function RegulationPage(props: RegulationPageProps) {
             <div>
               <span className="panel__eyebrow">CURRENT-STATE PRIORITY</span>
               <h2>Regulation queue</h2>
-              <p>Ranked from active incidents, exact held states, live delay counters and reference crowding.</p>
+              <p>Ranked from active incidents, exact held states, current delay counters and reference crowding.</p>
             </div>
             <strong>{queue.length}</strong>
           </header>

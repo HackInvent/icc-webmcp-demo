@@ -785,15 +785,15 @@ export function SimulatorPage({
     <div className="page simulator-page" id="text-text-simulator-page">
       <PageHeader
         contentId="text-text-simulator-header"
-        eyebrow="DETERMINISTIC DIGITAL TWIN · LIVE STATE"
-        title="Simulation data"
-        description="Inspect every object currently held by the local Paris ICC simulation, with discrete train occupation and auditable model revisions."
+        eyebrow="OPERATIONAL SIMULATION · CURRENT STATE"
+        title="SimView"
+        description="Inspect every object currently held by the Paris ICC operational simulation, with discrete train occupation and traceable model revisions."
         actions={
           <>
             <StatusPill tone={nativeSimulation.speed === 0 ? "warning" : "ok"} pulse={nativeSimulation.speed !== 0}>
               {nativeSimulation.speed === 0 ? "Paused" : "Running · ×" + nativeSimulation.speed}
             </StatusPill>
-            <StatusPill tone="purple">Local simulation only</StatusPill>
+            <StatusPill tone="purple">Operational simulation</StatusPill>
           </>
         }
       />
@@ -839,7 +839,7 @@ export function SimulatorPage({
           <div>
             <span className="panel__eyebrow">MANUAL CAPACITY CONTROL · OPERATOR</span>
             <h2 id="simulator-train-insertion-title">Insert a reinforcement train</h2>
-            <p>This direct operator control is separate from incident-driven agent recommendations. It writes an auditable command to the authoritative model.</p>
+            <p>This direct operator control is separate from incident-driven agent recommendations. It writes a traceable command to the authoritative model.</p>
           </div>
           <StatusPill tone="neutral">Operator command</StatusPill>
         </header>
@@ -978,7 +978,7 @@ export function SimulatorPage({
         >
           <div className="simulator-result-bar" id="text-text-simulator-result-summary">
             <span><strong>{filteredCount}</strong> matching object{filteredCount === 1 ? "" : "s"}</span>
-            <span>Snapshot {formatSimulationTime(nativeSimulation.timestamp)} · telemetry revision {nativeSimulation.telemetryRevision}</span>
+            <span>Snapshot {formatSimulationTime(nativeSimulation.timestamp)} · state revision {nativeSimulation.telemetryRevision}</span>
             {activeTab === "incidents" && (
               <button
                 type="button"

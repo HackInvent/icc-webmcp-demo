@@ -34,6 +34,18 @@ const operationsLogSource = readFileSync(
   new URL("../src/pages/OperationsLogPage.tsx", import.meta.url),
   "utf8",
 );
+const topbarSource = readFileSync(
+  new URL("../src/components/Topbar.tsx", import.meta.url),
+  "utf8",
+);
+const sidebarSource = readFileSync(
+  new URL("../src/components/Sidebar.tsx", import.meta.url),
+  "utf8",
+);
+const dataReferenceStyles = readFileSync(
+  new URL("../src/data-reference-links.css", import.meta.url),
+  "utf8",
+);
 
 function cssRule(source, selector) {
   const escaped = selector.replace(/[.*+?^$\{\}()|[\]\\]/g, "\\$&");
@@ -112,6 +124,24 @@ describe("long-list scroll contracts", () => {
     );
     expect(procedureEditorStyles).toMatch(
       /\.procedure-editor__rail,[\s\S]*?\.procedure-editor__review\s*\{[\s\S]*?overflow-y:\s*auto/,
+    );
+  });
+
+  it("keeps every mobile destination and fixed source link reachable", () => {
+    expect(styles).toMatch(
+      /@media \(max-width: 800px\)[\s\S]*?\.sidebar__nav\s*\{[\s\S]*?overflow-x:\s*auto;[\s\S]*?overflow-y:\s*hidden;/,
+    );
+    expect(styles).toMatch(/\.nav-item,[\s\S]*?flex:\s*0 0 64px;/);
+    expect(sidebarSource).toContain('scrollIntoView({ behavior: "auto", block: "nearest", inline: "center" })');
+    expect(dataReferenceStyles).toMatch(
+      /@media \(max-width: 800px\)[\s\S]*?bottom:\s*calc\(78px \+ env\(safe-area-inset-bottom\)\)[\s\S]*?justify-content:\s*flex-start/,
+    );
+    expect(topbarSource).toContain('aria-label={`Data source: ${sourceLabel}; ${sourceStatus}`}');
+  });
+
+  it("bounds the SimView registry so pagination stays close to the table", () => {
+    expect(cssRule(styles, ".simulator-table-wrap")).toMatch(
+      /max-height:\s*min\(620px, 68vh\).*overflow:\s*auto/,
     );
   });
 });

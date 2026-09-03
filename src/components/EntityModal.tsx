@@ -82,7 +82,7 @@ export function CircuitClosureControl({
         >
           <Icon name="reset" size={15} /> Reopen track circuit
         </button>
-        <p>Reopening updates the current operational state and audit trail.</p>
+        <p>Reopening updates the current operational state and operations log.</p>
       </section>
     );
   }

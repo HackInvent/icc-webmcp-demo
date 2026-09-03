@@ -101,7 +101,7 @@ export function SchedulesPage({ snapshot, onSelect }: SchedulesPageProps) {
       <PageHeader
         contentId="text-text-schedules-header"
         eyebrow="DAY-AHEAD DECISION SUPPORT"
-        title="Schedules & decisions"
+        title="Schedules & drivers"
         description="Load a bounded next-day operating plan, prepare one versioned change, and require an impact assessment before application."
         actions={(
           <>

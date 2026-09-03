@@ -316,7 +316,10 @@ export function ConfigurationModal({
   onClose,
 }: ConfigurationModalProps) {
   const { configuration: runtime, updateAgentConfiguration } = useRuntimeConfiguration();
-  const [activeTab, setActiveTab] = useState<ConfigurationTab>("agent");
+  const tabs = runtime.developmentBypass
+    ? TABS.filter((tab) => tab.id === "simulator")
+    : TABS;
+  const [activeTab, setActiveTab] = useState<ConfigurationTab>(runtime.developmentBypass ? "simulator" : "agent");
   const [configuration, setConfiguration] = useState<ConfigurationResponse | null>(null);
   const [configurationLoading, setConfigurationLoading] = useState(true);
   const [configurationError, setConfigurationError] = useState<string | null>(null);
@@ -376,6 +379,11 @@ export function ConfigurationModal({
 
   useEffect(() => {
     const controller = new AbortController();
+    if (runtime.developmentBypass) {
+      setConfigurationLoading(false);
+      setConfigurationError(null);
+      return () => controller.abort();
+    }
     setConfigurationLoading(true);
     void fetchJson<ConfigurationResponse>("/api/configuration", { signal: controller.signal })
       .then((response) => {
@@ -421,18 +429,20 @@ export function ConfigurationModal({
   };
 
   useEffect(() => {
-    if (activeTab === "log" && !log && !logLoading) void loadLog();
-  }, [activeTab]);
+    if (!runtime.developmentBypass && activeTab === "log" && !log && !logLoading) void loadLog();
+  }, [activeTab, runtime.developmentBypass]);
 
   const moveTabFocus = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     let next = index;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (index + 1) % TABS.length;
-    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (index - 1 + TABS.length) % TABS.length;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (index + 1) % tabs.length;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (index - 1 + tabs.length) % tabs.length;
     else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = TABS.length - 1;
+    else if (event.key === "End") next = tabs.length - 1;
     else return;
     event.preventDefault();
-    setActiveTab(TABS[next].id);
+    const nextTab = tabs[next];
+    if (!nextTab) return;
+    setActiveTab(nextTab.id);
     tabRefs.current[next]?.focus();
   };
 
@@ -590,13 +600,13 @@ export function ConfigurationModal({
     <Modal
       contentId="text-text-modal-configuration"
       title="Application configuration"
-      eyebrow="SERVER-HOSTED AGENT · OPERATIONAL BASELINE"
+      eyebrow={runtime.developmentBypass ? "OPERATIONAL BASELINE" : "SERVER-HOSTED AGENT · OPERATIONAL BASELINE"}
       onClose={onClose}
       wide
     >
       <div className="configuration-workspace" data-testid="configuration-modal">
         <nav className="configuration-tabs" id="text-text-configuration-tabs" role="tablist" aria-label="Configuration sections">
-          {TABS.map((tab, index) => (
+          {tabs.map((tab, index) => (
             <button
               key={tab.id}
               ref={(element) => { tabRefs.current[index] = element; }}

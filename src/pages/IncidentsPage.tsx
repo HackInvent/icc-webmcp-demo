@@ -68,9 +68,9 @@ export function IncidentsPage({ snapshot, nativeSimulation, onSelect }: Incident
     <div className="page" id="text-text-incidents-page">
       <PageHeader
         contentId="text-text-incidents-header"
-        eyebrow="MULTIMODAL INCIDENT LOG"
+        eyebrow="MULTIMODAL INCIDENT QUEUE"
         title="Incident management"
-        description="One cross-domain queue from the 21-line native map to detailed corridor evidence, with an auditable chain of decisions."
+        description="One cross-domain queue from the 21-line native map to detailed corridor context, with a traceable chain of operator decisions."
         actions={<button type="button" className="button button--primary" onClick={() => onSelect({ type: "incident", id: "NEW" })}>+ Report an incident</button>}
       />
       <section className="kpi-grid kpi-grid--compact" id="text-text-incidents-summary">
@@ -158,7 +158,7 @@ export function IncidentsPage({ snapshot, nativeSimulation, onSelect }: Incident
           <div className="response-metric"><span><strong>Acknowledgement</strong><small>Response target</small></span><b>≤ 3 min</b><div><i style={{ width: "100%" }}/></div></div>
           <div className="response-metric"><span><strong>Diagnosis</strong><small>Response target</small></span><b>≤ 8 min</b><div><i style={{ width: "100%" }}/></div></div>
           <div className="response-metric"><span><strong>Passenger information</strong><small>Response target</small></span><b>≤ 5 min</b><div><i style={{ width: "100%" }}/></div></div>
-          <div className="response-panel__footer"><Icon name="shield" size={18}/><span><strong>Active audit trail</strong><small>Each decision is added to the operations log.</small></span></div>
+          <div className="response-panel__footer"><Icon name="shield" size={18}/><span><strong>Active shift chronology</strong><small>Each decision is added to the operations log.</small></span></div>
         </aside>
       </section>
     </div>

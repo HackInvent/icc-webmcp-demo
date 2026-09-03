@@ -5,6 +5,7 @@ import { NativeIncidentDecisionModal } from "./components/NativeIncidentDecision
 import { ConfigurationModal } from "./components/ConfigurationModal";
 import { DataReferenceLinks } from "./components/DataReferenceLinks";
 import { Icon } from "./components/Icon";
+import { PageHeader } from "./components/PageHeader";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { useHashRoute } from "./navigation";
@@ -69,6 +70,24 @@ function projectCircuitClosureResult(
     circuitId: result.circuitId,
     message: result.message,
   };
+}
+
+function ServerWorkspaceUnavailable({ title, purpose }: { title: string; purpose: string }) {
+  return (
+    <div className="page" id="text-text-server-workspace-unavailable">
+      <PageHeader
+        contentId="text-text-server-workspace-unavailable-header"
+        eyebrow="SERVER WORKSPACE"
+        title={title}
+        description={purpose}
+      />
+      <div className="empty-state" role="status">
+        <Icon name="shield" size={28} />
+        <h2>Start Paris ICC in server mode</h2>
+        <p>Run <code>npm run serve</code> to enable authenticated SQLite persistence, the agent and this shift workspace.</p>
+      </div>
+    </div>
+  );
 }
 
 interface PendingToolApproval {
@@ -248,12 +267,12 @@ function App() {
       "passenger-flow": "Passenger flow",
       simulator: "SimView",
       procedures: "Failure-management procedures",
-      schedules: "Schedules & decisions",
+      schedules: "Schedules & drivers",
       incidents: "Incident management",
       regulation: "Delays & regulation",
-      power: "Electrical power supply",
+      power: "Traction power",
       scada: "SCADA supervision",
-      buses: "Bus continuity services",
+      buses: "Bus services",
       "rolling-stock": "Rolling stock",
       log: "Operations log",
       report: "End-of-shift report",
@@ -484,11 +503,11 @@ function App() {
             />
           )}
           {route.page === "rolling-stock" && <RollingStockPage />}
-          {route.page === "log" && operationsClient.getServerSnapshot()?.shift && (
-            <OperationsLogPage shift={operationsClient.getServerSnapshot()!.shift} />
-          )}
-          {route.page === "report" && operationsClient.getServerSnapshot()?.shift && (
-            <ShiftReportPage
+          {route.page === "log" && (operationsClient.getServerSnapshot()?.shift
+            ? <OperationsLogPage shift={operationsClient.getServerSnapshot()!.shift} />
+            : <ServerWorkspaceUnavailable title="Operations log" purpose="The persisted shift chronology is provided by the Paris ICC application server." />)}
+          {route.page === "report" && (operationsClient.getServerSnapshot()?.shift
+            ? <ShiftReportPage
               shift={operationsClient.getServerSnapshot()!.shift}
               expectedToolNames={webMcpAvailability.names}
               inPageTools={webMcpTools}
@@ -500,7 +519,7 @@ function App() {
               agentEnabled={configuration.agent.enabled}
               agentModel={configuration.agent.model}
             />
-          )}
+            : <ServerWorkspaceUnavailable title="Shift report" purpose="The editable report is generated from the persisted server-side shift chronology." />)}
           {route.page === "detail" && route.detailType && route.id && (
             <DetailPage
               type={route.detailType}

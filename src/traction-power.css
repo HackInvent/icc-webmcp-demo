@@ -420,5 +420,10 @@
 .power-line-tabs > button:focus-visible { outline:2px solid #2b8067;outline-offset:1px }
 .power-line-tabs > button > span:nth-child(2) { display:inline;min-width:auto;gap:0;font-size:12px;font-weight:780;line-height:1 }
 .power-line-tabs__dot { flex:0 0 auto;width:10px;height:10px;border:1px solid rgba(0,0,0,.14);border-radius:50% }
-.power-line-tabs__alert { min-width:19px;height:19px;padding:0 5px;font-size:9px }
+.power-line-tabs__alert { min-width:19px;height:19px;padding:0 5px;font-size:10px }
+.power-line-context small,
+.power-line-context p span,
+.power-section-list small,
+.power-values small { font-size:10.5px }
+.power-section-model-badge { font-size:10px }
 @media (max-width:620px) { .power-line-tabs { margin-inline:-2px }.power-line-tabs > button { min-height:36px;padding:0 11px } }

@@ -27,6 +27,7 @@ describe("traction power line view", () => {
     expect(html).toContain('id="power-line-tab-M1"');
     expect(html).toContain('id="power-line-tab-M7BIS"');
     expect(html).toContain('id="power-line-tab-RER_E"');
+    expect(html.match(/tabindex="-1"/g)).toHaveLength(20);
     expect(html).toContain("21 selectable lines");
     expect(html).toContain("RER A traction supply");
     expect(html).toContain("OPERATING CORRIDOR");
@@ -36,6 +37,8 @@ describe("traction power line view", () => {
     expect(html).toContain('data-power-section-id="PWR-RA-OUEST"');
     expect(html).toContain('data-power-section-id="PWR-RA-EST"');
     expect(html).not.toContain('data-power-section-id="PWR-RB-NORD"');
+    expect(PowerPage.toString()).toContain("onKeyDown");
+    expect(PowerPage.toString()).toContain("ArrowRight");
   });
 
   it("renders a non-empty topology projection when a line has no detailed electrical telemetry", () => {

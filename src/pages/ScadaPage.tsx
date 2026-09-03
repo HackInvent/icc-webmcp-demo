@@ -68,7 +68,7 @@ export function ScadaPage({ simulation, operationalResponse, onIncidentActivate 
   const nodes = [
     { id: "signalling", eyebrow: "FIELD", title: "Signalling posts", detail: "Detection, route and interlocking status", icon: "network" as const, status: fieldStatus },
     { id: "traction", eyebrow: "FIELD", title: "Traction posts", detail: "Substations, breakers and section state", icon: "bolt" as const, status: fieldStatus },
-    ...(telemetryAvailable ? [{ id: "trains", eyebrow: "ON-BOARD", title: "Train telemetry", detail: "Mission, discrete occupation and equipment state", icon: "train" as const, status: fieldStatus }] : []),
+    ...(telemetryAvailable ? [{ id: "trains", eyebrow: "ON-BOARD", title: "Train operating state", detail: "Mission, discrete occupation and equipment state", icon: "train" as const, status: fieldStatus }] : []),
   ];
 
   return (
@@ -76,7 +76,7 @@ export function ScadaPage({ simulation, operationalResponse, onIncidentActivate 
       <PageHeader
         contentId="text-text-scada-header"
         eyebrow="SYSTEMS SUPERVISION"
-        title="SCADA & information architecture"
+        title="SCADA supervision"
         description="Line-by-line view of the field, supervision and passenger-information chain. Communication failures are qualified as operational incidents and handled through cited procedures."
       />
 
@@ -92,9 +92,9 @@ export function ScadaPage({ simulation, operationalResponse, onIncidentActivate 
 
       <section className="system-summary-grid" id="text-text-scada-summary">
         <article><small>LINE</small><strong>{line.name}</strong><span>{line.stationCodes.length} stations · {line.interstationIds.length} interstations</span></article>
-        <article><small>CHAIN STATUS</small><strong className={`tone-${nodeStatus}`}>{nodeStatus}</strong><span>Last heartbeat {clock(evidence.lastHeartbeatAt)}</span></article>
+        <article><small>CHAIN STATUS</small><strong className={`tone-${nodeStatus}`}>{nodeStatus}</strong><span>Last model update {clock(evidence.lastHeartbeatAt)}</span></article>
         <article><small>ACTIVE COMMS INCIDENT</small><strong>{activeIncidentId ?? "None"}</strong><span>{activeIncidentId ? "Procedure and maintenance decision required" : "All supervised links responding"}</span></article>
-        <article><small>TRAIN TELEMETRY</small><strong>{telemetryAvailable ? "Integrated" : "ATS aggregate"}</strong><span>{telemetryAvailable ? "L1 / L4 / L14 / RER A detailed feed" : "Line-level supervision evidence"}</span></article>
+        <article><small>TRAIN STATE</small><strong>{telemetryAvailable ? "Integrated" : "ATS aggregate"}</strong><span>{telemetryAvailable ? "L1 / L4 / L14 / RER A detailed model" : "Line-level supervision state"}</span></article>
       </section>
 
       <section className="panel scada-workspace" id="text-text-scada-architecture">
@@ -107,9 +107,9 @@ export function ScadaPage({ simulation, operationalResponse, onIncidentActivate 
               </article>
             ))}
           </div>
-          <div className={`system-link system-link--${fieldLinkStatus}`} data-system-link="field-to-ats"><span>secured operational feeds · {fieldLinkStatus}</span><Icon name="arrow" size={23}/></div>
+          <div className={`system-link system-link--${fieldLinkStatus}`} data-system-link="field-to-ats"><span>modelled operational data links · {fieldLinkStatus}</span><Icon name="arrow" size={23}/></div>
           <article className={`system-node system-node--primary system-node--${atsStatus}`}>
-            <Icon name="activity" size={28}/><small>SUPERVISION</small><strong>ATS / line supervision</strong><p>Consolidated movement authority, traffic state, alarms and regulation context.</p><span>{atsStatus}</span>
+            <Icon name="activity" size={28}/><small>SUPERVISION</small><strong>ATS / line supervision</strong><p>Consolidated movement status, traffic state, alarms and regulation context.</p><span>{atsStatus}</span>
           </article>
           <div className={`system-link system-link--${passengerLinkStatus}`} data-system-link="ats-to-passenger-information"><span>service state & disruption messages · {passengerLinkStatus}</span><Icon name="arrow" size={23}/></div>
           <article className={`system-node system-node--${passengerStatus}`}>
