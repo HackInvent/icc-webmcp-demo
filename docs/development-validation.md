@@ -146,7 +146,9 @@ npm run test:native-ui
 This validator currently launches `/snap/bin/chromium` and writes screenshots and
 `artifacts/native-network-ui-validation.json`. It verifies topology counts,
 runtime SVG ownership, marker layers, semantic zoom, discrete train transitions, incident modal,
-routes, mobile overflow, simulator import/export, and WebMCP browser evidence.
+routes, mobile overflow, simulator import/export, and WebMCP browser evidence. The M3bis
+multi-train lane check advances a Playwright clock one logical second at a time and verifies
+that every host's declared train count matches the train elements rendered in that host.
 
 ## Authenticated deployment smoke
 

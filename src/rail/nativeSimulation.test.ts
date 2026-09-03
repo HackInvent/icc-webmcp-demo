@@ -322,6 +322,29 @@ describe("native all-network simulation", () => {
     expect(left.decisionRevision).toBe(0);
   }, 15_000);
 
+  it("provides the deterministic M3bis shared-interstation window used by the UI lane test", () => {
+    const ownerId = "interstation-M3BIS-71828--71860";
+    let snapshot = createNativeSimulationSnapshot({
+      scenarioId: "multi-event",
+      speed: 1,
+    });
+    const overlapTicks: number[] = [];
+
+    for (let logicalTick = 0; logicalTick <= 100; logicalTick += 1) {
+      const trainsAtOwner = snapshot.trains.filter((train) =>
+        train.lineCode === "M3BIS" &&
+        train.location.type === "interstation" &&
+        train.location.id === ownerId
+      );
+      if (trainsAtOwner.length === 2) overlapTicks.push(logicalTick);
+      snapshot = advanceNativeSimulation(snapshot);
+    }
+
+    expect(overlapTicks.at(0)).toBe(64);
+    expect(overlapTicks.at(-1)).toBe(90);
+    expect(overlapTicks).toHaveLength(27);
+  });
+
   it("normalizes a persisted legacy snapshot that predates passenger queues", () => {
     const initial = createNativeSimulationSnapshot({ scenarioId: "nominal" });
     const legacy = structuredClone(initial) as Partial<NativeSimulationSnapshot>;

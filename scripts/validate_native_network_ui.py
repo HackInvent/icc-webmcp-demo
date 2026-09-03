@@ -626,35 +626,73 @@ with sync_playwright() as playwright:
     assert painter_order_validation["covered"] == 0, painter_order_validation
     marker_page.close()
 
-    # The deterministic M3bis fleet shares one native interstation from ticks
-    # 9 through 15. This exercises real portal siblings instead of a cloned DOM
-    # fixture and verifies stable, centred lane allocation.
+    # At the one-second operating cadence, the deterministic M3bis fleet first
+    # shares this interstation at logical tick 64. Drive the browser clock one
+    # tick at a time instead of coupling the assertion to 64 seconds of wall
+    # time. This exercises real portal siblings instead of a cloned DOM fixture
+    # and verifies both the host-count contract and centred lane allocation.
+    lane_owner_id = "interstation-M3BIS-71828--71860"
     lane_page = browser.new_page(viewport={"width": 1600, "height": 1100})
+    lane_page.clock.install()
     lane_page.on("console", lambda message: record_console_error("lane-console", message))
     lane_page.on("response", lambda response: record_http_error("lane-console-http", response))
     lane_page.on("pageerror", lambda error: errors.append(f"lane-page:{error}"))
     lane_page.goto(url, wait_until="domcontentloaded")
     lane_page.wait_for_selector("[data-presentation-incident-id]")
+    lane_page.clock.pause_at(lane_page.evaluate("Date.now()"))
+    lane_page.get_by_role(
+        "button", name="Reset operational workspace"
+    ).click()
+    lane_page.locator(
+        f'g[data-runtime-object-host="{lane_owner_id}"]'
+        '[data-runtime-train-count="0"]'
+    ).wait_for(state="attached")
     lane_page.evaluate(
         "document.querySelector('button[aria-label=\"Zoom in\"]').click()"
     )
-    lane_page.wait_for_function(
-        """() => Array.from(
-          document.querySelectorAll('g[data-runtime-object-host]')
-        ).some(host => {
+    lane_host_state_expression = """ownerId => {
+          const host = document.querySelector(
+            `g[data-runtime-object-host="${CSS.escape(ownerId)}"]`
+          );
+          if (!host) return { exists: false, declared: -1, rendered: -1, trainIds: [] };
           const declared = Number(host.dataset.runtimeTrainCount);
-          const rendered = host.querySelectorAll(
+          const trains = Array.from(host.querySelectorAll(
             ':scope > [data-runtime-layer="trains"] > [data-train-id]'
-          ).length;
-          return declared > 1 && rendered === declared;
-        })""",
-        timeout=16_000,
-    )
+          ));
+          return {
+            exists: true,
+            declared,
+            rendered: trains.length,
+            trainIds: trains.map(train => train.dataset.trainId),
+          };
+        }"""
+    lane_overlap_tick = None
+    lane_host_state = None
+    for logical_tick in range(1, 121):
+        lane_page.clock.run_for(1_000)
+        lane_host_state = lane_page.evaluate(
+            lane_host_state_expression, lane_owner_id
+        )
+        assert lane_host_state["exists"], lane_host_state
+        assert lane_host_state["rendered"] == lane_host_state["declared"], {
+            "logical_tick": logical_tick,
+            "owner_id": lane_owner_id,
+            **lane_host_state,
+        }
+        if lane_host_state["declared"] > 1:
+            lane_overlap_tick = logical_tick
+            break
+    assert lane_overlap_tick == 64, {
+        "expected_first_overlap_tick": 64,
+        "observed_first_overlap_tick": lane_overlap_tick,
+        "owner_id": lane_owner_id,
+        "last_host_state": lane_host_state,
+    }
     lane_validation = lane_page.evaluate(
-        """() => {
-          const host = Array.from(
-            document.querySelectorAll('g[data-runtime-object-host]')
-          ).find(candidate => Number(candidate.dataset.runtimeTrainCount) > 1);
+        """ownerId => {
+          const host = document.querySelector(
+            `g[data-runtime-object-host="${CSS.escape(ownerId)}"]`
+          );
           const trains = Array.from(host.querySelectorAll(
             ':scope > [data-runtime-layer="trains"] > [data-train-id]'
           ));
@@ -681,9 +719,11 @@ with sync_playwright() as playwright:
               };
             })
           };
-        }"""
+        }""",
+        lane_owner_id,
     )
-    assert lane_validation["owner_id"] == "interstation-M3BIS-71828--71860", lane_validation
+    lane_validation["first_overlap_tick"] = lane_overlap_tick
+    assert lane_validation["owner_id"] == lane_owner_id, lane_validation
     assert lane_validation["declared_count"] == 2, lane_validation
     assert lane_validation["train_detail_count"] == 0, lane_validation
     lane_trains = sorted(lane_validation["trains"], key=lambda train: train["id"])
@@ -746,7 +786,9 @@ with sync_playwright() as playwright:
     ).count()
     decision_modal_text = decision_modal.inner_text()
     assert first_incident_id in decision_modal_text
-    assert "Agent proposal for the operator" in decision_modal_text
+    assert decision_modal.locator(
+        "#text-text-modal-native-incident-agent-suggestion"
+    ).count() == 1
     assert decision_action_count >= 2, decision_action_count
     assert decision_review_count == decision_action_count, (
         decision_review_count,
@@ -1025,7 +1067,7 @@ with sync_playwright() as playwright:
     assert simview_link.inner_text().strip() == "SimView"
     assert simview_link.get_attribute("href") == "#/simulator"
     assert "simview-link--active" in (simview_link.get_attribute("class") or "")
-    assert page.locator(".simulator-tabs [role='tab']").count() == 8
+    assert page.locator(".simulator-tabs [role='tab']").count() == 9
     assert page.locator("[data-testid='export-simulation-configuration']").count() == 0
     assert page.locator("[data-testid='import-simulation-configuration']").count() == 0
     page.evaluate(
@@ -1041,7 +1083,7 @@ with sync_playwright() as playwright:
     page.get_by_test_id("open-configuration").click()
     configuration_modal = page.get_by_test_id("configuration-modal")
     configuration_modal.wait_for(state="visible")
-    assert configuration_modal.get_by_role("tab").count() == 3
+    assert configuration_modal.get_by_role("tab").count() == 4
     configuration_modal.get_by_role(
         "tab", name="Simulator configuration", exact=True
     ).click()
@@ -1114,7 +1156,7 @@ with sync_playwright() as playwright:
         "export_filename": configuration_download.suggested_filename,
         "incident_occurrence_times": True,
         "round_trip_import": True,
-        "tabs": 8,
+        "tabs": 9,
         "station_page_size": 50,
         "power_sections": 8,
         "train_search_result": "RERB-T02",
