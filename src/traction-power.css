@@ -411,3 +411,14 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Compact all-line selector: same one-row interaction model as Delays & Regulation. */
+.power-line-tabs { display:flex;align-items:center;gap:6px;margin:0 0 10px;padding:5px;overflow-x:auto;overflow-y:hidden;background:#fff;border:1px solid #d9e2de;border-radius:12px;scrollbar-width:thin }
+.power-line-tabs > button { position:relative;display:inline-flex;flex:0 0 auto;grid-template-columns:none;align-items:center;gap:7px;min-width:auto;min-height:38px;padding:0 13px;color:#586962;text-align:center;white-space:nowrap;background:transparent;border:1px solid transparent;border-radius:8px;box-shadow:none;transition:color 120ms ease,background-color 120ms ease,border-color 120ms ease }
+.power-line-tabs > button:hover { color:#243a33;background:#f2f6f4;border-color:transparent;box-shadow:none;transform:none }
+.power-line-tabs > button[aria-selected="true"] { color:#0e604b;background:#e8f5f0;border-color:#cbe4da;box-shadow:0 1px 2px rgba(14,96,75,.08) }
+.power-line-tabs > button:focus-visible { outline:2px solid #2b8067;outline-offset:1px }
+.power-line-tabs > button > span:nth-child(2) { display:inline;min-width:auto;gap:0;font-size:12px;font-weight:780;line-height:1 }
+.power-line-tabs__dot { flex:0 0 auto;width:10px;height:10px;border:1px solid rgba(0,0,0,.14);border-radius:50% }
+.power-line-tabs__alert { min-width:19px;height:19px;padding:0 5px;font-size:9px }
+@media (max-width:620px) { .power-line-tabs { margin-inline:-2px }.power-line-tabs > button { min-height:36px;padding:0 11px } }

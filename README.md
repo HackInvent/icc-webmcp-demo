@@ -1,22 +1,27 @@
-# Paris ICC - WebMCP Demo
+# Paris ICC
 
-Paris ICC is a browser-based **network operations support tool** for the Paris
-Metro and RER network.
+Paris ICC is a complete, runnable **railway decision-support application** for
+the Paris Metro and RER network. It reproduces an end-to-end operational workflow
+in a simulated environment, from incident detection to recovery and shift reporting.
 
-The demo shows how an operator can handle an incident with help from an AI agent. The agent reads the same information as the operator, finds the matching procedure and suggests the next steps. The operator reviews every proposal and remains the only person who can apply an action.
+> **Simulated environment — no real railway system connected.**
+
+During an incident, the embedded AI agent reads the same information as the
+operator, finds the matching procedure and suggests the next steps. The operator
+reviews every proposal and remains the only person who can apply an action.
 
 At network level, Paris ICC acts as an **operational hypervisor** above the
 control centre of each line. It does not replace local ICC responsibilities or
 field authority. It gives a regional supervisor one shared workspace to
 coordinate operations that cross line and mode boundaries: regulating connected
 Metro and RER services, rerouting passengers, setting up provisional rail
-services, dispatching maintenance, and running replacement buses. The demo
-models this coordination layer with local data; it does not claim a live
+services, dispatching maintenance, and running replacement buses. The operational
+simulation models this coordination layer with local data; it does not claim a live
 connection to line control centres.
 
 ![Paris ICC network overview](artifacts/native-network-semantic-zoom.png)
 
-## What the demo does
+## What Paris ICC does
 
 The main screen is an interactive map of 21 Metro and RER lines. Trains occupy a station or an interstation, just as they would occupy a track section in an operations display. When the map is zoomed out, it shows the location of problems. When it is zoomed in, it shows trains, missions, delays and incident details.
 
@@ -66,37 +71,50 @@ The agent can use those tools to:
 - search the procedure library and open the exact document revision;
 - estimate the effect and duration of the available response;
 - use the network graph to find connections, turnback points and reinforcement options;
-- propose the next valid procedure step; and
-- refresh its analysis after the operator applies an action.
+- propose the next valid procedure step;
+- refresh its analysis after the operator applies an action;
+- read the complete persisted shift log by bounded pages and prepare a cited end-of-shift draft.
 
 Without this connection, the operator would have to copy information from the map, incident list, procedure documents and logs into a separate assistant. Here, the agent reads that context directly from the page and returns its proposal inside the incident workflow.
 
-The application registers 21 typed WebMCP tools. Read-only tools can inspect the current state. Tools that change the state require a visible, one-time operator approval. Incident revisions and procedure hashes are checked again before a change is accepted, so an old recommendation cannot silently be applied to a newer situation.
+The application registers 22 typed WebMCP tools. Read-only tools can inspect the current state and the persisted shift log. Tools that change the state require a visible, one-time operator approval. Incident revisions, procedure hashes and shift-log sequences are checked again before a change is accepted, so an old recommendation cannot silently be applied to a newer situation.
+
+## An industrial use of WebMCP
+
+Paris ICC applies WebMCP to an industrial railway operations problem. The goal is to help line operators make better decisions, improve line regularity and keep passenger flow moving during an incident.
+
+An operator has to combine a large amount of changing information: train occupation, delays, passenger queues, electrical state, network connections, incident codes, operating rules and procedure documents. The agent reads this context directly from the application through WebMCP and checks it against the operating constraints and required procedure for that incident. It can alert the operator to a developing problem, show which incidents need attention first, find the right procedure and explain the expected effect of each option.
+
+The agent then helps the operator follow the chosen procedure step by step. It does not take control: the operator reviews the evidence and approves each action.
+
+The passenger heatmap below is a concrete example. It shows where people are waiting and how close each station is to the capacity of a train. The agent uses the same page data to identify the incidents whose resolution would release the largest queues and help restore regular service.
+
+![Paris ICC passenger-flow heatmap](artifacts/passenger-flow-heatmap-example.png)
 
 ## Main parts of the product
 
 - **Network overview** — Interactive SVG map, semantic zoom, train occupation and incident handling.
 - **Passenger flow** — Network heatmap, passenger queues by station and train load. On opening, the agent reads the current page state and shows up to three incidents to handle first for the largest queue relief; **Refresh** reruns the analysis. New demand uses 20 active service hours per day and pauses from 01:00 AM to 05:00 AM Europe/Paris.
 - **Incident workflow** — Situation, impact, proposed response, procedure steps and return to normal in one modal.
-- **Procedures** — Fourteen local demo procedures with versions, step durations, an editor and agent feedback for every editable field.
+- **Procedures** — Fourteen local procedures written for the operational simulation with versions, step durations, an editor and agent feedback for every editable field.
 - **Delays and regulation** — One line at a time with its full synoptic, trains, delays, production and crowding.
 - **SCADA** — Field signalling, traction, train telemetry, ATS and passenger-information links for each line.
 - **Bus services** — Manual shuttle ordering and operator-approved replacement services. Each manual shuttle runs at 15 km/h, carries up to 100 passengers and moves between discrete station and interstation states.
 - **Rolling stock** — Capacity references and a relative load/traction estimate for each line.
 - **Schedules and drivers** — CSV loading with preview, impact review, approval and application before D-1 service.
 - **Operations log** — Incidents and actions recorded with server timestamps.
-- **Shift report** — Editable report drafted from the operations log, then frozen and printed as PDF.
-- **SimView** — Tables for trains, shuttles, incidents, power and the other local data used by the demo.
+- **Shift report** — The agent discovers the read-only shift-log tool, reads every bounded page through WebMCP, cites exact log IDs, and prepares an editable report that the operator can freeze and print as PDF.
+- **SimView** — Tables for trains, shuttles, incidents, power and the other local data used by the operational simulation.
 
 ## What is simulated
 
-By default, the application runs with deterministic local data. Train and shuttle positions, incidents, passenger queues, crews, track occupation, traction power and procedure actions are part of the demo.
+By default, the application runs with deterministic local data. Train and shuttle positions, incidents, passenger queues, crews, track occupation, traction power and procedure actions are part of the operational simulation.
 
 The procedures were written for this project. They are examples, not RATP or IDFM operating instructions.
 
 An optional IDFM PRIM connector can provide passenger-information data. It does not provide signalling commands, track-circuit state or continuous train positions. The application never sends a command to a real railway system.
 
-The server stores the current demo state in an embedded SQLite file. Refreshing the browser or restarting the server keeps the current shift. The red **Reset** button starts again from the configured baseline.
+The server stores the current operational state in an embedded SQLite file. Refreshing the browser or restarting the server keeps the current shift. The red **Reset** button starts again from the configured baseline.
 
 ## Run it locally
 
@@ -173,6 +191,8 @@ npm run build
 
 ## Project status
 
-This is a demonstration project. It is not connected to a live control system and is not a safety or signalling product.
+**Simulated environment — no real railway system connected.** Paris ICC is not a safety or signalling product.
 
-The application code is released under the MIT licence. Source information for the network, ridership and rolling-stock references is listed in the documentation.
+The application code is released under the MIT licence. The file `artifacts/ratp-network-native.svg` is not covered by that licence. [Map adapted from the public RATP network map · © RATP](https://www.ratp.fr/plan-metro).
+
+Source information for the network, ridership and rolling-stock references is listed in the documentation.

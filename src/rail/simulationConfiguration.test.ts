@@ -10,7 +10,7 @@ import {
   createNativeNetworkController,
   createNativeSimulationSnapshot,
 } from "./nativeSimulation";
-import { NATIVE_INTERSTATIONS } from "./nativeNetwork";
+import { NATIVE_INTERSTATIONS, isNativeAutomaticLine } from "./nativeNetwork";
 import { assertSnapshotInvariants, createSimulationState } from "./simulation";
 
 describe("simulation configuration import/export", () => {
@@ -45,6 +45,9 @@ describe("simulation configuration import/export", () => {
       native.incidents.map((incident) => incident.startedAt),
     );
     expect(parsed.nativeSnapshot.stationPassengers).toEqual(native.stationPassengers);
+    expect(parsed.nativeSnapshot.trains.map((train) => train.driverId)).toEqual(
+      native.trains.map((train) => train.driverId),
+    );
     expect(parsed.detailedState.snapshot.incidents.map((incident) => incident.startedAt)).toEqual(
       detailed.snapshot.incidents.map((incident) => incident.startedAt),
     );
@@ -169,6 +172,30 @@ describe("simulation configuration import/export", () => {
       state.lastAlightedPassengers === 0 &&
       state.lastExchangeAt === null
     )).toBe(true);
+  });
+
+  it("repairs legacy or duplicate driver assignments during import", () => {
+    const configuration = createSimulationConfiguration(
+      createNativeSimulationSnapshot({ scenarioId: "nominal" }),
+      createSimulationState(),
+    );
+    configuration.nativeNetwork.trains.forEach((train) => {
+      delete (train as Partial<typeof train>).driverId;
+    });
+    const staffedSourceTrains = configuration.nativeNetwork.trains.filter(
+      (train) => !isNativeAutomaticLine(train.lineCode),
+    );
+    staffedSourceTrains[0].driverId = "DUPLICATE-DRIVER";
+    staffedSourceTrains[1].driverId = "DUPLICATE-DRIVER";
+
+    const restored = parseSimulationConfiguration(JSON.stringify(configuration)).nativeSnapshot;
+    const staffed = restored.trains.filter((train) => !isNativeAutomaticLine(train.lineCode));
+    const automatic = restored.trains.filter((train) => isNativeAutomaticLine(train.lineCode));
+    const driverIds = staffed.map((train) => train.driverId);
+
+    expect(automatic.every((train) => train.driverId === null)).toBe(true);
+    expect(driverIds.every((driverId) => typeof driverId === "string" && driverId.length > 0)).toBe(true);
+    expect(new Set(driverIds).size).toBe(staffed.length);
   });
 
   it("normalizes missing passenger exchange counters in an older configuration", () => {

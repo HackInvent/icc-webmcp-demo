@@ -45,7 +45,7 @@ describe("rolling-stock reference catalogue", () => {
     const loaded = estimateTractionByLoad({ familyId: "mp05", passengers: 500 });
     const steel = estimateTractionByLoad({ familyId: "mf01", passengers: 500 });
 
-    expect(loaded.classification).toBe("DEMO ESTIMATE");
+    expect(loaded.classification).toBe("OPERATIONAL SIMULATION ESTIMATE");
     expect(loaded.calibrated).toBe(false);
     expect(loaded.passengerMassKg).toBe(80);
     expect(loaded.payloadMassTonnes).toBe(40);

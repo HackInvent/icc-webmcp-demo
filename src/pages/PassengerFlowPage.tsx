@@ -1,26 +1,19 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
-import nativeMapUrl from "../../artifacts/ratp-network-native.svg?url";
+import { useEffect, useMemo, useState } from "react";
 import {
   analyzePassengerFlowPriorities,
   type PassengerFlowPriorityPackage,
   type PassengerFlowPriorityProgress,
 } from "../agent/passengerFlowPriorityAgent";
 import { Icon } from "../components/Icon";
+import { PassengerHeatmap } from "../components/PassengerHeatmap";
+import { Modal } from "../components/Modal";
 import {
   buildPassengerFlowView,
-  passengerFlowHeatColor,
   type PassengerFlowLevel,
 } from "../passenger/passengerFlowModel";
 import type { RailSnapshot } from "../rail/domain";
 import {
   NATIVE_LINES,
-  NATIVE_NETWORK_BOUNDS,
   type NativeLineCode,
 } from "../rail/nativeNetwork";
 import type { NativeSimulationSnapshot } from "../rail/nativeSimulation";
@@ -39,17 +32,6 @@ interface PassengerFlowPageProps {
   onIncidentActivate?: (incidentId: string) => void;
 }
 
-interface PassengerMapDragState {
-  pointerId: number;
-  startClientX: number;
-  startClientY: number;
-  startScrollLeft: number;
-  startScrollTop: number;
-  moved: boolean;
-}
-
-const PASSENGER_MAP_DRAG_THRESHOLD_PX = 4;
-const PASSENGER_MAP_CLICK_SUPPRESSION_MS = 300;
 const EMPTY_TOOL_NAMES: readonly string[] = Object.freeze([]);
 const EMPTY_IN_PAGE_TOOLS: readonly WebMcpToolDefinition[] = Object.freeze([]);
 
@@ -65,7 +47,6 @@ const LEVEL_LABELS: ReadonlyArray<{ level: PassengerFlowLevel; label: string }> 
   { level: "high", label: "100% · one train capacity" },
   { level: "critical", label: "200% · two train capacities" },
 ];
-
 function formatTime(timestamp: number): string {
   return formatParisOperationalTime(timestamp, true);
 }
@@ -88,15 +69,12 @@ export function PassengerFlowPage({
   const [lineCode, setLineCode] = useState<NativeLineCode | "ALL">("ALL");
   const [selectedStationCode, setSelectedStationCode] = useState<string | null>(null);
   const [selectedTrainId, setSelectedTrainId] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [isMapDragging, setIsMapDragging] = useState(false);
+  const [heatmapOpen, setHeatmapOpen] = useState(false);
   const [priorityAnalysis, setPriorityAnalysis] = useState<PassengerFlowPriorityPackage | null>(null);
   const [priorityProgress, setPriorityProgress] = useState<PassengerFlowPriorityProgress>("discovering");
   const [priorityLoading, setPriorityLoading] = useState(false);
   const [priorityError, setPriorityError] = useState<string | null>(null);
   const [priorityRefresh, setPriorityRefresh] = useState(0);
-  const mapDragRef = useRef<PassengerMapDragState | null>(null);
-  const suppressMapClickUntilRef = useRef(0);
   const view = useMemo(
     () => buildPassengerFlowView(simulation, detailedSnapshot, lineCode === "ALL" ? null : lineCode),
     [detailedSnapshot, lineCode, simulation],
@@ -146,48 +124,6 @@ export function PassengerFlowPage({
     setSelectedTrainId(null);
   };
 
-  const startMapDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!event.isPrimary || event.button !== 0) return;
-    const map = event.currentTarget;
-    suppressMapClickUntilRef.current = 0;
-    mapDragRef.current = {
-      pointerId: event.pointerId,
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      startScrollLeft: map.scrollLeft,
-      startScrollTop: map.scrollTop,
-      moved: false,
-    };
-  };
-
-  const moveMapDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = mapDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    const deltaX = event.clientX - drag.startClientX;
-    const deltaY = event.clientY - drag.startClientY;
-    if (!drag.moved && Math.hypot(deltaX, deltaY) >= PASSENGER_MAP_DRAG_THRESHOLD_PX) {
-      drag.moved = true;
-      setIsMapDragging(true);
-      event.currentTarget.setPointerCapture(event.pointerId);
-    }
-    if (!drag.moved) return;
-    event.preventDefault();
-    event.currentTarget.scrollLeft = drag.startScrollLeft - deltaX;
-    event.currentTarget.scrollTop = drag.startScrollTop - deltaY;
-  };
-
-  const finishMapDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = mapDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    if (drag.moved) {
-      suppressMapClickUntilRef.current = Date.now() + PASSENGER_MAP_CLICK_SUPPRESSION_MS;
-    }
-    mapDragRef.current = null;
-    setIsMapDragging(false);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  };
 
   return (
     <div className="page passenger-flow-page" id="text-text-passenger-flow-page">
@@ -206,7 +142,7 @@ export function PassengerFlowPage({
       <section className="passenger-flow-kpis" id="text-text-passenger-flow-kpis" aria-label="Passenger flow summary">
         <article><span>Onboard passengers</span><strong>{view.totalOnboardPassengers.toLocaleString("en-GB")}</strong><small>{lineCode === "ALL" ? "All lines" : `Line ${lineLabel(lineCode)}`}</small></article>
         <article><span>Waiting queue</span><strong>{view.totalQueuePassengers.toLocaleString("en-GB")}</strong><small>{view.activeStationCount} active station estimates</small></article>
-        <article><span>Cumulative boardings</span><strong>{view.totalBoardedPassengers.toLocaleString("en-GB")}</strong><small>{view.totalGeneratedPassengers.toLocaleString("en-GB")} generated · {view.totalAlightedPassengers.toLocaleString("en-GB")} alighted since reset</small></article>
+        <article><span>Cumulative boardings</span><strong>{view.totalBoardedPassengers.toLocaleString("en-GB")}</strong><small>Passengers boarded since start of day</small></article>
         <article className={view.highPressureStationCount ? "is-alert" : ""}><span>At-capacity stations</span><strong>{view.highPressureStationCount}</strong><small>Waiting queue ≥ maximum train capacity</small></article>
         <article><span>Mean queue ratio</span><strong>{view.averageLoadPercent}%</strong><small>Waiting queue ÷ train capacity</small></article>
         <article><span>Busiest station</span><strong>{view.busiestStation?.station.name ?? "No active flow"}</strong><small>{view.busiestStation ? `${view.busiestStation.passengerPressure.toLocaleString("en-GB")} passenger pressure` : view.feedStatus}</small></article>
@@ -322,85 +258,31 @@ export function PassengerFlowPage({
               <select
                 data-testid="passenger-flow-line-filter"
                 value={lineCode}
-                onChange={(event) => {
-                  setLineCode(event.target.value as NativeLineCode | "ALL");
-                  setZoom(1);
-                }}
+                onChange={(event) => setLineCode(event.target.value as NativeLineCode | "ALL")}
               >
                 <option value="ALL">All Metro + RER lines</option>
                 {NATIVE_LINES.map((line) => <option key={line.code} value={line.code}>{line.label} · {line.name}</option>)}
               </select>
             </label>
-            <div className="passenger-flow-zoom" role="group" aria-label="Passenger map zoom">
-              <button type="button" aria-label="Zoom out" onClick={() => setZoom((value) => Math.max(1, value - 0.25))}>−</button>
-              <output>{Math.round(zoom * 100)}%</output>
-              <button type="button" onClick={() => setZoom(1)}>Fit</button>
-              <button type="button" aria-label="Zoom in" onClick={() => setZoom((value) => Math.min(2.5, value + 0.25))}>+</button>
-            </div>
+            <button
+              type="button"
+              className="button button--secondary passenger-flow-expand"
+              data-testid="passenger-flow-expand-map"
+              aria-haspopup="dialog"
+              aria-expanded={heatmapOpen}
+              onClick={() => setHeatmapOpen(true)}
+            >
+              <Icon name="external" size={15} /> Open full map
+            </button>
           </div>
 
-          <div
-            className={`passenger-flow-map${isMapDragging ? " is-dragging" : ""}`}
-            id="text-text-passenger-flow-map"
-            data-testid="passenger-flow-map"
-            data-pan-enabled="true"
-            data-pan-state={isMapDragging ? "dragging" : "idle"}
-            role="region"
-            aria-label="Interactive passenger heatmap. Drag to pan the map when zoomed."
-            onPointerDown={startMapDrag}
-            onPointerMove={moveMapDrag}
-            onPointerUp={finishMapDrag}
-            onPointerCancel={finishMapDrag}
-            onLostPointerCapture={finishMapDrag}
-            onClickCapture={(event) => {
-              if (Date.now() >= suppressMapClickUntilRef.current) return;
-              event.preventDefault();
-              event.stopPropagation();
-            }}
-          >
-            <div className="passenger-flow-map__surface" style={{ width: `${zoom * 100}%` }}>
-              <img src={nativeMapUrl} alt="" aria-hidden="true" draggable={false} />
-              <svg
-                viewBox={`${NATIVE_NETWORK_BOUNDS.minX} ${NATIVE_NETWORK_BOUNDS.minY} ${NATIVE_NETWORK_BOUNDS.width} ${NATIVE_NETWORK_BOUNDS.height}`}
-                role="img"
-                aria-label="Paris Metro and RER station passenger-pressure heatmap"
-                preserveAspectRatio="xMidYMid meet"
-              >
-                <g className="passenger-flow-heat-layer">
-                  {view.stations.map((item) => {
-                    const selected = item.station.code === selectedStation?.station.code;
-                    const radius = Math.min(17, 5 + Math.sqrt(item.passengerPressure) * 0.38);
-                    return (
-                      <circle
-                        key={item.station.code}
-                        className={`passenger-flow-marker passenger-flow-marker--${item.level}${selected ? " is-selected" : ""}`}
-                        data-testid="passenger-flow-station-marker"
-                        data-station-code={item.station.code}
-                        data-passenger-pressure={item.passengerPressure}
-                        data-queue-capacity-percent={item.loadPercent}
-                        data-capacity-reference={item.capacityReferencePlaces}
-                        style={{ fill: passengerFlowHeatColor(item.loadPercent) }}
-                        cx={item.station.anchor.x}
-                        cy={item.station.anchor.y}
-                        r={selected ? radius + 3 : radius}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`${item.station.name}: ${item.queuePassengers} waiting passengers, ${item.loadPercent}% of maximum train capacity`}
-                        onClick={() => chooseStation(item.station.code)}
-                        onKeyDown={(event) => {
-                          if (event.key !== "Enter" && event.key !== " ") return;
-                          event.preventDefault();
-                          chooseStation(item.station.code);
-                        }}
-                      >
-                        <title>{`${item.station.name} · ${item.queuePassengers} waiting · ${item.loadPercent}% of ${item.capacityReferencePlaces} capacity-reference places · ${item.contributions.length} trains`}</title>
-                      </circle>
-                    );
-                  })}
-                </g>
-              </svg>
-            </div>
-          </div>
+          <PassengerHeatmap
+            key={`passenger-flow-inline-${lineCode}`}
+            view={view}
+            selectedStationCode={selectedStation?.station.code ?? null}
+            onStationSelect={chooseStation}
+            testId="passenger-flow-map"
+          />
 
           <footer className="passenger-flow-map-footer" id="text-text-passenger-flow-legend">
             <div className="passenger-flow-legend" aria-label="Passenger pressure legend">
@@ -468,6 +350,33 @@ export function PassengerFlowPage({
           )}
         </aside>
       </section>
+
+      {heatmapOpen && (
+        <Modal
+          contentId="text-text-passenger-flow-heatmap-modal"
+          title={lineCode === "ALL" ? "Metro + RER passenger heatmap" : `${lineLabel(lineCode)} passenger heatmap`}
+          eyebrow="PASSENGER FLOW · FULL NETWORK MAP"
+          onClose={() => setHeatmapOpen(false)}
+          wide
+        >
+          <div className="passenger-flow-map-dialog">
+            <PassengerHeatmap
+              key={`passenger-flow-modal-${lineCode}`}
+              view={view}
+              selectedStationCode={selectedStation?.station.code ?? null}
+              onStationSelect={chooseStation}
+              testId="passenger-flow-modal-map"
+              modal
+            />
+            <footer className="passenger-flow-map-footer passenger-flow-map-footer--modal" id="text-text-passenger-flow-modal-legend">
+              <div className="passenger-flow-legend" aria-label="Passenger pressure legend">
+                {LEVEL_LABELS.map((item) => <span key={item.level}><i className={`passenger-flow-legend__${item.level}`} />{item.label}</span>)}
+              </div>
+              <p><Icon name="shield" size={13} /> Waiting queue ÷ maximum configured train capacity. Use the wheel or trackpad to zoom and drag the map to move.</p>
+            </footer>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

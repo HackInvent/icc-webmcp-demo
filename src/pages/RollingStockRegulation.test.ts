@@ -6,11 +6,11 @@ import { RegulationPage } from "./RegulationPage";
 import { RollingStockPage } from "./RollingStockPage";
 
 describe("rolling-stock and native regulation pages", () => {
-  it("renders all 21 sourced line selectors and the visible demo-estimate boundary", () => {
+  it("renders all 21 sourced line selectors and the visible operational-simulation estimate boundary", () => {
     const html = renderToStaticMarkup(createElement(RollingStockPage));
     expect(html.match(/role="tab"/g)).toHaveLength(21);
     expect(html).toContain("Rolling stock &amp; load model");
-    expect(html).toContain("DEMO ESTIMATE · UNCALIBRATED");
+    expect(html).toContain("OPERATIONAL SIMULATION ESTIMATE · UNCALIBRATED");
     expect(html).toContain("not kWh");
     expect(html).toContain("MI 09");
   });

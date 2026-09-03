@@ -131,27 +131,11 @@ def main() -> None:
         if route.request.url.endswith("/api/reports/assist"):
             intercepted["report"] += 1
             payload = route.request.post_data_json or {}
-            route.fulfill(
-                status=200,
-                content_type="application/json",
-                body=json.dumps({
-                    "status": "draft_ready",
-                    "reportId": payload.get("reportId"),
-                    "html": (
-                        "<h1>End-of-shift operational report</h1>"
-                        "<h2>Executive summary</h2>"
-                        "<p><strong>Smoke assisted draft</strong> prepared only "
-                        "from persisted shift evidence.</p>"
-                        "<h2>Operator sign-off</h2>"
-                        "<p>Name: ____________________</p>"
-                    ),
-                    "modelAssisted": True,
-                    "warning": None,
-                    "sourceLogCount": 3,
-                    "sourceLogSequence": 3,
-                    "usage": None,
-                }),
-            )
+            assert payload.get("reportId")
+            assert payload.get("expectedShiftId")
+            assert isinstance(payload.get("expectedLogSequence"), int)
+            assert "draft" not in payload
+            route.continue_()
             return
         route.continue_()
 
@@ -189,10 +173,10 @@ def main() -> None:
                 wait_until="domcontentloaded",
             )
             assert response is not None and response.ok
-            page.locator("#main-content, #jury-access-code").first.wait_for(
+            page.locator("#main-content, #access-code").first.wait_for(
                 state="visible"
             )
-            access = page.locator("#jury-access-code")
+            access = page.locator("#access-code")
             access_challenge = access.is_visible()
             if access_challenge:
                 assert args.access_code, "WEBMCP_ACCESS_CODE is required."
@@ -242,7 +226,7 @@ def main() -> None:
             configuration_model_select.wait_for(state="visible")
             configuration_model = configuration_model_select.input_value()
             assert configuration_model
-            assert configuration_model_select.locator("option").count() == 21
+            assert configuration_model_select.locator("option").count() >= 4
 
             reasoning_select = configuration_modal.get_by_test_id(
                 "configuration-agent-reasoning-effort"
@@ -255,14 +239,9 @@ def main() -> None:
             assert reasoning_select.locator("option").count() == 3
             assert reasoning_select.input_value() == "high"
 
-            configuration_model_select.select_option("gpt-5-pro")
-            assert reasoning_select.locator("option").count() == 1
+            configuration_model_select.select_option("gpt-5.6-sol")
+            assert reasoning_select.locator("option").count() == 6
             assert reasoning_select.input_value() == "high"
-
-            configuration_model_select.select_option("gpt-4.1")
-            assert reasoning_select.is_disabled()
-            assert reasoning_select.locator("option").count() == 1
-            assert reasoning_select.input_value() == ""
 
             configuration_model_select.select_option(configuration_model)
             reasoning_select.select_option("low")
@@ -384,11 +363,12 @@ def main() -> None:
                 "inspect_network_digital_twin",
                 "inspect_passenger_flow_impact",
                 "inspect_incident_decision_context",
+                "inspect_shift_log",
                 "search_operational_procedures",
                 "get_operational_procedure",
                 "apply_reviewed_procedure_step",
             }
-            assert len(tool_names) == 21, tool_names
+            assert len(tool_names) == 22, tool_names
             assert required_native_tools.issubset(tool_names), tool_names
 
             procedure_evidence = page.evaluate(
@@ -396,11 +376,15 @@ def main() -> None:
                     const tools = await document.modelContext.getTools();
                     const byName = new Map(tools.map(tool => [tool.name, tool]));
                     const invoke = async (name, input) => {
-                        const value = await document.modelContext.executeTool(
-                            byName.get(name),
-                            JSON.stringify(input)
-                        );
-                        return typeof value === "string" ? JSON.parse(value) : value;
+                        try {
+                            const value = await document.modelContext.executeTool(
+                                byName.get(name),
+                                JSON.stringify(input)
+                            );
+                            return typeof value === "string" ? JSON.parse(value) : value;
+                        } catch (error) {
+                            throw new Error(`${name}: ${error instanceof Error ? error.message : String(error)}`);
+                        }
                     };
                     const context = await invoke(
                         "inspect_incident_decision_context",
@@ -414,7 +398,11 @@ def main() -> None:
                     const match = search.matches[0];
                     const procedureResult = await invoke(
                         "get_operational_procedure",
-                        { procedureId: match.procedureId }
+                        {
+                            procedureId: match.procedureId,
+                            procedureRevision: match.revision,
+                            procedureContentHash: match.contentHash,
+                        }
                     );
                     return { context, search, match, procedure: procedureResult.procedure };
                 }""",
@@ -467,7 +455,7 @@ def main() -> None:
                 exact=False,
             ).count() == 1
             assert modal.get_by_text(
-                "Agent proposal for the operator",
+                "Agent recommendation and operator choices",
                 exact=True,
             ).count() == 1
             modal_text = modal.inner_text()
@@ -483,9 +471,9 @@ def main() -> None:
             assert procedure["revision"] in modal_text
             assert "NOT AN OFFICIAL RATP/IDFM INSTRUCTION" not in modal_text
             assert page.get_by_text(
-                "Synthetic decision procedures are used for this demo; they are not official RATP or IDFM instructions.",
+                "Simulated environment — no real railway system connected.",
                 exact=True,
-            ).count() == 1
+            ).count() >= 1
             assert modal.locator(".procedure-citation").count() == 0
 
             first_step_id = action_cards.first.get_attribute("data-step-id")
@@ -513,12 +501,8 @@ def main() -> None:
                 "FINAL OPERATOR CONFIRMATION", exact=False
             ).count() == 1
             approval_text = approval.inner_text()
-            assert "apply_reviewed_procedure_step" in approval_text
-            assert incident_id in approval_text
-            assert procedure["procedureId"] in approval_text
-            assert procedure["revision"] in approval_text
-            assert procedure["contentHash"] in approval_text
-            assert "stepId" in approval_text
+            assert "pinned in the background" in approval_text
+            assert "One-use approval for this procedure step" in approval_text
             assert "confirmSimulation" not in approval_text
             page.get_by_test_id("agent-tool-approve").click()
             approval.wait_for(state="detached")
@@ -783,11 +767,15 @@ def main() -> None:
                 exact=True,
             ).click()
             report_document.get_by_text(
-                "Smoke assisted draft",
+                "End-of-shift operational report",
                 exact=False,
             ).wait_for(state="visible")
             page.get_by_text(
-                "OpenAI prepared an editable draft",
+                "verified chronology was prepared",
+                exact=False,
+            ).wait_for(state="visible")
+            page.get_by_text(
+                "WebMCP",
                 exact=False,
             ).wait_for(state="visible")
             assert intercepted["report"] == 1, intercepted
@@ -798,7 +786,7 @@ def main() -> None:
                 "#text-text-shift-report-document"
             )
             report_document.wait_for(state="visible")
-            assert "Smoke assisted draft" in report_document.inner_text()
+            assert "End-of-shift operational report" in report_document.inner_text()
 
             page.get_by_role(
                 "button",

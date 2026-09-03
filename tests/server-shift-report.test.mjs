@@ -125,7 +125,11 @@ describe("persisted shift log and end-of-shift report", () => {
         Origin: firstServer.config.application.publicOrigin,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ reportId: initial.shift.report.reportId }),
+      body: JSON.stringify({
+        reportId: initial.shift.report.reportId,
+        expectedShiftId: edited.body.snapshot.shift.shiftId,
+        expectedLogSequence: edited.body.snapshot.shift.nextLogSequence - 1,
+      }),
     });
     expect(assistedResponse.status).toBe(200);
     expect(await assistedResponse.json()).toMatchObject({

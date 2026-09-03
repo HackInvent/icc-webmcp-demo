@@ -43,6 +43,9 @@ describe("view data-reference links", () => {
       expect(html.includes(`href="${RATP_SVG_REFERENCE_URL}"`)).toBe(
         page === "overview" || page === "passenger-flow",
       );
+      expect(html.includes("Map adapted from the public RATP network map · © RATP")).toBe(
+        page === "overview" || page === "passenger-flow",
+      );
       expect(pageUsesNativeNetworkSvg(page)).toBe(
         page === "overview" || page === "passenger-flow",
       );

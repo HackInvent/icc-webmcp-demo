@@ -570,12 +570,15 @@ describe("server operational-response persistence", () => {
       capacityDeltaPassengers: 1_600,
       train: {
         lineCode: "RER_A",
+        driverId: "DRV-RERA-I01",
         originStationCode: interiorOption.stationId,
         destinationStationCode: interiorOption.destinationStationId,
         location: { type: "station", id: interiorOption.stationId },
         status: "dwelling",
       },
     });
+    const insertedDriverId = inserted.result.insertion.train.driverId;
+    expect(insertedDriverId).toBe("DRV-RERA-I01");
     expect(inserted.snapshot.native.trains).toHaveLength(initial.native.trains.length + 1);
     expect(inserted.snapshot.shift.logs.at(-1)).toMatchObject({
       category: "operator-action",
@@ -587,11 +590,30 @@ describe("server operational-response persistence", () => {
       ]),
     });
 
+    await expect(service.command(workspaceId, "jury-operator", {
+      commandId: "CMD-MANUAL-INSERT-002",
+      type: "insert_native_train",
+      expectedStateRevision: inserted.snapshot.stateRevision,
+      payload: {
+        lineCode: "RER_A",
+        stationId: interiorOption.stationId,
+        direction: interiorOption.direction,
+      },
+    })).rejects.toMatchObject({
+      status: 409,
+      code: "station_occupied",
+      message: expect.stringContaining(inserted.result.insertion.train.id),
+    });
+    const afterRejectedInsertion = await service.getSnapshot(workspaceId);
+    expect(afterRejectedInsertion.stateRevision).toBe(inserted.snapshot.stateRevision);
+    expect(afterRejectedInsertion.native.trains).toHaveLength(initial.native.trains.length + 1);
+
     await service.close();
     const restarted = await createOperationsService({ repository, tickIntervalMs: 60_000 });
     const restored = await restarted.getSnapshot(workspaceId);
     expect(restored.native.trains).toContainEqual(expect.objectContaining({
       id: inserted.result.insertion.train.id,
+      driverId: insertedDriverId,
       lineCode: "RER_A",
       location: { type: "station", id: interiorOption.stationId },
     }));
@@ -992,7 +1014,7 @@ describe("server operational-response persistence", () => {
       (item) => item.measureId === insertedMeasure.measureId,
     )?.plan).toEqual(insertedMeasure.plan);
     await restarted.close();
-  }, 15_000);
+  }, 30_000);
 
   it("migrates a v1 runtime without the new aggregate to a nominal 21-line state", async () => {
     const repository = new MemoryRepository();

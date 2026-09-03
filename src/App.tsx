@@ -192,6 +192,7 @@ function App() {
             : reopenCircuitRef.current(circuitId)),
         ),
         nativeNetwork: nativeNetwork.controller,
+        getShiftWorkspace: async () => (await operationsClient.refresh()).shift,
       },
       (activity) => {
         if (!active) return;
@@ -251,14 +252,14 @@ function App() {
       incidents: "Incident management",
       regulation: "Delays & regulation",
       power: "Electrical power supply",
-      scada: "SCADA architecture",
+      scada: "SCADA supervision",
       buses: "Bus continuity services",
       "rolling-stock": "Rolling stock",
       log: "Operations log",
       report: "End-of-shift report",
       detail: route.id ? `Operational record · ${route.id}` : "Operational record",
     };
-    document.title = `${labels[route.page]} · Paris ICC - WebMCP DEMO`;
+    document.title = `${labels[route.page]} · Paris ICC`;
     if (!hasMountedRoute.current) {
       hasMountedRoute.current = true;
       return;
@@ -486,7 +487,18 @@ function App() {
             <OperationsLogPage shift={operationsClient.getServerSnapshot()!.shift} />
           )}
           {route.page === "report" && operationsClient.getServerSnapshot()?.shift && (
-            <ShiftReportPage shift={operationsClient.getServerSnapshot()!.shift} />
+            <ShiftReportPage
+              shift={operationsClient.getServerSnapshot()!.shift}
+              expectedToolNames={webMcpAvailability.names}
+              inPageTools={webMcpTools}
+              toolsChecked={webMcpAvailability.checked}
+              toolsPublished={
+                webMcpAvailability.names.includes("inspect_shift_log") &&
+                webMcpTools.some((tool) => tool.name === "inspect_shift_log")
+              }
+              agentEnabled={configuration.agent.enabled}
+              agentModel={configuration.agent.model}
+            />
           )}
           {route.page === "detail" && route.detailType && route.id && (
             <DetailPage

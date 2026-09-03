@@ -1,15 +1,17 @@
 # Paris ICC operator guide
 
-This guide covers the current local-simulation build. Paris ICC is a
-decision-support demonstration: every operational change stays inside the local
-simulation and the operator remains the decision authority. Read
-[Data sources and operational boundaries](data-sources-boundaries.md) before
-presenting the application as a live system.
+Paris ICC is a complete, runnable railway decision-support application. It
+reproduces an end-to-end operational workflow in a simulated environment. Every
+operational change stays inside that environment, and the operator remains the
+decision authority. Read [Data sources and operational boundaries](data-sources-boundaries.md)
+before connecting or presenting any external data source.
+
+> **Simulated environment — no real railway system connected.**
 
 ## Sign in
 
 The deployed application uses one shared access code. Open the HTTPS site,
-enter the code on the **Private demonstration** screen, and select
+enter the code on the **Operational simulation** screen, and select
 **Open operations canvas**.
 
 - No personal account or browser API key is required.
@@ -32,7 +34,7 @@ special Nginx routing rules.
 | Incident deep link | `#/overview/incident/:id` | Focus a native incident and open its decision workflow |
 | SimView | `#/simulator` | Inspect and filter simulated objects, including shuttles; create incidents and insert trains |
 | Bus services | `#/bus-services` | Order and monitor replacement shuttles between stations on one line |
-| Procedures | `#/procedures` | Inspect the versioned DEMO catalogue and publish controlled step revisions |
+| Procedures | `#/procedures` | Inspect the versioned procedure catalogue for the operational simulation and publish controlled step revisions |
 | Schedules & drivers | `#/schedules-drivers` | Prepare and review D-1 schedule changes |
 | Incident management | `#/incidents` | Review detailed-corridor and native incidents |
 | Delays & regulation | `#/regulation` | Inspect delayed services and test regulation actions |
@@ -86,8 +88,8 @@ The modal starts automatically; there is no chat prompt to compose.
 2. Watch the read-only retrieval trace. It must run in this order:
    `inspect_incident_decision_context` → `search_operational_procedures` →
    `get_operational_procedure`.
-3. Check the procedure source banner. The bundled catalogue must appear as
-   **DEMO synthetic procedure · not an official RATP/IDFM instruction**.
+3. Open the linked procedure and confirm that its incident code and target match
+   the active event before reviewing the suggested step.
 4. Verify the exact procedure ID, revision and integrity hash. Review impacted
    trains, passenger exposure, worst delay and decision revision.
 5. Review each cited step. The document instruction, required evidence, agent
@@ -281,7 +283,7 @@ or uploaded by the schedule workspace.
 Prepare one shift, driver, track or cancellation patch, inspect the non-destructive
 preview, run the impact evaluation, and resolve any hard block. Apply only the exact
 reviewed hashes after visible authorization. A successful commit changes the
-server-authoritative demonstration schedule, persists a receipt and provides an
+server-authoritative simulation schedule, persists a receipt and provides an
 undo path.
 
 ### Track-circuit closure
@@ -359,11 +361,13 @@ readable by an operator and is the evidence supplied to the report assistant.
    undo and redo.
 3. Do not look for a Save button. An edit is autosaved after a short pause; check
    the persistence status above the document before leaving the page.
-4. Select **Draft from shift logs** when assistance is required. The server reads
-   the persisted current-shift register, asks the configured OpenAI model for a
-   structured evidence-grounded synthesis, validates every cited log ID, then
-   produces sanitized editable HTML. If OpenAI is disabled, the same button creates
-   a deterministic complete chronology from the register.
+4. Select **Agent draft from shift logs** when assistance is required. The agent
+   discovers `inspect_shift_log`, reads the persisted register through WebMCP in
+   bounded chronological pages, and follows every returned cursor. The server
+   pins the shift ID and latest sequence, validates every cited log ID, then
+   produces sanitized editable HTML. If OpenAI is disabled or unavailable, the
+   same WebMCP inspection must still complete before a deterministic chronology
+   is produced.
 5. Review and correct the draft. The assistant must not invent an incident, time,
    duration, action or outcome absent from the logs.
 6. Select **Freeze & print PDF** only after operator review. Confirmation durably
@@ -373,15 +377,16 @@ readable by an operator and is the evidence supplied to the report assistant.
 
 ### Pause, speed and reset
 
-The header controls pause and the `×1`, `×2`, and `×4` demo accelerators. These are
-simulation accelerators, not real-time ratios. **Reset** restores the current
-simulation baseline, reloads the bundled D-1 sample schedule, and opens a fresh
+The header can pause the operational clock or run it at `×1`, `×2`, or `×4`.
+These controls change simulation speed; they are not claims about a real railway
+clock. **Reset** restores the current simulation baseline, reloads the bundled D-1
+sample schedule, and opens a fresh
 shift register and report draft. It preserves the versioned procedure workspace.
 Reset is consequential: freeze and export the current report first when it must be
 retained. The lower-level SQLite operation events and command receipts remain
 available for technical investigation.
 
-## Troubleshooting and demo fallbacks
+## Troubleshooting and operational fallbacks
 
 | Symptom | Operator response |
 | --- | --- |

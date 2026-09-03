@@ -876,7 +876,7 @@ export function ConfigurationModal({
           <section id="configuration-panel-simulator" role="tabpanel" aria-labelledby="configuration-tab-simulator" className="configuration-panel">
             <header className="configuration-panel__header" id="text-text-configuration-simulator-introduction">
               <span className="configuration-panel__icon"><Icon name="settings" size={20} /></span>
-              <div><h3>Simulator baseline</h3><p>Move a complete, deterministic operating state between demonstration environments.</p></div>
+              <div><h3>Simulator baseline</h3><p>Move a complete, deterministic operating state between operational simulation environments.</p></div>
             </header>
             <div className="configuration-scenario-summary" id="text-text-configuration-simulator-summary">
               <div><span>Scenario</span><strong>{nativeSimulation.scenarioName}</strong></div>

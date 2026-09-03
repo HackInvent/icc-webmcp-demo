@@ -47,7 +47,7 @@ const RuntimeContext = createContext<RuntimeContextValue | null>(null);
 const DEVELOPMENT_CONFIGURATION: PublicRuntimeConfiguration = {
   authenticated: true,
   application: {
-    name: "Paris ICC - WebMCP DEMO",
+    name: "Paris ICC",
     environment: "vite-development",
     dataMode: "local-simulation",
   },
@@ -125,14 +125,14 @@ function AccessScreen({
       <section className="access-card" id="text-text-access-card" aria-labelledby="access-title">
         <div className="access-card__brand" id="text-text-access-brand">
           <span className="access-card__mark"><b>P</b><small>ICC</small></span>
-          <div><strong>Paris ICC - WebMCP DEMO</strong><span>Human-in-the-loop operations canvas</span></div>
+          <div><strong>Paris ICC</strong><span>Human-in-the-loop operations canvas</span></div>
         </div>
         <div className="access-card__intro" id="text-text-access-introduction">
-          <span className="access-card__eyebrow"><i /> PRIVATE DEMONSTRATION</span>
+          <span className="access-card__eyebrow"><i /> OPERATIONAL SIMULATION</span>
           <h1 id="access-title">Enter the shared access code</h1>
           <p>
-            Open the local Paris rail digital twin and its embedded WebMCP
-            decision-support agent. No personal account or API key is required.
+            Open the Paris rail operational simulation and its embedded WebMCP
+            decision-support agent.
           </p>
         </div>
         <form id="text-text-access-form" onSubmit={(event) => void submit(event)}>
@@ -157,7 +157,7 @@ function AccessScreen({
         </form>
         <footer id="text-text-access-security-summary">
           <span><Icon name="shield" size={14} /> Secure server session</span>
-          <span><Icon name="activity" size={14} /> Local simulation data</span>
+          <span><Icon name="activity" size={14} /> Operational simulation data</span>
           <span><Icon name="radio" size={14} /> Native WebMCP tools</span>
         </footer>
       </section>

@@ -345,7 +345,7 @@ export function EntityModal({ selection, snapshot, onClose, onIncidentStatus, on
             <span className="source-option__copy">
               <strong>Saved PRIM example</strong>
               <small>A saved set of arrival data is read with the same SIRI Lite parser as the live source. No internet connection or API key is needed.</small>
-              <em>Use this for a repeatable demo. These are example arrivals, not current traffic.</em>
+              <em>Use this for a repeatable operational simulation. These are example arrivals, not current traffic.</em>
             </span>
             <StatusPill tone={activeMode === "prim-replay" ? "ok" : "neutral"}>
               {activeMode === "prim-replay" ? "Active" : "Available"}

@@ -2,10 +2,13 @@
 
 ## Purpose and operating envelope
 
-Paris ICC is a browser-based railway operations demonstrator. It combines two
-deterministic railway engines, an interactive Paris network schematic, a
-versioned demonstration procedure catalogue, page-published WebMCP tools, and an
-embedded decision-support agent.
+Paris ICC is a complete, runnable railway decision-support application. It
+reproduces an end-to-end operational workflow in a simulated environment. The
+runtime combines two deterministic railway engines, an interactive Paris network
+schematic, a versioned procedure catalogue for the operational simulation,
+page-published WebMCP tools, and an embedded decision-support agent.
+
+> **Simulated environment — no real railway system connected.**
 
 The application does **not** command signalling, interlocking, traction power,
 publication, or staff systems. The bundled procedures are synthetic and are not
@@ -17,7 +20,7 @@ official RATP, IDFM, infrastructure-manager, or regulatory instructions.
 flowchart LR
   Operator["Operator"]
   Browser["React operations workspace"]
-  Tools["21 page-published WebMCP tools"]
+  Tools["22 page-published WebMCP tools"]
   Client["Operations client\nGET + POST + SSE"]
   Http["Authenticated Node server"]
   Service["Operations service\nserver-authoritative clock"]
@@ -31,6 +34,8 @@ flowchart LR
   Operator --> Browser
   Browser --> Tools
   Tools --> Client
+  Agent -. "requests typed page tools" .-> Browser
+  Tools -. "verified outputs" .-> Agent
   Browser <--> Client
   Client <--> Http
   Http --> Service
@@ -228,12 +233,15 @@ an agent draft and final freeze are retained as decision-support/operator events
 
 The report page sends rich-text edits through the same revision-bound command API
 after a 700 ms idle interval. The server sanitizes a bounded HTML allowlist before
-persisting it. `POST /api/reports/assist` never accepts log evidence from the
-browser: it resolves the authenticated workspace, reads the current persisted
-shift, and supplies that projection to `AgentService`. Structured model output is
-validated against the exact available log IDs, then rendered and sanitized on the
-server. With OpenAI disabled, a deterministic renderer still produces the complete
-chronology.
+persisting it. The embedded agent receives only the page-published
+`inspect_shift_log` definition, requests each chronological page, and the browser
+executes those requests through WebMCP against the authenticated current-shift
+workspace. The run pins the shift ID and latest sequence across all pages.
+`POST /api/reports/assist` does not accept log evidence from the browser: it
+reloads the authoritative shift, checks the WebMCP-observed identity and sequence,
+validates every draft citation against the exact available log IDs, then renders
+and sanitizes the HTML. With OpenAI disabled, WebMCP inspection still precedes the
+deterministic complete chronology.
 
 Freezing is a persisted domain command, not a visual toggle. It rejects later
 edits and agent drafts until Reset, after which browser printing supplies the A4
@@ -261,7 +269,7 @@ the lower-level technical history.
 | `/api/agent/reset` | `POST` | Yes | Clears an in-memory agent run. |
 | `/api/agent/log` | `GET` | Yes | Newest-first bounded metadata-only agent execution log. |
 | `/api/agent/log/download` | `GET` | Yes | Versioned JSON attachment of the retained safe agent log. |
-| `/api/reports/assist` | `POST` | Yes | Reads persisted shift evidence and returns a sanitized editable report draft. |
+| `/api/reports/assist` | `POST` | Yes | Rechecks the WebMCP-observed shift revision, validates citations, and returns sanitized editable report HTML. |
 | `/api/prim-line` | `GET` | Yes | Optional allowlisted read-only PRIM proxy. |
 | Other non-API paths | `GET`/`HEAD` | No | Static build and SPA fallback. |
 
@@ -288,10 +296,10 @@ copy is required.
 - Agent run history remains deliberately ephemeral. A new incident analysis can
   be rebuilt from persisted evidence; report assistance reads the durable shift log
   for every request and does not rely on run memory.
-- The shared access code is appropriate for the demonstration deployment, not a
-  production identity or role-management system.
-- The two deterministic engines remain a demonstration model, not live signalling
-  or certified operational telemetry.
+- The shared access code is appropriate for controlled access to this simulated
+  environment, not as a production identity or role-management system.
+- The two deterministic engines reproduce operational behaviour; they do not provide
+  live signalling or certified operational telemetry.
 - PRIM remains passenger-information evidence only.
-- Procedure editing is a controlled demonstration workspace feature, not a
-  regulatory document-management or independent approval system.
+- Procedure editing supports the simulated workspace; it is not a regulatory
+  document-management or independent approval system.

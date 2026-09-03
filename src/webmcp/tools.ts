@@ -7,6 +7,7 @@ import type {
 import { MAX_CIRCUIT_CLOSURE_NOTE_LENGTH } from "../rail/simulation";
 import { routeFor } from "../rail/topology";
 import type { Awaitable, NativeNetworkControllerFacade } from "../rail/useNativeNetworkSimulation";
+import type { ShiftWorkspaceSnapshot } from "../runtime/types";
 import { createNativeSimulationTools } from "./nativeTools";
 import {
   ScheduleWorkspaceError,
@@ -34,6 +35,9 @@ const MAX_SCHEDULE_PAGE = 12;
 const MAX_SCHEDULE_OFFSET = 10_000;
 const MAX_RESULT_ITEMS = 12;
 const MAX_RESULT_TEXT = 240;
+const MAX_SHIFT_LOG_PAGE_SIZE = 80;
+const MAX_SHIFT_LOG_SUMMARY_LENGTH = 600;
+const MAX_SHIFT_LOG_ENTITY_IDS = 8;
 
 export type CircuitClosureCommand =
   | { kind: "close"; reason: CircuitClosureReason; note: string }
@@ -66,6 +70,7 @@ export interface IccToolDependencies {
     action: CircuitClosureCommand,
   ) => Awaitable<CircuitClosureDependencyResult>;
   nativeNetwork?: NativeNetworkControllerFacade;
+  getShiftWorkspace?: () => Awaitable<ShiftWorkspaceSnapshot | null>;
 }
 
 function inputRecord(input: unknown): Record<string, unknown> {
@@ -205,6 +210,99 @@ export function createIccTools(
   dependencies: IccToolDependencies,
 ): WebMcpToolDefinition[] {
   return [
+    {
+      name: "inspect_shift_log",
+      description: "Read one bounded chronological page from the authenticated, server-persisted current-shift operations log. Returns the exact shift and report identity, latest log sequence, pagination cursor, incident and action timestamps, and explicit truncation flags. This tool is read-only and is the evidence source for the end-of-shift report assistant.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          reportId: { type: "string", minLength: 1, maxLength: 96 },
+          afterSequence: { type: "integer", minimum: 0 },
+          limit: { type: "integer", minimum: 1, maximum: MAX_SHIFT_LOG_PAGE_SIZE },
+        },
+        required: ["reportId", "afterSequence", "limit"],
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true, untrustedContentHint: true },
+      execute: async (rawInput) => {
+        const input = inputRecord(rawInput);
+        allowOnly(input, ["reportId", "afterSequence", "limit"]);
+        const reportId = requiredString(input, "reportId", 96);
+        const afterSequence = input.afterSequence;
+        const limit = input.limit;
+        if (!Number.isSafeInteger(afterSequence) || Number(afterSequence) < 0) {
+          throw new Error("afterSequence must be a non-negative integer.");
+        }
+        if (
+          !Number.isSafeInteger(limit) ||
+          Number(limit) < 1 ||
+          Number(limit) > MAX_SHIFT_LOG_PAGE_SIZE
+        ) {
+          throw new Error(`limit must be an integer between 1 and ${MAX_SHIFT_LOG_PAGE_SIZE}.`);
+        }
+        if (!dependencies.getShiftWorkspace) {
+          return blocked(
+            "shift_log_unavailable",
+            "The authenticated current-shift log is not attached to this page.",
+          );
+        }
+        const shift = await dependencies.getShiftWorkspace();
+        if (!shift || shift.report.reportId !== reportId) {
+          return {
+            status: "not_found",
+            reason: "report_not_current",
+            reportId,
+            message: "The requested report is not the authenticated current-shift report.",
+          };
+        }
+        const cursor = Number(afterSequence);
+        const pageLimit = Number(limit);
+        const available = [...shift.logs]
+          .filter((entry) => entry.sequence > cursor)
+          .sort((left, right) => left.sequence - right.sequence);
+        const selected = available.slice(0, pageLimit);
+        const nextAfterSequence = selected.at(-1)?.sequence ?? cursor;
+        const hasMore = available.length > selected.length;
+        return {
+          status: "shift_log_page_ready",
+          source: "authenticated_server_persisted_shift_log",
+          shiftId: shift.shiftId,
+          reportId: shift.report.reportId,
+          reportStatus: shift.report.status,
+          startedAt: shift.startedAt,
+          startedOperationalTime: shift.startedOperationalTime,
+          latestLogSequence: shift.nextLogSequence - 1,
+          page: {
+            afterSequence: cursor,
+            limit: pageLimit,
+            count: selected.length,
+            nextAfterSequence: hasMore ? nextAfterSequence : null,
+            hasMore,
+          },
+          logs: selected.map((entry) => ({
+            id: entry.id,
+            sequence: entry.sequence,
+            category: entry.category,
+            eventType: entry.eventType,
+            actor: entry.actor,
+            recordedAt: entry.recordedAt,
+            operationalTime: entry.operationalTime,
+            title: entry.title,
+            summary: entry.summary.slice(0, MAX_SHIFT_LOG_SUMMARY_LENGTH),
+            summaryTruncated: entry.summary.length > MAX_SHIFT_LOG_SUMMARY_LENGTH,
+            incidentId: entry.incidentId,
+            entityIds: entry.entityIds.slice(0, MAX_SHIFT_LOG_ENTITY_IDS),
+            entityIdsTruncated: entry.entityIds.length > MAX_SHIFT_LOG_ENTITY_IDS,
+            durationSeconds: entry.durationSeconds,
+          })),
+          guardrails: {
+            readOnly: true,
+            chronological: true,
+            operatorReviewRequired: true,
+          },
+        };
+      },
+    },
     {
       name: "inspect_prim_feed",
       description: "Read the provenance, freshness, official line references, coverage and bounded passenger estimated-call evidence from the current IDFM PRIM SIRI Lite live feed or contract replay. Explicitly separates observed passenger information from simulated ICC telemetry.",

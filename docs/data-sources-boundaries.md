@@ -1,9 +1,11 @@
 # Data sources and operational boundaries
 
-This document is the truth contract for the current Paris ICC demonstration. It
+This document is the truth contract for the Paris ICC operational simulation. It
 separates simulated state, optional passenger-information evidence, static network
-assets and agent-generated explanations. The interface is a decision-support
-prototype, not an operational railway control system.
+assets and agent-generated explanations. Paris ICC supports operational decisions;
+it is not an operational railway control system.
+
+> **Simulated environment — no real railway system connected.**
 
 ## Source classification
 
@@ -13,9 +15,9 @@ prototype, not an operational railway control system.
 | Detailed corridors | Deterministic local simulation | RER A, RER B, Metro 13 and Metro 14 trains, directional CDVs, incidents, regulation, crews and traction power | Fictional scenario values; no field system connected |
 | D-1 schedule | Bundled sample or locally imported CSV | Preview, impact evaluation, reviewed server-authoritative commit, persistence and undo | Not an operator timetable or workforce system |
 | PRIM live | IDFM PRIM SIRI Lite Estimated Timetable | Read-only passenger estimated calls for four configured lines | Not train position, occupancy, signalling or movement authority |
-| PRIM replay | Synthetic values encoded in the same SIRI Lite contract | Offline demo and repeatable parser validation | Must always be labelled replay/synthetic |
+| PRIM replay | Synthetic values encoded in the same SIRI Lite contract | Offline operational simulation and repeatable parser validation | Must always be labelled replay/synthetic |
 | Network topology and artwork | Committed SVG/JSON assets plus declared topology metadata | Stable station/interstation IDs and rendering geometry | Static reference asset; source and redistribution chain require verification |
-| Procedure catalogue | Local versioned DEMO documents | Incident-code search, cited next steps and normal-state criteria | Synthetic and non-official; not an RATP, IDFM or regulatory instruction |
+| Procedure catalogue | Local versioned simulation documents | Incident-code search, cited next steps and normal-state criteria | Synthetic and non-official; not an RATP, IDFM or regulatory instruction |
 | OpenAI analysis | Server-side Responses API using bounded WebMCP outputs | Prioritises and explains retrieved procedure steps | Cannot create a valid step, grant approval or prove a state change |
 
 ## Deterministic simulated state
@@ -32,12 +34,12 @@ as PRIM evidence or static reference metadata. The simulation includes:
 - power-section voltage, current, load and isolation state;
 - D-1 services, tracks, driver assignments and change impacts.
 
-The native 21-line engine and the four-line detailed-corridor engine are related demo
-views, not two synchronized copies of a live railway. They have explicit simulation
+The native 21-line engine and the four-line detailed-corridor engine are
+complementary simulation views, not two synchronized copies of a live railway. They have explicit simulation
 clocks and revisions. Telemetry progression is separated from decision revision so a
 moving clock does not silently validate or invalidate an operator decision.
 
-Simulation speed controls are demo accelerators. Displayed time, occurrence time,
+Simulation speed controls are simulation multipliers. Displayed time, occurrence time,
 passenger exposure, delays, currents, voltages and resource values must not be
 represented as current RATP, IDFM, SNCF or infrastructure-manager measurements.
 
@@ -85,7 +87,7 @@ simulation layer live. See [IDFM PRIM connector and evidence boundary](prim-conn
 ## Static topology and map asset
 
 The active map loads [the committed SVG](../artifacts/ratp-network-native.svg) and
-[its manifest](../artifacts/ratp-network-native.json). They provide stable demo
+[its manifest](../artifacts/ratp-network-native.json). They provide stable rendering
 geometry and object identifiers for 21 rendered lines, 390 canonical station records
 and 467 physical interstations. Exterior branches may be contracted by the artwork.
 The asset is not a track plan, geographic survey, signalling plan or complete
@@ -99,10 +101,10 @@ hash. Reconcile the actual source files, dates, authorship, licences and permitt
 transformations, then update the notices with evidence.
 
 Project code is MIT-licensed. That licence does not relicense railway artwork,
-operator names, logos, trademarks, GTFS data or other third-party material. Retain
-[the third-party notice](../THIRD_PARTY_NOTICES.md), independently verify applicable
-RATP/IDFM and source-platform terms, and obtain any permission required for the
-intended publication.
+operator names, logos, trademarks, GTFS data or other third-party material. The
+network SVG is not covered by the code license. Keep [Map adapted from the public
+RATP network map · © RATP](https://www.ratp.fr/plan-metro) visible and verify any
+permission required for the intended publication.
 
 ## Procedures and decision support
 
@@ -122,17 +124,17 @@ differs from the current agent recommendation. The advice never blocks a
 documented choice. The write then requires visible one-shot operator approval and
 revalidates the current decision revision.
 
-The bundled English catalogue is demo-authored, synthetic and explicitly
-`official: false`. It contains no approved internal RATP/IDFM procedure and must not
-be presented as a regulatory instruction. A real deployment would need an
+The bundled English catalogue contains synthetic procedures written for the
+operational simulation. Every document sets `official: false`; none is an approved
+internal RATP/IDFM procedure or a regulatory instruction. A real deployment would need an
 authorised controlled-document source, access policy, lifecycle, revision process,
 distribution rights and operational validation.
 
 When OpenAI is disabled or unavailable, a labelled deterministic fallback orders
 steps from the same retrieved document. It must not be described as model output.
 Neither path proves that a recommendation is safe for a real railway. A successful
-simulation receipt proves only that one reviewed demo step was recorded or applied
-to local state.
+simulation receipt proves only that one reviewed procedure step was recorded or
+applied to local state.
 
 ## Human authority and control boundary
 
@@ -152,7 +154,7 @@ qualified operator and field authorization.
 
 ## Privacy and secret handling
 
-- Driver resources use pseudonymous tokens. The demo contains no driver names,
+- Driver resources use pseudonymous tokens. The application contains no driver names,
   absence reasons, medical data, personal statements or live HR records.
 - Schedule CSV files are parsed inside the application and committed only to the
   authenticated same-origin operations workspace; they are not sent to an external
@@ -166,7 +168,7 @@ qualified operator and field authorization.
 - When OpenAI analysis is enabled, bounded page-tool outputs are relayed through the
   authenticated application server to the configured OpenAI Responses endpoint.
   Use only data authorised for that processing; the current corpus is synthetic.
-- The application has an embedded SQLite demonstration store for runtime state,
+- The application has an embedded SQLite store for simulated runtime state,
   ordered events, and idempotent command receipts. It is not an immutable audit
   archive, certified operational database, backup system, or records-management
   control.
@@ -195,6 +197,5 @@ Safe wording is precise: **PRIM passenger-information evidence may be live when 
 optional connector is configured; all train movement, infrastructure, incident,
 crew, schedule and power behavior remains deterministic local simulation.**
 
-For the corresponding operator workflow, see the
-[Paris ICC operator guide](operator-guide.md) and the
-[jury walkthrough](jury-walkthrough.md).
+For the corresponding workflow, see the
+[Paris ICC operator guide](operator-guide.md).

@@ -31,6 +31,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LEGACY_TOOLS = {
     "apply_reviewed_schedule_change",
     "evaluate_schedule_impact",
+    "inspect_shift_log",
     "prepare_shift_brief",
     "get_circulation",
     "inspect_j1_capacity",
@@ -60,6 +61,7 @@ READ_ONLY_TOOLS = {
     "inspect_network_state",
     "inspect_prim_feed",
     "inspect_schedule_plan",
+    "inspect_shift_log",
     "list_operational_incidents",
     "prepare_shift_brief",
     "inspect_network_digital_twin",
@@ -1052,13 +1054,15 @@ def validate_circuit_closure(
     # Reset and pause make the browser exercise deterministic while retaining
     # the same React and WebMCP paths used by an operator and an agent.
     page.get_by_role("button", name="Reset operational workspace").click()
+    page.get_by_text(
+        "Complete scenario reset: traffic 01:00 PM and D-1 sample plan restored",
+        exact=True,
+    ).wait_for(state="visible", timeout=client.timeout_seconds * 1000)
     pause_button = page.get_by_role("button", name="Pause operational clock")
     pause_button.click()
     wait_until(
         page,
-        lambda: "active" in (
-            pause_button.get_attribute("class") or ""
-        ),
+        lambda: pause_button.get_attribute("aria-pressed") == "true",
         client.timeout_seconds,
         "paused simulation",
     )
@@ -1590,6 +1594,34 @@ def run_validation(args: argparse.Namespace) -> dict[str, Any]:
             try:
                 context = browser.new_context()
                 page = context.new_page()
+                agent_interceptions = {"turn": 0, "reset": 0}
+
+                def intercept_agent(route: Any) -> None:
+                    if route.request.url.endswith("/api/agent/turn"):
+                        agent_interceptions["turn"] += 1
+                        route.fulfill(
+                            status=200,
+                            content_type="application/json",
+                            body=json.dumps({
+                                "status": "completed",
+                                "runId": "native-webmcp-validator-fallback",
+                            }),
+                        )
+                        return
+                    if route.request.url.endswith("/api/agent/reset"):
+                        agent_interceptions["reset"] += 1
+                        route.fulfill(
+                            status=200,
+                            content_type="application/json",
+                            body=json.dumps({"status": "reset"}),
+                        )
+                        return
+                    route.continue_()
+
+                # Native tool discovery/execution is the subject of this validator.
+                # Keep it deterministic and prevent operational context from being
+                # sent to an external model while exercising the incident UI.
+                page.route("**/api/agent/*", intercept_agent)
                 browser_errors: list[str] = []
                 page.on(
                     "console",
@@ -1623,13 +1655,17 @@ def run_validation(args: argparse.Namespace) -> dict[str, Any]:
                     args.url,
                     wait_until="domcontentloaded",
                 )
-                page.wait_for_function(
-                    "document.querySelector('#main-content') || "
-                    "document.querySelector('#jury-access-code')",
-                    timeout=args.timeout * 1000,
+                wait_until(
+                    page,
+                    lambda: (
+                        page.locator("#main-content").is_visible()
+                        or page.locator("#access-code").is_visible()
+                    ),
+                    args.timeout,
+                    "the operations canvas or access-code form",
                 )
                 access_input = page.locator(
-                    "#jury-access-code"
+                    "#access-code"
                 )
                 if access_input.is_visible():
                     require(
@@ -1689,6 +1725,9 @@ def run_validation(args: argparse.Namespace) -> dict[str, Any]:
                     ) or error == (
                         'page:Unexpected input property '
                         '"unexpected".'
+                    ) or error == (
+                        "console:error:Failed to load resource: "
+                        "the server responded with a status of 409 (Conflict)"
                     )
                 ]
                 expected_development_errors = [
@@ -1725,6 +1764,7 @@ def run_validation(args: argparse.Namespace) -> dict[str, Any]:
                     "invocations": invocations,
                     "scheduleDecision": schedule_decision,
                     "lifecycle": lifecycle,
+                    "agentEndpointInterceptions": agent_interceptions,
                     "browserErrors": unexpected_browser_errors,
                     "expectedSchemaRejections": expected_schema_errors,
                     "expectedDevelopmentFallbacks": expected_development_errors,

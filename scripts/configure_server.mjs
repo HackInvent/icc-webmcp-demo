@@ -109,7 +109,7 @@ try {
   const configuration = {
     $schema: "./server.schema.json",
     application: {
-      name: "Paris ICC - WebMCP DEMO",
+      name: "Paris ICC",
       environment: "production",
       publicOrigin,
       dataMode: "local-simulation",

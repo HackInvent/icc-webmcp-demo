@@ -71,6 +71,7 @@ export type WebMcpApprovalHandler = (
 ) => Promise<WebMcpApprovalDecision> | WebMcpApprovalDecision;
 
 const TOOL_LABELS: Record<string, string> = {
+  inspect_shift_log: "Inspect persisted shift log",
   inspect_prim_feed: "Inspect PRIM evidence & provenance",
   prepare_shift_brief: "Prepare cross-domain shift brief",
   inspect_network_state: "Inspect network state",

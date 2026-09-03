@@ -154,7 +154,7 @@ function mapExecutionError(error) {
   }
   if (error instanceof NativeSimulationError) {
     return new OperationsError(
-      error.code === "UNKNOWN_INCIDENT" ? 404 : 400,
+      error.code === "UNKNOWN_INCIDENT" ? 404 : error.code === "STATION_OCCUPIED" ? 409 : 400,
       error.code.toLowerCase(),
       error.message,
     );

@@ -3,7 +3,11 @@ import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { AgentProtocolError, AgentService } from "./agent.mjs";
+import {
+  AgentProtocolError,
+  AgentService,
+  validateShiftReportDraftForEvidence,
+} from "./agent.mjs";
 import { AgentRuntimeStore } from "./agent-runtime-store.mjs";
 import { IncidentInstructionValidationError } from "./incident-instruction-registry.mjs";
 import {
@@ -699,18 +703,26 @@ export function createParisIccServer(config, options = {}) {
         if (snapshot.shift.report.status === "frozen") {
           throw new HttpError(409, "report_frozen", "The frozen report cannot be replaced by an agent draft.");
         }
-        let assisted = null;
-        let usage;
-        let warning = null;
-        if (config.openai.enabled) {
-          const generated = await agentService.draftShiftReport(
-            shiftReportEvidence(snapshot.shift),
+        if (
+          typeof body?.expectedShiftId !== "string" ||
+          body.expectedShiftId !== snapshot.shift.shiftId ||
+          !Number.isSafeInteger(body?.expectedLogSequence) ||
+          body.expectedLogSequence !== snapshot.shift.nextLogSequence - 1
+        ) {
+          throw new HttpError(
+            409,
+            "stale_report_evidence",
+            "The persisted shift log changed after WebMCP inspection. Request a new draft.",
           );
-          assisted = generated.draft;
-          usage = generated.usage;
-        } else {
-          warning = "OpenAI is disabled; a deterministic log chronology was prepared for operator review.";
         }
+        const evidence = shiftReportEvidence(snapshot.shift);
+        const hasAgentDraft = Object.prototype.hasOwnProperty.call(body, "draft");
+        const assisted = hasAgentDraft
+          ? validateShiftReportDraftForEvidence(body.draft, evidence)
+          : null;
+        const warning = assisted
+          ? null
+          : "OpenAI is disabled; a deterministic chronology was prepared after WebMCP verified the persisted shift log.";
         sendJson(response, 200, {
           status: "draft_ready",
           reportId: snapshot.shift.report.reportId,
@@ -719,7 +731,6 @@ export function createParisIccServer(config, options = {}) {
           warning,
           sourceLogCount: snapshot.shift.logs.length,
           sourceLogSequence: snapshot.shift.nextLogSequence - 1,
-          usage,
         });
         return;
       }

@@ -186,6 +186,7 @@ export function buildPassengerFlowView(
   lineCode: NativeLineCode | null = null,
 ): PassengerFlowView {
   const trains = simulation.trains.filter((train) => lineCode === null || train.lineCode === lineCode);
+  const shuttles = simulation.shuttles.filter((shuttle) => lineCode === null || shuttle.lineCode === lineCode);
   const contributions = new Map<string, PassengerFlowContribution[]>();
   const append = (stationCode: string, contribution: PassengerFlowContribution) => {
     contributions.set(stationCode, [...(contributions.get(stationCode) ?? []), contribution]);
@@ -243,13 +244,27 @@ export function buildPassengerFlowView(
   );
   const active = stations.filter((station) => station.passengerPressure > 0);
   const totalLoad = active.reduce((sum, station) => sum + station.loadPercent, 0);
+  const totalOnboardPassengers =
+    trains.reduce((sum, train) => sum + train.passengers, 0) +
+    shuttles.reduce((sum, shuttle) => sum + shuttle.passengers, 0);
+  const recordedBoardings = stations.reduce((sum, station) => sum + (station.totalBoarded ?? 0), 0);
+  const totalAlightedPassengers = stations.reduce((sum, station) => sum + (station.totalAlighted ?? 0), 0);
+
+  // The operating-day snapshot starts with passengers already aboard. Those
+  // earlier boarding events are not present in the station exchange counters.
+  // Conservation therefore gives the known day total as onboard + alighted.
+  // Preserve an imported cumulative counter when it already contains more history.
+  const cumulativeBoardings = Math.max(
+    recordedBoardings,
+    totalOnboardPassengers + totalAlightedPassengers,
+  );
   return {
     stations,
-    totalOnboardPassengers: trains.reduce((sum, train) => sum + train.passengers, 0),
+    totalOnboardPassengers,
     totalQueuePassengers: stations.reduce((sum, station) => sum + station.queuePassengers, 0),
     totalGeneratedPassengers: stations.reduce((sum, station) => sum + (station.totalGenerated ?? 0), 0),
-    totalBoardedPassengers: stations.reduce((sum, station) => sum + (station.totalBoarded ?? 0), 0),
-    totalAlightedPassengers: stations.reduce((sum, station) => sum + (station.totalAlighted ?? 0), 0),
+    totalBoardedPassengers: cumulativeBoardings,
+    totalAlightedPassengers,
     passengerPressure: active.reduce((sum, station) => sum + station.passengerPressure, 0),
     activeStationCount: active.length,
     highPressureStationCount: active.filter((station) => station.level === "high" || station.level === "critical").length,

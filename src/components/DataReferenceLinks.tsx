@@ -45,7 +45,7 @@ export function DataReferenceLinks({ page }: DataReferenceLinksProps) {
           rel="noreferrer"
         >
           <Icon name="external" size={12} />
-          RATP · SVG map reference
+          Map adapted from the public RATP network map · © RATP
         </a>
       )}
     </aside>

@@ -1125,8 +1125,8 @@ export function RatpNetworkSchematic({
         <div>
           <span className="panel__eyebrow">NATIVE RATP SCHEMATIC · OPERATIONAL DIGITAL TWIN</span>
           <h2 id="native-network-title">Paris Metro + RER decision map</h2>
-          <span className="native-network-panel__disclaimer" role="note">
-            Synthetic decision procedures are used for this demo; they are not official RATP or IDFM instructions.
+          <span id="text-text-overview-simulation-notice" className="native-network-panel__disclaimer" role="note">
+            Simulated environment — no real railway system connected.
           </span>
         </div>
         <div className="native-map__scope" role="group" aria-label="Network scope">

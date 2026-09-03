@@ -2,6 +2,7 @@ import {
   NATIVE_INTERSTATIONS,
   NATIVE_INTERSTATION_BY_ID,
   NATIVE_LINE_BY_CODE,
+  isNativeAutomaticLine,
   NATIVE_LINE_COMPONENTS,
   NATIVE_LINES,
   NATIVE_STATION_BY_CODE,
@@ -79,6 +80,7 @@ export type NativeScenarioId =
 
 export interface NativeTrainState {
   id: string;
+  driverId: string | null;
   circulationId: string;
   lineCode: NativeLineCode;
   mission: string;
@@ -365,6 +367,7 @@ export class NativeSimulationError extends Error {
       | "UNKNOWN_INTERSTATION"
       | "LINE_MISMATCH"
       | "INVALID_INPUT"
+      | "STATION_OCCUPIED"
       | "UNKNOWN_INCIDENT",
     message: string,
   ) {
@@ -609,6 +612,26 @@ export function nativeOperatorTrainInsertionOptions(
   })));
 }
 
+/**
+ * Manual insertion points that are free in the current operational state.
+ * A station is a discrete train location in this model, so another train on
+ * any line reserves that station until it departs.
+ */
+export function nativeAvailableOperatorTrainInsertionOptions(
+  lineCode: NativeLineCode,
+  trains: readonly Pick<NativeTrainState, "location">[],
+): readonly NativeTrainInsertionOption[] {
+  const occupiedStationIds = new Set(
+    trains
+      .filter((train) => train.location.type === "station")
+      .map((train) => train.location.id),
+  );
+  return Object.freeze(
+    nativeOperatorTrainInsertionOptions(lineCode)
+      .filter((option) => !occupiedStationIds.has(option.stationId)),
+  );
+}
+
 export function nativeTrainInsertionOptions(lineCode: NativeLineCode): readonly NativeTrainInsertionOption[] {
   const route = ROUTES_BY_LINE.get(lineCode);
   if (!route || route.length === 0) return Object.freeze([]);
@@ -786,6 +809,40 @@ export function nativeTrainOperationalLocation(
     : { type: "interstation", id: train.currentInterstationId };
 }
 
+export function nativeDriverIdForTrain(
+  trainId: string,
+  lineCode: NativeLineCode,
+): string | null {
+  return isNativeAutomaticLine(lineCode) ? null : `DRV-${trainId}`;
+}
+
+function normalizeNativeTrainDriverAssignments(
+  trains: readonly NativeTrainState[],
+): NativeTrainState[] {
+  const usedDriverIds = new Set<string>();
+  return trains.map((train) => {
+    if (isNativeAutomaticLine(train.lineCode)) {
+      return train.driverId === null ? train : { ...train, driverId: null };
+    }
+
+    const persistedDriverId = typeof train.driverId === "string"
+      ? train.driverId.trim()
+      : "";
+    const generatedDriverId = nativeDriverIdForTrain(train.id, train.lineCode)!;
+    let driverId = persistedDriverId || generatedDriverId;
+    if (usedDriverIds.has(driverId)) {
+      driverId = generatedDriverId;
+      let sequence = 2;
+      while (usedDriverIds.has(driverId)) {
+        driverId = `${generatedDriverId}-${sequence}`;
+        sequence += 1;
+      }
+    }
+    usedDriverIds.add(driverId);
+    return train.driverId === driverId ? train : { ...train, driverId };
+  });
+}
+
 function makeFleet(): NativeTrainState[] {
   const trains: NativeTrainState[] = [];
   for (const [lineIndex, line] of NATIVE_LINES.entries()) {
@@ -803,8 +860,10 @@ function makeFleet(): NativeTrainState[] {
       const originStationCode = direction === 1 ? route[0].fromStationCode : route.at(-1)!.toStationCode;
       const destinationStationCode = direction === 1 ? route.at(-1)!.toStationCode : route[0].fromStationCode;
       const suffix = String(trainIndex + 1).padStart(2, "0");
+      const id = `${line.code.replace("RER_", "RER")}-T${suffix}`;
       trains.push({
-        id: `${line.code.replace("RER_", "RER")}-T${suffix}`,
+        id,
+        driverId: nativeDriverIdForTrain(id, line.code),
         circulationId: `${line.code}-SIM-${suffix}`,
         lineCode: line.code,
         mission: `${line.label}${String(lineIndex + 1).padStart(2, "0")}${trainIndex === 0 ? "A" : "R"}`,
@@ -1168,7 +1227,7 @@ function normalizePersistedTrainLoads(
   const restored = structuredClone(snapshot);
   return {
     ...restored,
-    trains: restored.trains.map((train) => {
+    trains: normalizeNativeTrainDriverAssignments(restored.trains).map((train) => {
       const capacity = getReferenceCapacity(train.lineCode);
       if (
         !Number.isSafeInteger(train.passengers) ||
@@ -1280,7 +1339,7 @@ export function createNativeSimulationSnapshotFromConfiguration(
     speed: configuration.speed,
     scenarioId: configuration.scenarioId,
     scenarioName: configuration.scenarioName.trim() || configuration.scenarioId,
-    trains: configuration.trains.map((train) => ({
+    trains: normalizeNativeTrainDriverAssignments(configuration.trains).map((train) => ({
       ...train,
       routeInterstationIds: [...train.routeInterstationIds],
       location: { ...train.location },
@@ -1749,10 +1808,18 @@ export function assertNativeSimulationInvariants(snapshot: NativeSimulationSnaps
   invariant(Number.isFinite(snapshot.timestamp), "invalid timestamp");
   invariant(snapshot.trains.length >= NATIVE_LINES.length * 2, "fleet must retain at least two trains per native line");
   invariant(new Set(snapshot.trains.map((train) => train.id)).size === snapshot.trains.length, "train IDs must be unique");
+  const assignedDriverIds = snapshot.trains.flatMap((train) => train.driverId ? [train.driverId] : []);
+  invariant(new Set(assignedDriverIds).size === assignedDriverIds.length, "driver IDs must be unique");
   for (const line of NATIVE_LINES) {
     invariant(snapshot.trains.filter((train) => train.lineCode === line.code).length >= 2, `${line.code} base fleet`);
   }
   for (const train of snapshot.trains) {
+    invariant(
+      isNativeAutomaticLine(train.lineCode)
+        ? train.driverId === null
+        : typeof train.driverId === "string" && train.driverId.length > 0,
+      `${train.id} driver assignment`,
+    );
     invariant(Number.isFinite(train.progress) && train.progress >= 0 && train.progress < 1, `${train.id} progress`);
     invariant(Number.isFinite(train.speedKmh) && train.speedKmh >= 0, `${train.id} speed`);
     invariant(Number.isFinite(train.delaySeconds) && train.delaySeconds >= 0, `${train.id} delay`);
@@ -2035,6 +2102,15 @@ function createInsertedTrain(
       `Station ${input.stationId} is not a grounded insertion point for ${input.lineCode}.`,
     );
   }
+  const occupyingTrain = snapshot.trains.find(
+    (train) => train.location.type === "station" && train.location.id === input.stationId,
+  );
+  if (occupyingTrain) {
+    throw new NativeSimulationError(
+      "STATION_OCCUPIED",
+      `Station ${input.stationId} is already occupied by train ${occupyingTrain.id}. Choose an unoccupied station.`,
+    );
+  }
   let sequence = 1;
   let id: string;
   do {
@@ -2048,6 +2124,7 @@ function createInsertedTrain(
   const destinationStationCode = insertion.destinationStationId;
   const train: NativeTrainState = {
     id,
+    driverId: nativeDriverIdForTrain(id, input.lineCode),
     circulationId: `${input.lineCode}-INS-${String(sequence - 1).padStart(2, "0")}`,
     lineCode: input.lineCode,
     mission: `${line.label}I${String(sequence - 1).padStart(2, "0")}`,

@@ -287,7 +287,7 @@ describe("server-authoritative operations HTTP API", () => {
         type: "power",
         severity: "high",
         effect: "isolate-power",
-        occurrenceTime: initial.detailed.snapshot.timestamp + 1,
+        occurrenceTime: initial.detailed.snapshot.timestamp + 5_000,
         title: "Scheduled traction isolation",
         summary: "Activation verifies server-side scheduled decision transitions.",
       },

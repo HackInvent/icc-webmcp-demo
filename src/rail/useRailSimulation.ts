@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { operationsClient } from "../runtime/operationsClient";
+import {
+  OperationsClientError,
+  operationsClient,
+} from "../runtime/operationsClient";
 import type {
+  CircuitClosureRejectionReason,
   CircuitClosureReason,
   IncidentStatus,
   NewIncidentInput,
@@ -33,6 +37,27 @@ import {
 
 const DECISION_REVISION_STORAGE_KEY = "paris-icc.rail-decision-revision.v1";
 export const RAIL_BROWSER_FALLBACK_TICK_INTERVAL_MS = 1_000;
+
+const CIRCUIT_REJECTION_REASONS = new Set<CircuitClosureRejectionReason>([
+  "not_found",
+  "occupied",
+  "blocked",
+  "already_closed",
+  "already_open",
+  "invalid_note",
+  "invalid_reference",
+  "live_forbidden",
+]);
+
+function circuitRejectionReason(error: unknown): CircuitClosureRejectionReason {
+  if (
+    error instanceof OperationsClientError &&
+    CIRCUIT_REJECTION_REASONS.has(error.code as CircuitClosureRejectionReason)
+  ) {
+    return error.code as CircuitClosureRejectionReason;
+  }
+  return "blocked";
+}
 
 function storeDecisionRevision(decisionRevision: number): void {
   if (typeof window === "undefined") return;
@@ -346,7 +371,7 @@ export function useRailSimulation() {
           return {
             ok: false as const,
             action: "close" as const,
-            reason: "blocked" as const,
+            reason: circuitRejectionReason(error),
             circuitId,
             message: error instanceof Error ? error.message : "Circuit closure rejected.",
             nextState: stateRef.current,
@@ -382,7 +407,7 @@ export function useRailSimulation() {
           return {
             ok: false as const,
             action: "reopen" as const,
-            reason: "blocked" as const,
+            reason: circuitRejectionReason(error),
             circuitId,
             message: error instanceof Error ? error.message : "Circuit reopening rejected.",
             nextState: stateRef.current,

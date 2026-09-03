@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { NATIVE_INTERSTATIONS, NATIVE_INTERSTATION_BY_ID, NATIVE_LINE_COMPONENTS, NATIVE_LINES } from "./nativeNetwork";
+import { NATIVE_INTERSTATIONS, NATIVE_INTERSTATION_BY_ID, NATIVE_LINE_COMPONENTS, NATIVE_LINES, isNativeAutomaticLine } from "./nativeNetwork";
 import { nativeStationPassengerId } from "./passengerDemand";
 import { getReferenceCapacity } from "./rollingStock";
 import {
@@ -7,6 +7,7 @@ import {
   assertNativeSimulationInvariants,
   createNativeNetworkController,
   createNativeSimulationSnapshot,
+  nativeAvailableOperatorTrainInsertionOptions,
   nativeAlightingPassengerCount,
   nativeShuttleDestinationOptions,
   nativeTrainOperationalLocation,
@@ -123,6 +124,21 @@ describe("native all-network simulation", () => {
       "interstation-M14-71264--73626",
       "interstation-RER_A-474151--478926",
     ]);
+    expect(() => assertNativeSimulationInvariants(snapshot)).not.toThrow();
+  });
+
+  it("assigns exactly one unique driver to every non-automatic train", () => {
+    const snapshot = createNativeSimulationSnapshot({ scenarioId: "nominal" });
+    const automaticTrains = snapshot.trains.filter((train) => isNativeAutomaticLine(train.lineCode));
+    const staffedTrains = snapshot.trains.filter((train) => !isNativeAutomaticLine(train.lineCode));
+    const driverIds = staffedTrains.map((train) => train.driverId);
+
+    expect(new Set(automaticTrains.map((train) => train.lineCode))).toEqual(new Set(["M1", "M4", "M14"]));
+    expect(automaticTrains).toHaveLength(6);
+    expect(automaticTrains.every((train) => train.driverId === null)).toBe(true);
+    expect(driverIds).toHaveLength(staffedTrains.length);
+    expect(driverIds.every((driverId) => typeof driverId === "string" && driverId.length > 0)).toBe(true);
+    expect(new Set(driverIds).size).toBe(staffedTrains.length);
     expect(() => assertNativeSimulationInvariants(snapshot)).not.toThrow();
   });
 
@@ -403,6 +419,7 @@ describe("native all-network simulation", () => {
       decisionRevision: initial.decisionRevision + 1,
       train: {
         lineCode: "RER_A",
+        driverId: "DRV-RERA-I01",
         originStationCode: stationId,
         location: { type: "station", id: stationId },
         status: "dwelling",
@@ -412,6 +429,19 @@ describe("native all-network simulation", () => {
     expect(controller.getSnapshot().metrics.fleetSize).toBe(initial.metrics.fleetSize + 1);
     expect(() => assertNativeSimulationInvariants(controller.getSnapshot())).not.toThrow();
     expect(controller.reset().trains).toHaveLength(initial.trains.length);
+  });
+
+  it("keeps an inserted automatic train driverless", () => {
+    const controller = createNativeNetworkController({ scenarioId: "nominal" });
+    const stationId = nativeTrainInsertionStationIds("M14")[0]!;
+    const receipt = controller.insertTrain({ lineCode: "M14", stationId });
+
+    expect(receipt.train).toEqual(expect.objectContaining({
+      lineCode: "M14",
+      driverId: null,
+      location: { type: "station", id: stationId },
+    }));
+    expect(() => assertNativeSimulationInvariants(controller.getSnapshot())).not.toThrow();
   });
 
   it("lets the operator insert at an interior station in either route direction without widening agent proposals", () => {
@@ -431,7 +461,6 @@ describe("native all-network simulation", () => {
     expect(interiorEntry).toBeDefined();
     const [stationId, directions] = interiorEntry!;
     expect(agentOptions.some((option) => option.stationId === stationId)).toBe(false);
-
     const controller = createNativeNetworkController({ scenarioId: "nominal" });
     const initial = controller.getSnapshot();
     const outward = directions.find((option) => option.direction === 1)!;
@@ -454,6 +483,39 @@ describe("native all-network simulation", () => {
     });
     expect(controller.getSnapshot().trains).toHaveLength(initial.trains.length + 1);
     expect(() => assertNativeSimulationInvariants(controller.getSnapshot())).not.toThrow();
+  });
+
+  it("rejects a train insertion when another train already occupies the station", () => {
+    const controller = createNativeNetworkController({ scenarioId: "nominal" });
+    const option = nativeOperatorTrainInsertionOptions("RER_A")[0]!;
+    const first = controller.insertTrain({
+      lineCode: "RER_A",
+      stationId: option.stationId,
+      direction: option.direction,
+    });
+    const afterFirstInsertion = controller.getSnapshot();
+
+    expect(nativeAvailableOperatorTrainInsertionOptions("RER_A", afterFirstInsertion.trains))
+      .not.toContainEqual(expect.objectContaining({ stationId: option.stationId }));
+    let insertionError: unknown;
+    try {
+      controller.insertTrain({
+        lineCode: "RER_A",
+        stationId: option.stationId,
+        direction: option.direction,
+      });
+    } catch (error) {
+      insertionError = error;
+    }
+    expect(insertionError).toMatchObject({
+      name: "NativeSimulationError",
+      code: "STATION_OCCUPIED",
+      message: expect.stringContaining(first.train.id),
+    });
+    expect(controller.getSnapshot()).toBe(afterFirstInsertion);
+    expect(controller.getSnapshot().trains.filter((train) =>
+      train.location.type === "station" && train.location.id === option.stationId
+    )).toHaveLength(1);
   });
 
   it("lets loaded trains clear a communication-restricted interstation, then holds them at station", () => {

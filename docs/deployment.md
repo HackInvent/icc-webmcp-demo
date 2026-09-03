@@ -1,7 +1,7 @@
 # Deployment without Docker or systemd
 
 Paris ICC is a Node.js application served behind a same-origin Nginx reverse
-proxy. It uses an embedded SQLite file for durable demonstration state. It does
+proxy. It uses an embedded SQLite file for persistent simulation state. It does
 not require Docker, Compose, systemd, PostgreSQL, H2, or another database daemon.
 
 ## Requirements

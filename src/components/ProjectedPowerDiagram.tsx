@@ -38,7 +38,7 @@ export function ProjectedPowerDiagram({ view }: ProjectedPowerDiagramProps) {
   return (
     <div className="power-diagram power-diagram--projected" data-line-id={line.code} data-power-projection="topology">
       <svg viewBox="0 0 1180 410" role="group" aria-label={`${line.name} modelled traction-power coverage diagram`}>
-        <text x={startX} y="30" className="power-diagram__scope">FULL-LINE TOPOLOGY PROJECTION · ELECTRICAL TELEMETRY NOT CONNECTED</text>
+        <text x={startX} y="30" className="power-diagram__scope">FULL-LINE TOPOLOGY · TRAIN-LINKED OPERATIONAL SIMULATION</text>
 
         {sections.map((section, index) => {
           const sectionStart = startX + index * segmentWidth;
@@ -53,22 +53,22 @@ export function ProjectedPowerDiagram({ view }: ProjectedPowerDiagramProps) {
               className={`power-node power-node--projected power-node--${section.status}`}
               data-model-power-section-id={section.id}
               role="group"
-              aria-label={`${section.name}, ${section.rangeLabel}, ${section.status === "degraded" ? "active linked power constraint" : "no linked power constraint"}`}
+              aria-label={`${section.name}, ${section.rangeLabel}, ${section.simulatedDemandMw.toFixed(2)} megawatts simulated demand, ${section.suppliedTrainIds.length} supplied trains`}
             >
               <rect x={sectionX} y="48" width={sectionWidth} height="112" rx="12" className="substation-box" />
               <rect x={sectionX} y="48" width="7" height="112" rx="4" fill={line.color} />
               <text x={sectionX + 20} y="76" className="power-title">{section.name}</text>
-              <text x={sectionX + 20} y="99" className="power-subtitle">{section.interstationIds.length} interstations · topology model</text>
-              <text x={sectionX + 20} y="125" className="power-reading power-reading--model">MODELLED</text>
+              <text x={sectionX + 20} y="99" className="power-subtitle">{section.suppliedTrainIds.length} train{section.suppliedTrainIds.length === 1 ? "" : "s"} · {section.runningTrainIds.length} running</text>
+              <text x={sectionX + 20} y="125" className="power-reading power-reading--model">{section.simulatedDemandMw.toFixed(2)} MW</text>
               <circle cx={sectionX + 22} cy="145" r="5" fill={statusColor} />
-              <text x={sectionX + 34} y="149" className="power-status">{section.status === "degraded" ? "ACTIVE CONSTRAINT" : "NO LINKED CONSTRAINT"}</text>
+              <text x={sectionX + 34} y="149" className="power-status">{section.simulatedCurrentAmps} A · {section.simulatedLoadPercent}% SIM LOAD</text>
 
               <line x1={centerX} y1="160" x2={centerX} y2="190" className="power-bus" />
               <circle cx={centerX} cy="204" r="14" className="power-breaker" stroke={statusColor} />
               <path d={`M${centerX - 7} 204h14M${centerX} 197v14`} stroke={statusColor} strokeWidth="2" />
               <line x1={centerX} y1="218" x2={centerX} y2="244" className="power-bus" stroke={statusColor} />
               <line x1={sectionStart + 5} y1="250" x2={sectionEnd - 5} y2="250" className="power-section-band" stroke={statusColor} />
-              <title>{`${section.id} · ${section.rangeLabel} · ${section.linkedIncidentIds.length ? section.linkedIncidentIds.join(", ") : "no linked incident"}`}</title>
+              <title>{`${section.id} · ${section.rangeLabel} · ${section.simulatedDemandMw.toFixed(3)} MW simulated traction demand · trains ${section.suppliedTrainIds.join(", ") || "none"}`}</title>
             </g>
           );
         })}

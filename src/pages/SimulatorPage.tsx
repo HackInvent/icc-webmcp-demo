@@ -5,6 +5,7 @@ import { PageHeader } from "../components/PageHeader";
 import { StatusPill } from "../components/StatusPill";
 import { SimulatorIncidentModal } from "../components/SimulatorIncidentModal";
 import { nativeIncidentPath, navigate } from "../navigation";
+import { buildPassengerFlowView } from "../passenger/passengerFlowModel";
 import type { EntitySelection, Incident, RailSnapshot } from "../rail/domain";
 import {
   NATIVE_INTERSTATIONS,
@@ -17,6 +18,7 @@ import {
 } from "../rail/nativeNetwork";
 import {
   NATIVE_SIMULATION_STEP_MS,
+  nativeAvailableOperatorTrainInsertionOptions,
   nativeOperatorTrainInsertionOptions,
   type NativeIncident,
   type NativeShuttleState,
@@ -219,8 +221,8 @@ export function SimulatorPage({
   } | null>(null);
   const normalizedSearch = search.trim().toLocaleLowerCase("en");
   const insertionOptions = useMemo(
-    () => nativeOperatorTrainInsertionOptions(insertionLine),
-    [insertionLine],
+    () => nativeAvailableOperatorTrainInsertionOptions(insertionLine, nativeSimulation.trains),
+    [insertionLine, nativeSimulation.trains],
   );
   const insertionStations = useMemo(() => [...new Map(insertionOptions.map((option) => [
     option.stationId,
@@ -229,6 +231,10 @@ export function SimulatorPage({
   [insertionOptions]);
   const insertionDirections = insertionOptions.filter((option) => option.stationId === insertionStationId);
   const selectedInsertion = insertionDirections.find((option) => option.direction === insertionDirection) ?? null;
+  const passengerFlowSummary = useMemo(
+    () => buildPassengerFlowView(nativeSimulation, snapshot),
+    [nativeSimulation, snapshot],
+  );
 
   const indexes = useMemo(() => {
     const trainsByLocation = new Map<string, string[]>();
@@ -279,6 +285,7 @@ export function SimulatorPage({
             train.id,
             train.circulationId,
             train.mission,
+            train.driverId,
             train.lineCode,
             train.status,
             location.title,
@@ -375,18 +382,18 @@ export function SimulatorPage({
           circuit.closure?.reason,
         ]))
         .sort((left, right) => left.lineId.localeCompare(right.lineId) || left.segmentIndex - right.segmentIndex),
-      drivers: [...snapshot.drivers]
-        .filter((driver) => lineMatches(driver.qualifications))
-        .filter((driver) => matchesSearch(normalizedSearch, [
-          driver.id,
-          driver.depot,
-          driver.qualifications,
-          driver.status,
-          driver.assignedTrainId,
-          driver.shiftStart,
-          driver.shiftEnd,
+      drivers: [...nativeSimulation.trains]
+        .filter((train) => train.driverId !== null)
+        .filter((train) => lineMatches([train.lineCode]))
+        .filter((train) => matchesSearch(normalizedSearch, [
+          train.driverId,
+          train.id,
+          train.circulationId,
+          train.mission,
+          train.lineCode,
+          train.status,
         ]))
-        .sort((left, right) => left.id.localeCompare(right.id)),
+        .sort((left, right) => left.lineCode.localeCompare(right.lineCode) || left.id.localeCompare(right.id)),
       events: [...snapshot.events]
         .filter((event) => matchesSearch(normalizedSearch, [
           event.id,
@@ -405,14 +412,13 @@ export function SimulatorPage({
     nativeSimulation.trains,
     normalizedSearch,
     snapshot.circuits,
-    snapshot.drivers,
     snapshot.events,
     snapshot.incidents,
     snapshot.powerSections,
   ]);
 
   const selectInsertionLine = (nextLine: NativeLineCode) => {
-    const first = nativeOperatorTrainInsertionOptions(nextLine)[0];
+    const first = nativeAvailableOperatorTrainInsertionOptions(nextLine, nativeSimulation.trains)[0];
     setInsertionLine(nextLine);
     setInsertionStationId(first?.stationId ?? "");
     setInsertionDirection(first?.direction ?? 1);
@@ -462,7 +468,7 @@ export function SimulatorPage({
     interstations: NATIVE_INTERSTATIONS.length,
     power: snapshot.powerSections.length,
     circuits: snapshot.circuits.length,
-    drivers: snapshot.drivers.length,
+    drivers: nativeSimulation.trains.filter((train) => train.driverId !== null).length,
     events: snapshot.events.length,
   };
   const filteredCount = filtered[activeTab].length;
@@ -478,6 +484,17 @@ export function SimulatorPage({
   useEffect(() => {
     setPageIndex((current) => Math.min(current, pageCount - 1));
   }, [pageCount]);
+
+  useEffect(() => {
+    if (selectedInsertion || insertionOptions.length === 0) return;
+    const first = insertionOptions[0];
+    setInsertionStationId(first.stationId);
+    setInsertionDirection(first.direction);
+    setInsertionStatus({
+      tone: "danger",
+      message: "The previously selected station is occupied. Select an unoccupied insertion station.",
+    });
+  }, [insertionOptions, selectedInsertion]);
 
   const createIncident = async (
     draft: SimulatorIncidentDraft,
@@ -500,7 +517,7 @@ export function SimulatorPage({
         <caption className="sr-only">Complete native-network simulated train state</caption>
         <thead><tr>
           <th>Train</th><th>Line</th><th>Operational location</th><th>Next movement</th>
-          <th>Status</th><th>Speed</th><th>Delay</th><th>Dwell remaining</th><th>Passengers</th><th>Quality</th>
+          <th>Driver</th><th>Status</th><th>Speed</th><th>Delay</th><th>Dwell remaining</th><th>Passengers</th><th>Quality</th>
         </tr></thead>
         <tbody>{sliceRows(filtered.trains).map((train) => {
           const location = trainLocation(train);
@@ -510,6 +527,10 @@ export function SimulatorPage({
               <td><Lines codes={[train.lineCode]} /></td>
               <td><strong>{location.title}</strong><small className="cell-sub" title={location.detail}>{location.detail}</small></td>
               <td><strong>{stationName(train.nextStationCode)}</strong><small className="cell-sub">Direction {train.direction === 1 ? "outbound" : "inbound"}</small></td>
+              <td>
+                <strong>{train.driverId ?? "Automatic"}</strong>
+                <small className="cell-sub">{train.driverId ? "One driver assigned" : "Driverless operation"}</small>
+              </td>
               <td><StatusPill tone={trainTone(train.status)}>{train.status}</StatusPill></td>
               <td><strong>{Math.round(train.speedKmh)} km/h</strong></td>
               <td><strong>{formatDelay(train.delaySeconds)}</strong></td>
@@ -634,7 +655,7 @@ export function SimulatorPage({
               <td><strong>{trains.length ? trains.join(", ") : "Free"}</strong></td>
               <td><strong>{waitingPassengers.toLocaleString("en-GB")}</strong><small className="cell-sub">{passengerStates.length} line queue{passengerStates.length === 1 ? "" : "s"}</small></td>
               <td><strong>{arrivalsPerSecond.toFixed(4)} pax/s</strong><small className="cell-sub">{isPassengerDemandActive(nativeSimulation.timestamp) ? "active service rate" : `paused · ${PASSENGER_DEMAND_PAUSE_LABEL}`}</small></td>
-              <td><strong>{totalBoarded.toLocaleString("en-GB")} / {totalAlighted.toLocaleString("en-GB")}</strong><small className="cell-sub">since reset</small></td>
+              <td><strong>{totalBoarded.toLocaleString("en-GB")} / {totalAlighted.toLocaleString("en-GB")}</strong><small className="cell-sub">recorded station exchanges</small></td>
               <td><strong>{lastExchangeAt ? formatSimulationTime(lastExchangeAt) : "—"}</strong></td>
               <td><strong>{incidents.length ? incidents.join(", ") : "None"}</strong></td>
               <td><StatusPill tone={incidents.length ? "danger" : trains.length ? "info" : "ok"}>{incidents.length ? "incident" : trains.length ? "occupied" : "clear"}</StatusPill></td>
@@ -722,20 +743,19 @@ export function SimulatorPage({
   } else if (activeTab === "drivers") {
     table = (
       <table className="data-table simulator-table">
-        <caption className="sr-only">All simulated driver resources</caption>
+        <caption className="sr-only">One unique driver assignment for every non-automatic native-network train</caption>
         <thead><tr>
-          <th>Driver token</th><th>Depot</th><th>Qualifications</th><th>Shift</th>
-          <th>Duty</th><th>Status</th><th>Assigned train</th>
+          <th>Driver token</th><th>Line</th><th>Assigned train</th><th>Circulation</th>
+          <th>Mission</th><th>Train status</th>
         </tr></thead>
-        <tbody>{sliceRows(filtered.drivers).map((driver) => (
-          <tr key={driver.id}>
-            <td><button type="button" className="inline-link simulator-object-link" onClick={() => onSelect({ type: "driver", id: driver.id })}>{driver.id}</button></td>
-            <td><strong>{driver.depot}</strong></td>
-            <td><Lines codes={driver.qualifications} /></td>
-            <td><strong>{driver.shiftStart} → {driver.shiftEnd}</strong></td>
-            <td><strong>{driver.dutyMinutes} min</strong></td>
-            <td><StatusPill tone={driver.status === "assigned" ? "ok" : driver.status === "reserve" ? "info" : driver.status === "relief-risk" ? "warning" : "danger"}>{driver.status}</StatusPill></td>
-            <td><strong>{driver.assignedTrainId ?? "Unassigned"}</strong></td>
+        <tbody>{sliceRows(filtered.drivers).map((train) => (
+          <tr key={train.driverId}>
+            <td><strong>{train.driverId}</strong><small className="cell-sub">Pseudonymous resource</small></td>
+            <td><Lines codes={[train.lineCode]} /></td>
+            <td><strong>{train.id}</strong></td>
+            <td><strong>{train.circulationId}</strong></td>
+            <td><strong>{train.mission}</strong></td>
+            <td><StatusPill tone={trainTone(train.status)}>{train.status}</StatusPill></td>
           </tr>
         ))}</tbody>
       </table>
@@ -792,12 +812,18 @@ export function SimulatorPage({
       <section className="kpi-grid kpi-grid--compact simulator-summary" id="text-text-simulator-summary" aria-label="Simulation state summary">
         <KpiCard label="Simulation clock" value={formatSimulationTime(nativeSimulation.timestamp)} detail={nativeSimulation.scenarioName} icon="clock" />
         <KpiCard label="Native fleet" value={nativeSimulation.trains.length + nativeSimulation.shuttles.length} detail={nativeSimulation.trains.length + " trains · " + nativeSimulation.shuttles.length + " shuttles"} icon="train" tone={nativeSimulation.metrics.heldTrainCount ? "warning" : "default"} />
+        <KpiCard
+          label="Train crews"
+          value={nativeSimulation.trains.filter((train) => train.driverId !== null).length}
+          detail={nativeSimulation.trains.filter((train) => train.driverId === null).length + " automatic trains · lines 1, 4 and 14"}
+          icon="users"
+        />
         <KpiCard label="Operational objects" value={NATIVE_STATIONS.length + NATIVE_INTERSTATIONS.length} detail={NATIVE_STATIONS.length + " stations · " + NATIVE_INTERSTATIONS.length + " interstations"} icon="network" />
         <KpiCard label="Model revisions" value={"T" + nativeSimulation.telemetryRevision + " / D" + nativeSimulation.decisionRevision} detail={"Detailed corridor rev. " + snapshot.revision} icon="radio" />
         <KpiCard
           label="Passenger queues"
           value={nativeSimulation.stationPassengers.reduce((total, state) => total + state.waitingPassengers, 0).toLocaleString("en-GB")}
-          detail={nativeSimulation.stationPassengers.reduce((total, state) => total + state.totalBoardedPassengers, 0).toLocaleString("en-GB") + " boarded since reset"}
+          detail={passengerFlowSummary.totalBoardedPassengers.toLocaleString("en-GB") + " cumulative boardings today"}
           icon="users"
         />
       </section>
@@ -837,6 +863,9 @@ export function SimulatorPage({
               value={insertionStationId}
               onChange={(event) => selectInsertionStation(event.target.value)}
             >
+              {insertionStations.length === 0 && (
+                <option value="">No unoccupied station available</option>
+              )}
               {insertionStations.map((station) => (
                 <option value={station.id} key={station.id}>{station.name} · {station.id}</option>
               ))}
@@ -866,7 +895,7 @@ export function SimulatorPage({
               : "No eligible route"}</strong>
             <span>{selectedInsertion
               ? `Discrete station occupation · +${selectedInsertion.capacityDeltaPassengers.toLocaleString("en-GB")} reference places`
-              : "Choose another line or station."}</span>
+              : "All eligible stations are currently occupied; wait for one to clear or choose another line."}</span>
           </aside>
           <button
             type="button"

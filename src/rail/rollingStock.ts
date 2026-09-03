@@ -295,7 +295,7 @@ export function getMaximumTrainCapacity(lineCode: NativeLineCode): number {
 }
 
 export const DEMO_TRACTION_METHODOLOGY = Object.freeze({
-  classification: "DEMO ESTIMATE" as const,
+  classification: "OPERATIONAL SIMULATION ESTIMATE" as const,
   calibrated: false as const,
   passengerMassKg: 80,
   passengerMassSourceUrl: "https://www.evs.ee/en/evs-en-15663-2017-a2-2024-consolidated",
@@ -305,23 +305,23 @@ export const DEMO_TRACTION_METHODOLOGY = Object.freeze({
     "steel-wheel": {
       emptyFormationIndex: 100,
       payloadIndexPerTonne: 0.52,
-      rationale: "Demo coefficient for steel-wheel metro comparison.",
+      rationale: "Operational-simulation coefficient for steel-wheel metro comparison.",
     },
     "rubber-tyred": {
       emptyFormationIndex: 118,
       payloadIndexPerTonne: 0.68,
-      rationale: "Demo coefficient differentiating tyre rolling losses from steel-wheel operation.",
+      rationale: "Operational-simulation coefficient differentiating tyre rolling losses from steel-wheel operation.",
     },
     "rer-heavy-rail": {
       emptyFormationIndex: 165,
       payloadIndexPerTonne: 0.44,
-      rationale: "Demo coefficient for longer, heavier RER formations.",
+      rationale: "Operational-simulation coefficient for longer, heavier RER formations.",
     },
   },
 });
 
 export interface DemoTractionEstimate {
-  classification: "DEMO ESTIMATE";
+  classification: "OPERATIONAL SIMULATION ESTIMATE";
   calibrated: false;
   familyId: string;
   tractionClass: RollingStockTractionClass;

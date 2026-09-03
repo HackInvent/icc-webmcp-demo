@@ -392,14 +392,14 @@ describe("rail simulation", () => {
 
     expect(second.snapshot.incidents.slice(0, 2)).toEqual([
       expect.objectContaining({
-        id: "INC-DEMO-02",
+        id: "INC-OPS-02",
         incidentCode: "ICC-INC-PWR-PWR-DEG-001",
         type: "power",
         severity: "critical",
         lineIds: ["RER_B"],
       }),
       expect.objectContaining({
-        id: "INC-DEMO-01",
+        id: "INC-OPS-01",
         incidentCode: "ICC-INC-PAX-STA-CLS-001",
         type: "passenger",
         severity: "high",

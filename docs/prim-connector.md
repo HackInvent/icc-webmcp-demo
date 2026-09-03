@@ -2,7 +2,7 @@
 
 Last verified: 27 August 2026.
 
-## What this proves
+## Connector behavior
 
 Paris ICC can consume an existing regional transport feed instead of inventing a
 custom “live” payload. The browser requests one of four canonical line identifiers
@@ -11,8 +11,8 @@ requests the IDFM per-line endpoint with the `apikey` header, and returns the ra
 JSON. A strict client parser then reads the SIRI Lite Estimated Timetable envelope.
 
 The offline replay is not a second, simplified implementation. It emits the same
-SIRI keys and runs through the same parser. This makes the demo repeatable while
-keeping the production integration path executable.
+SIRI keys and runs through the same parser. This keeps the scenario repeatable while the production integration path remains
+executable.
 
 ```text
 IDFM PRIM / SIRI Lite                 Contract replay / SIRI Lite
@@ -51,8 +51,8 @@ Primary references:
 
 | Mode | Values | Contract/parser | Intended use |
 | --- | --- | --- | --- |
-| `prim-live` | IDFM response | SIRI Lite / production parser | Demonstrate the authenticated real connector |
-| `prim-replay` | Synthetic scenario | SIRI Lite / production parser | Deterministic demo and CI |
+| `prim-live` | IDFM response | SIRI Lite / production parser | Use the authenticated read-only connector |
+| `prim-replay` | Synthetic scenario | SIRI Lite / production parser | Repeatable operational simulation and CI |
 | `simulation` | No passenger feed | None | Exercise the ICC simulator alone |
 
 Each line is fetched and validated independently. One failed line produces a

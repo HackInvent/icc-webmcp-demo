@@ -4,7 +4,7 @@
 
 Paris ICC publishes the operational state and bounded simulation actions of the current page as typed tools. This lets an agent work with the same incident, map revision, schedule review, and procedure evidence visible to the operator, without adding a separate railway-specific agent API for every screen.
 
-The page remains the authority for tool definitions and visible approval. The authenticated operations service is the authority for mutable demonstration state. The model can prepare a recommendation from read-only evidence, but an operator must explicitly approve every page tool classified as a write; approved commands are revision-bound and persisted in the session workspace.
+The page remains the authority for tool definitions and visible approval. The authenticated operations service is the authority for mutable simulation state. The model can prepare a recommendation from read-only evidence, but an operator must explicitly approve every page tool classified as a write; approved commands are revision-bound and persisted in the session workspace.
 
 The tool catalogue is assembled by [`createIccTools`](../src/webmcp/tools.ts), extended by [`createNativeSimulationTools`](../src/webmcp/nativeTools.ts), wrapped by [`createIccToolCatalog`](../src/webmcp/register.ts), and published by [`registerIccTools`](../src/webmcp/register.ts).
 
@@ -17,16 +17,17 @@ The tool catalogue is assembled by [`createIccTools`](../src/webmcp/tools.ts), e
 | Execution | `document.modelContext.executeTool(...)` with JSON-string arguments | Calls the wrapped `execute(...)` function directly. |
 | Origin handling | Discovered tools are filtered to the current page origin. | Definitions are supplied by the current application instance. |
 | Browser requirement | Requires native `document.modelContext` discovery and execution. | Works in a conventional browser for the embedded application flow. |
-| Intended role | Demonstrates native page-tool discovery and execution. | Keeps the embedded decision workflow usable for development and jury access when native browser support is absent. |
+| Intended role | Provides native page-tool discovery and execution. | Keeps the embedded decision workflow usable for development and controlled evaluation when native browser support is absent. |
 
 Both paths use the same tool schemas, validators, simulation controller, activity reporting, and approval wrapper. The bridge is an application compatibility mechanism; it should not be described as native browser WebMCP. Transport selection and execution are in [`src/agent/nativeWebMcp.ts`](../src/agent/nativeWebMcp.ts).
 
 ## Exact tool catalogue
 
-The current application publishes 21 tools when the native-network controller is present. The runtime classifier in [`webMcpActivityKind`](../src/webmcp/register.ts) distinguishes 13 reads, two non-committing analysis/staging operations, and six writes.
+The current application publishes 22 tools when the native-network controller is present. The runtime classifier in [`webMcpActivityKind`](../src/webmcp/register.ts) distinguishes 14 reads, two non-committing analysis/staging operations, and six writes.
 
 | Class | Tool | Purpose | Primary source |
 |---|---|---|---|
+| Read | `inspect_shift_log` | Read one bounded chronological page from the authenticated, server-persisted current-shift log. | [`tools.ts`](../src/webmcp/tools.ts) |
 | Read | `inspect_prim_feed` | Read PRIM provenance, freshness, coverage, and bounded passenger estimated-call evidence. | [`tools.ts`](../src/webmcp/tools.ts) |
 | Read | `prepare_shift_brief` | Produce a bounded, ranked cross-domain handover from the visible revision. | [`tools.ts`](../src/webmcp/tools.ts) |
 | Read | `inspect_network_state` | Read the detailed simulated network summary and stable decision revision. | [`tools.ts`](../src/webmcp/tools.ts) |
@@ -67,6 +68,28 @@ the IDs and ranks again before rendering. If model analysis is disabled or fails
 the same verified WebMCP order remains visible with a clearly labelled fallback.
 Opening an incident hands control to the existing human-reviewed procedure flow;
 this ranking mode has no write tool.
+
+## Shift Report evidence contract
+
+Selecting **Agent draft from shift logs** starts a dedicated bounded agent run.
+The server gives the model exactly one read-only page tool:
+`inspect_shift_log({ reportId, afterSequence, limit })`. The browser discovers
+that tool through native WebMCP or the clearly labelled in-page bridge and
+executes each model-requested page against the authenticated operations service.
+
+The server forces the first cursor to `0`, the page size to `80`, and every
+later cursor to the exact `nextAfterSequence` returned by the preceding page.
+It pins the shift ID, report ID, opening times and latest log sequence across the
+run, rejects duplicate entries or a changed revision, and does not allow the
+model to draft until `hasMore` is false. Structured output may cite only log
+IDs read through those WebMCP pages.
+
+Before HTML is returned, `POST /api/reports/assist` reloads the authoritative
+SQLite-backed workspace, checks the shift ID and latest sequence again, validates
+every citation, and sanitizes the rendered document. When OpenAI is disabled or
+fails, the browser still reads the complete log through the same WebMCP tool
+before requesting the deterministic chronology. The operator remains responsible
+for editing, freezing and printing the report.
 
 ## Incident decision contract
 
@@ -300,9 +323,9 @@ The fallback preserves useful decision support without pretending that model rea
 | Documented sequence advice | Procedure steps | Missing preceding mandatory steps produce a non-blocking advisory; the observation window remains enforced. |
 | Abort handling | Tool and approval flows | Calls are checked before approval and before mutation. |
 
-## Public demonstration boundaries
+## Operational simulation boundaries
 
-- The baseline catalogue contains 14 synthetic, English, demo-authored procedures. It is explicitly not an official RATP, IDFM, infrastructure-manager, or regulatory corpus. A real deployment must replace it with authorized controlled documents, role-based publication, independent approval, and organization-specific distribution rules.
+- The baseline catalogue contains 14 synthetic English procedures written for the simulated environment. It is explicitly not an official RATP, IDFM, infrastructure-manager, or regulatory corpus. A real deployment must replace it with authorized controlled documents, role-based publication, independent approval, and organization-specific distribution rules.
 - All train movement, incidents, power state, delay, passenger load, response impact, and recovery behavior in the digital twin are deterministic simulation data unless a field explicitly identifies separate PRIM passenger evidence.
 - PRIM is a read-only passenger-information source. It does not expose train position, signalling, CDV occupancy, traction-power control, or crew commands.
 - The server-side incident agent can read only the three procedural tools. It cannot autonomously call the procedure apply tool.
@@ -310,5 +333,5 @@ The fallback preserves useful decision support without pretending that model rea
 - Native procedural targets currently cover train, station, interstation, and line-communication incidents. Power procedure documents exist, but the power simulator is a separate detailed-state path today.
 - Return-to-normal logic validates generic simulation signals and recorded procedural progress, not certified operational telemetry.
 - Schedule preview and evaluation alter pending authenticated workspace artifacts even though they do not commit a plan; this is why their WebMCP annotation is not read-only.
-- The in-page bridge and native `document.modelContext` path share the application contract, but only the latter demonstrates native browser tool discovery and execution.
-- The controls described here are demonstrator safeguards. They are not a security certification, a railway safety case, or authorization for operational use.
+- The in-page bridge and native `document.modelContext` path share the application contract, but only the latter provides native browser tool discovery and execution.
+- The controls described here are application safeguards. They are not a security certification, a railway safety case, or authorization for operational use.

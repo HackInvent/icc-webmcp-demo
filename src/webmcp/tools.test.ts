@@ -5,6 +5,7 @@ import { advanceSnapshot, setPowerStatus } from "../rail/simulation";
 import { loadPassengerFeed } from "../rail/prim/feed";
 import { createSampleSchedulePlan } from "../schedules/sample";
 import { ScheduleWorkspaceStore } from "../schedules/store";
+import type { ShiftWorkspaceSnapshot } from "../runtime/types";
 import {
   createIccTools,
   type CircuitClosureCommand,
@@ -38,6 +39,93 @@ describe("ICC WebMCP tools", () => {
     expect(tool, `Missing tool ${name}`).toBeDefined();
     return tool!;
   }
+
+  it("reads a bounded, chronological page from the persisted shift log", async () => {
+    const snapshot = createInitialSnapshot();
+    const schedules = new ScheduleWorkspaceStore(createSampleSchedulePlan());
+    const longSummary = "A".repeat(700);
+    const shift: ShiftWorkspaceSnapshot = {
+      shiftId: "shift-webmcp-test",
+      startedAt: 1_788_000_000_000,
+      startedOperationalTime: 1_788_000_000_000,
+      nextLogSequence: 3,
+      logs: [
+        {
+          id: "LOG-WEBMCP-00001",
+          sequence: 1,
+          category: "incident",
+          eventType: "incident-present",
+          actor: "system",
+          recordedAt: 1_788_000_000_000,
+          operationalTime: 1_788_000_000_000,
+          title: "Signal incident",
+          summary: longSummary,
+          incidentId: "INC-001",
+          entityIds: Array.from({ length: 10 }, (_, index) => `ENTITY-${index}`),
+          durationSeconds: 0,
+        },
+        {
+          id: "LOG-WEBMCP-00002",
+          sequence: 2,
+          category: "operator-action",
+          eventType: "procedure-step-recorded",
+          actor: "operator",
+          recordedAt: 1_788_000_060_000,
+          operationalTime: 1_788_000_060_000,
+          title: "Protection recorded",
+          summary: "Step S01 completed.",
+          incidentId: "INC-001",
+          entityIds: ["INC-001", "S01"],
+          durationSeconds: 60,
+        },
+      ],
+      report: {
+        reportId: "report-webmcp-test",
+        status: "draft",
+        title: "End-of-shift report",
+        contentHtml: "<h1>Report</h1>",
+        createdAt: 1_788_000_000_000,
+        updatedAt: 1_788_000_060_000,
+        frozenAt: null,
+        generatedAt: null,
+        sourceLogSequence: 2,
+      },
+    };
+    const tools = createIccTools(() => snapshot, {
+      regulate: vi.fn(),
+      schedules,
+      setCircuitClosure: vi.fn(),
+      getShiftWorkspace: async () => shift,
+    });
+    const result = await namedTool(tools, "inspect_shift_log").execute({
+      reportId: shift.report.reportId,
+      afterSequence: 0,
+      limit: 1,
+    }) as Record<string, unknown>;
+
+    expect(result).toEqual(expect.objectContaining({
+      status: "shift_log_page_ready",
+      source: "authenticated_server_persisted_shift_log",
+      shiftId: shift.shiftId,
+      reportId: shift.report.reportId,
+      latestLogSequence: 2,
+      page: {
+        afterSequence: 0,
+        limit: 1,
+        count: 1,
+        nextAfterSequence: 1,
+        hasMore: true,
+      },
+    }));
+    expect((result.logs as Array<Record<string, unknown>>)[0]).toEqual(
+      expect.objectContaining({
+        id: "LOG-WEBMCP-00001",
+        summary: "A".repeat(600),
+        summaryTruncated: true,
+        entityIdsTruncated: true,
+      }),
+    );
+  });
 
   it("lists an explicit occurrence time for every simulated incident", async () => {
     const { tools } = setup();
@@ -541,7 +629,7 @@ describe("ICC WebMCP tools", () => {
 
   it("exposes schedule and circuit write tools with explicit schemas and annotations", () => {
     const { tools } = setup();
-    expect(tools).toHaveLength(12);
+    expect(tools).toHaveLength(13);
     expect(namedTool(tools, "inspect_schedule_plan").annotations).toEqual({
       readOnlyHint: true,
       untrustedContentHint: true,
@@ -560,6 +648,7 @@ describe("ICC WebMCP tools", () => {
     });
 
     for (const readToolName of [
+      "inspect_shift_log",
       "inspect_prim_feed",
       "prepare_shift_brief",
       "inspect_network_state",

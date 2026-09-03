@@ -57,7 +57,15 @@ export function PowerPage({ snapshot, nativeSimulation, initialLineCode = "RER_A
   const linePowerIncidents = detailedLineId
     ? snapshot.incidents.filter((incident) => incident.type === "power" && incident.status !== "resolved" && incident.lineIds.includes(detailedLineId))
     : [];
-  const consumption = Math.round(sections.reduce((sum, section) => sum + section.currentAmps * section.voltage, 0) / 1_000_000 * 10) / 10;
+  const deliveredSectionPower = Math.round(
+    sections.reduce((sum, section) => sum + section.currentAmps * section.voltage, 0) /
+      1_000_000 *
+      10,
+  ) / 10;
+  const simulatedDemandValue = nativeSimulation ? `${projectedLine.simulatedDemandMw.toFixed(2)} MW` : "Unavailable";
+  const simulatedDemandDetail = nativeSimulation
+    ? `${projectedLine.runningTrainCount} running · ${projectedLine.stationaryTrainCount} stationary · operational estimate, not metering`
+    : "Operational train state is unavailable";
   const minimumVoltage = sections.length ? Math.min(...sections.map((section) => section.voltage)) : 0;
   const minimumNominalVoltage = sections.length ? Math.min(...sections.map((section) => section.nominalVoltage)) : 0;
   const voltageRatio = minimumNominalVoltage ? Math.round(minimumVoltage / minimumNominalVoltage * 100) : 0;
@@ -80,7 +88,7 @@ export function PowerPage({ snapshot, nativeSimulation, initialLineCode = "RER_A
         contentId="text-text-power-header"
         eyebrow="TRACTION POWER"
         title="Electrical power supply"
-        description="Select any of the 16 Metro or 5 RER lines. Four reference lines expose detailed operational telemetry; every other line exposes a sectioned full-network topology projection."
+        description="Select any of the 16 Metro or 5 RER lines. Every line shows train-linked simulated traction demand; four reference corridors also expose detailed section telemetry."
         actions={<><StatusPill tone="neutral">21 selectable lines</StatusPill><StatusPill tone={globalDegraded.some((section) => section.status === "isolated") ? "danger" : globalConstraintCount ? "warning" : "ok"}>{globalConstraintCount} network constraint{globalConstraintCount === 1 ? "" : "s"}</StatusPill><button type="button" className="button button--secondary" aria-expanded={showPowerLog} aria-controls="text-text-power-operations-log" onClick={() => setShowPowerLog((visible) => !visible)}><Icon name="activity" size={16}/> {showPowerLog ? "Hide power log" : "Power log"}</button></>}
       />
       <div className="notice notice--warning" id="text-text-power-safety-notice"><Icon name="bolt" size={18}/><div><strong>Operator approval required</strong><span>Isolation and re-energization are available only for sections linked to operational telemetry and remain bound to the current decision revision.</span></div></div>
@@ -116,9 +124,11 @@ export function PowerPage({ snapshot, nativeSimulation, initialLineCode = "RER_A
               key={line.code}
               onClick={() => setRequestedLineCode(line.code)}
               style={{ "--power-line-color": line.color } as CSSProperties}
+              aria-label={`${line.name}, ${sectionCount} ${detailedLineCode ? "telemetry" : "modelled"} sections${constrainedCount ? `, ${constrainedCount} constrained` : ""}`}
+              title={`${line.name} · ${sectionCount} ${detailedLineCode ? "telemetry" : "modelled"} sections`}
             >
-              <span className="power-line-tabs__badge">{tractionPowerShortLabel(line.code)}</span>
-              <span><strong>{line.name}</strong><small>{sectionCount} {detailedLineCode ? "telemetry" : "modelled"} section{sectionCount === 1 ? "" : "s"}</small></span>
+              <i className="power-line-tabs__dot" style={{ backgroundColor: line.color }} aria-hidden="true" />
+              <span>{tractionPowerShortLabel(line.code)}</span>
               {constrainedCount > 0 && <span className="power-line-tabs__alert" aria-label={`${constrainedCount} constrained section${constrainedCount === 1 ? "" : "s"}`}>{constrainedCount}</span>}
             </button>
           );
@@ -135,21 +145,21 @@ export function PowerPage({ snapshot, nativeSimulation, initialLineCode = "RER_A
           <span className="power-line-context__badge" style={{ backgroundColor: selectedNativeLine.color, color: selectedTextColor }}>{selectedShortName}</span>
           <span><strong>{selectedName} traction supply</strong><small>{selectedScope}</small></span>
         </div>
-        <p><strong>{selectedPowerSupply}</strong><span>{detailedLineId ? `Decision revision #${snapshot.decisionRevision} · updated ${formatTime(snapshot.timestamp)}` : `${selectedNativeLine.stationCodes.length} network stations · ${selectedNativeLine.interstationIds.length} physical interstations`}</span></p>
+        <p><strong>{selectedPowerSupply}</strong><span>{detailedLineId ? `Decision revision #${snapshot.decisionRevision} · updated ${formatTime(snapshot.timestamp)}` : `${selectedNativeLine.stationCodes.length} network stations · ${projectedLine.suppliedTrainCount} simulated trains supplied`}</span></p>
       </section>
 
       {detailedLineId ? (
         <section className="kpi-grid kpi-grid--compact" id="text-text-power-summary">
           <KpiCard label="Energized sections" value={`${sections.length - degraded.length}/${sections.length}`} detail={`${selectedName} selected`} icon="bolt" />
-          <KpiCard label="Section power" value={`${consumption} MW`} detail="Voltage × current, section sum" icon="activity" />
+          <KpiCard label="Simulated traction demand" value={simulatedDemandValue} detail={`${simulatedDemandDetail} · ${deliveredSectionPower} MW section delivery`} icon="activity" />
           <KpiCard label="Lowest voltage" value={`${minimumVoltage} V`} detail={`${voltageRatio}% of nominal floor`} icon="radio" tone={degraded.length ? "warning" : "default"} />
           <KpiCard label="Supply constraints" value={degraded.length} detail={isolated.length ? `${isolated.length} isolated section${isolated.length === 1 ? "" : "s"}` : linePowerIncidents.length ? `${linePowerIncidents.length} active power incident${linePowerIncidents.length === 1 ? "" : "s"}` : degraded.length ? "Degraded voltage under monitoring" : "All selected-line sections nominal"} icon="alert" tone={isolated.length ? "danger" : degraded.length ? "warning" : "default"} />
         </section>
       ) : (
         <section className="kpi-grid kpi-grid--compact" id="text-text-power-summary">
           <KpiCard label="Modelled sections" value={projectedLine.sections.length} detail="Principal route coverage envelope" icon="bolt" />
-          <KpiCard label="Network stations" value={selectedNativeLine.stationCodes.length} detail={`${selectedNativeLine.interstationIds.length} physical interstations`} icon="network" />
-          <KpiCard label="Measurement feed" value="Not connected" detail="Topology projection, no fabricated telemetry" icon="radio" tone="warning" />
+          <KpiCard label="Simulated traction demand" value={simulatedDemandValue} detail={simulatedDemandDetail} icon="activity" />
+          <KpiCard label="Trains supplied" value={projectedLine.suppliedTrainCount} detail={`${projectedLine.runningTrainCount} running · ${projectedLine.stationaryTrainCount} stationary`} icon="train" />
           <KpiCard label="Supply constraints" value={projectedConstraints.length} detail={projectedLine.activePowerIncidentCount ? `${projectedLine.activePowerIncidentCount} active linked power incident${projectedLine.activePowerIncidentCount === 1 ? "" : "s"}` : "No linked power incident"} icon="alert" tone={projectedConstraints.length ? "warning" : "default"} />
         </section>
       )}
@@ -176,8 +186,8 @@ export function PowerPage({ snapshot, nativeSimulation, initialLineCode = "RER_A
               <article key={section.id} data-power-model-section-id={section.id}>
                 <span className={`power-state power-state--${section.status}`}/>
                 <span><strong>{section.name}</strong><small>{section.rangeLabel}</small></span>
-                <span className="power-values"><strong>Topology</strong><small>{section.interstationIds.length} interstations</small></span>
-                <span className="power-section-model-badge">MODEL</span>
+                <span className="power-values"><strong>{section.simulatedDemandMw.toFixed(2)} MW</strong><small>{section.simulatedCurrentAmps} A · {section.suppliedTrainIds.length} train{section.suppliedTrainIds.length === 1 ? "" : "s"}</small></span>
+                <span className="power-section-model-badge">SIM</span>
               </article>
             ))}
           </div>

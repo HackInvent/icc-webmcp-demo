@@ -1,7 +1,10 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { createNativeSimulationSnapshot } from "../rail/nativeSimulation";
+import {
+  createNativeSimulationSnapshot,
+  nativeOperatorTrainInsertionOptions,
+} from "../rail/nativeSimulation";
 import { createSimulationState } from "../rail/simulation";
 import { SimulatorPage } from "./SimulatorPage";
 
@@ -30,6 +33,10 @@ describe("SimulatorPage", () => {
     expect(html).toContain("Shuttles");
     expect(html).toContain("Operational location");
     expect(html).toContain("Dwell remaining");
+    expect(html).toContain("Train crews");
+    expect(html).toContain("automatic trains · lines 1, 4 and 14");
+    expect(html).toContain("Driverless operation");
+    expect(html).toContain(native.trains.find((train) => train.driverId)?.driverId);
     expect(html).toContain(native.trains[0].id);
     expect(html).toContain(String(native.trains.length));
     expect(html).toContain(String(detailed.snapshot.powerSections.length));
@@ -42,5 +49,31 @@ describe("SimulatorPage", () => {
     expect(html).toContain('data-testid="sim-train-insertion-direction"');
     expect(html).toContain('data-testid="sim-train-insertion-submit"');
     expect(html).toContain("Discrete station occupation");
+  });
+
+  it("does not offer a station that is already occupied by a train", () => {
+    const detailed = createSimulationState();
+    const native = createNativeSimulationSnapshot({ scenarioId: "nominal" });
+    const occupiedStationId = nativeOperatorTrainInsertionOptions("RER_A")[0]!.stationId;
+    const occupied = {
+      ...native,
+      trains: native.trains.map((train, index) => index === 0
+        ? { ...train, location: { type: "station" as const, id: occupiedStationId } }
+        : train),
+    };
+
+    const html = renderToStaticMarkup(createElement(SimulatorPage, {
+      snapshot: detailed.snapshot,
+      nativeSimulation: occupied,
+      onSelect: vi.fn(),
+      onCreateIncident: vi.fn(),
+      onInsertTrain: vi.fn(),
+    }));
+    const stationSelect = html.match(
+      /<select[^>]*data-testid="sim-train-insertion-station"[^>]*>([\s\S]*?)<\/select>/,
+    )?.[1];
+
+    expect(stationSelect).toBeDefined();
+    expect(stationSelect).not.toContain(`value="${occupiedStationId}"`);
   });
 });

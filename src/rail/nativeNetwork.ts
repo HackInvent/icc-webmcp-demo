@@ -25,6 +25,20 @@ export type NativeLineCode =
   | "RER_D"
   | "RER_E";
 
+export const NATIVE_AUTOMATIC_LINE_CODES: readonly NativeLineCode[] = Object.freeze([
+  "M1",
+  "M4",
+  "M14",
+]);
+
+const NATIVE_AUTOMATIC_LINE_CODE_SET = new Set<NativeLineCode>(
+  NATIVE_AUTOMATIC_LINE_CODES,
+);
+
+export function isNativeAutomaticLine(lineCode: NativeLineCode): boolean {
+  return NATIVE_AUTOMATIC_LINE_CODE_SET.has(lineCode);
+}
+
 export interface NativePoint {
   x: number;
   y: number;

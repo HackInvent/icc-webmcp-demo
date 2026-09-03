@@ -8,8 +8,8 @@ commands run from the repository root unless stated otherwise.
 - `src/rail/` — deterministic operational simulation, native network model,
   interdependence graph, routing and impact analysis, configuration import/export,
   incidents, PRIM contracts, and providers
-- `src/procedures/` — synthetic incident codification and versioned demo procedure
-  catalogue
+- `src/procedures/` — synthetic incident codification and versioned procedures used by the
+  operational simulation
 - `src/webmcp/` — typed WebMCP tool registration, read contracts, guarded writes,
   and operator approval
 - `src/agent/` — native/in-page WebMCP execution and procedure-grounded incident
@@ -108,11 +108,14 @@ npm run test:webmcp
 ```
 
 The script uses an existing `http://127.0.0.1:5173/#/overview` server or starts a
-temporary Vite server itself. It validates the exact 21-tool catalogue, strict
+temporary Vite server itself. It validates the exact 22-tool catalogue, strict
 input schemas, read-only annotations, coded incident inspection, procedure
 search/retrieval, revision and content-hash binding, cited step application,
 stale-state guards, one-shot approval, receipts, simulation reset, schedule
 decisions, CDV closure, and tool disposal.
+The validator intercepts the browser's agent endpoint and exercises the local,
+procedure-grounded fallback. It does not send operational context to an external
+model; model/tool-call behavior is covered by the server agent tests.
 
 Write a machine-readable report explicitly with:
 
@@ -163,15 +166,17 @@ Optional browser override:
 export WEBMCP_CHROMIUM='/path/to/chromium'
 ```
 
-The smoke logs in through the visible access gate, confirms the 19 registered
+The smoke logs in through the visible access gate, confirms the 22 registered
 tools, reads the incident code and exact procedure revision/hash/steps, checks the
 procedure citations, and approves the first cited step through the one-shot
 surface. It then reloads the same browser context and cookie, reopens the same
 incident, proves the completed step remains recorded and absent from the pending
 cards, and proves the same next step is still unlocked. It rejects that second
 write, verifies the current-shift log is newest first, edits and reloads the
-report to prove autosave, intercepts a log-grounded agent draft without calling an
-external model, freezes the document, and verifies the print path and edit lock.
+report to prove autosave, forces the local agent fallback, reads the complete log
+through `inspect_shift_log`, finalizes it against the real authenticated report
+endpoint, freezes the document, and verifies the print path and edit lock. No
+external model is called by this smoke test.
 The access code and cookie value are never written to the JSON report.
 
 ## PRIM connector smoke
@@ -192,7 +197,7 @@ the deterministic CI path.
 
 ## Recommended pre-release sequence
 
-Run these gates before a demonstration or production release:
+Run these gates before an evaluation or production release:
 
 ```bash
 npm ci

@@ -1077,10 +1077,10 @@ export function addDemoIncident(
   },
 ): SimulationState {
   let sequence = 1;
-  while (state.snapshot.incidents.some((incident) => incident.id === `INC-DEMO-${String(sequence).padStart(2, "0")}`)) {
+  while (state.snapshot.incidents.some((incident) => incident.id === `INC-OPS-${String(sequence).padStart(2, "0")}`)) {
     sequence += 1;
   }
-  const id = `INC-DEMO-${String(sequence).padStart(2, "0")}`;
+  const id = `INC-OPS-${String(sequence).padStart(2, "0")}`;
   const location = input.location.trim().slice(0, 120) || "Location pending confirmation";
   const summary = input.summary.trim().slice(0, 500) || "Report requires assessment.";
   const typeLabel = input.type === "rolling-stock"

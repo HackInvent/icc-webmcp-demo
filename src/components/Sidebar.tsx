@@ -66,7 +66,7 @@ export function Sidebar({ currentPage, currentDetailType, snapshot, collapsed, o
       badge: snapshot.powerSections.filter((section) => section.status !== "energized").length,
       tone: "warning",
     },
-    { page: "scada", label: "SCADA architecture", helper: "Field, ATS & passenger systems", icon: "layers" },
+    { page: "scada", label: "SCADA supervision", helper: "Field, ATS & passenger systems", icon: "layers" },
     { page: "buses", label: "Bus services", helper: "Continuity & shuttle operations", icon: "bus" },
     { page: "rolling-stock", label: "Rolling stock", helper: "Capacity, load & energy", icon: "train" },
     { page: "procedures", label: "Procedures", helper: "Versioned response documents", icon: "shield" },
@@ -88,7 +88,7 @@ export function Sidebar({ currentPage, currentDetailType, snapshot, collapsed, o
     <aside id="text-text-global-sidebar" className={`sidebar${collapsed ? " sidebar--collapsed" : ""}`}>
       <div className="sidebar__brand" id="text-text-global-brand">
         <div className="brand-mark"><span>P</span><span>ICC</span></div>
-        {!collapsed && <div><strong>Paris ICC - WebMCP DEMO</strong><small>Operations decision canvas</small></div>}
+        {!collapsed && <div><strong>Paris ICC</strong><small>Operations decision canvas</small></div>}
       </div>
 
       <div className="sidebar__scope" id="text-text-global-scope">
@@ -123,9 +123,9 @@ export function Sidebar({ currentPage, currentDetailType, snapshot, collapsed, o
 
       <div className="sidebar__bottom" id="text-text-global-safety-and-collapse">
         {!collapsed && (
-          <div className="safety-card">
-            <Icon name="shield" size={17} />
-            <div><strong>Decision-support mode</strong><span>Human approval · no field commands</span></div>
+          <div id="text-text-global-simulation-notice" className="safety-card" role="note" aria-label="Operational simulation notice">
+            <Icon name="alert" size={17} />
+            <div><strong>Operational simulation</strong><span>Simulated environment — no real railway system connected.</span></div>
           </div>
         )}
         <button type="button" className="collapse-button" onClick={onToggle} aria-label={collapsed ? "Expand menu" : "Collapse menu"}>

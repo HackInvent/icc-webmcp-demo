@@ -62,6 +62,14 @@ describe("Passenger flow UI audit", () => {
     expect(line.totalBoardedPassengers).toBe(28);
     expect(line.totalAlightedPassengers).toBe(17);
 
+    const operatingDayView = buildPassengerFlowView(initial, detailed);
+    expect(operatingDayView.totalOnboardPassengers).toBeGreaterThan(0);
+    expect(operatingDayView.totalBoardedPassengers).toBe(
+      operatingDayView.totalOnboardPassengers + operatingDayView.totalAlightedPassengers,
+    );
+    expect(operatingDayView.totalBoardedPassengers)
+      .toBeGreaterThanOrEqual(operatingDayView.totalOnboardPassengers);
+
     const html = renderToStaticMarkup(createElement(PassengerFlowPage, {
       simulation,
       detailedSnapshot: detailed,
@@ -74,13 +82,17 @@ describe("Passenger flow UI audit", () => {
     expect(html).toContain('data-testid="passenger-flow-agent-refresh"');
     expect(html).toContain("Waiting queue");
     expect(html).toContain("Cumulative boardings");
-    expect(html).toContain("generated · 34 alighted since reset");
+    expect(html).toContain("Passengers boarded since start of day");
+    expect(html).not.toContain("generated ·");
+    expect(html).not.toContain("alighted since reset");
     expect(html).toContain("Last boarded");
     expect(html).toContain("Last alighted");
     expect(html).toContain('data-testid="passenger-flow-line-filter"');
     expect(html).toContain('data-testid="passenger-flow-map"');
     expect(html.match(/data-testid="passenger-flow-station-marker"/g)).toHaveLength(NATIVE_STATIONS.length);
     expect(html).toContain("ratp-network-native");
+    expect(html).toContain('data-rendering="vector-viewbox"');
+    expect(html).toContain("<image");
     expect(html).toContain("Paris Metro and RER station passenger-pressure heatmap");
     expect(html).toContain("0% · light green");
     expect(html).toContain("50% · half train capacity");
@@ -91,8 +103,11 @@ describe("Passenger flow UI audit", () => {
     expect(html).toContain('r="5"');
     expect(html).toContain('data-pan-enabled="true"');
     expect(html).toContain('data-pan-state="idle"');
-    expect(html).toContain("Drag to pan the map when zoomed");
-    expect(html).toContain('draggable="false"');
+    expect(html).toContain('data-zoom="1.000"');
+    expect(html).toContain("Use the mouse wheel or trackpad to zoom, then drag to move the map.");
+    expect(html).toContain('data-testid="passenger-flow-expand-map"');
+    expect(html).toContain("Open full map");
+    expect(html).toContain('data-drag-disabled="true"');
   });
 
   it("maps station queues to the exact train-capacity heat anchors", () => {

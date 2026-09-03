@@ -88,11 +88,11 @@ export function RollingStockPage({ initialLineCode = "RER_A" }: RollingStockPage
         </section>
 
         <aside className="panel rs-estimate-panel">
-          <header className="rs-section-header"><div><span className="panel__eyebrow">DEMO ESTIMATE · UNCALIBRATED</span><h2>Load sensitivity</h2></div><span className="rs-estimate-badge">not kWh</span></header>
+          <header className="rs-section-header"><div><span className="panel__eyebrow">OPERATIONAL SIMULATION ESTIMATE · UNCALIBRATED</span><h2>Load sensitivity</h2></div><span className="rs-estimate-badge">not kWh</span></header>
           <p className="rs-estimate-panel__intro">A transparent relative traction index for comparing load scenarios. It is not measured energy and is never presented as billing or engineering telemetry.</p>
           <label className="rs-load-control"><span><b>Modelled load</b><strong>{loadPercent}%</strong></span><input type="range" min="0" max="120" step="5" value={loadPercent} onChange={(event) => setLoadPercent(Number(event.target.value))} /></label>
           <div className="rs-estimate-output"><div><span>Passengers</span><strong>{estimate.passengerCount.toLocaleString("en-GB")}</strong></div><div><span>Payload mass</span><strong>{estimate.payloadMassTonnes.toLocaleString("en-GB")} t</strong></div><div><span>Relative index</span><strong>{estimate.relativeTractionIndexPerTrainKm}</strong></div><div><span>Load delta</span><strong>+{estimate.loadDeltaPercent}%</strong></div></div>
-          <div className="rs-method"><h3>Visible assumptions</h3><ul><li>{DEMO_TRACTION_METHODOLOGY.passengerMassKg} kg per passenger, with the EN 15663 reference linked below.</li><li>Distinct demo coefficients for steel wheel, rubber tyre and RER heavy rail.</li><li>No gradients, driving style, auxiliaries, regenerative receptivity or actual consist mass.</li></ul><a href={DEMO_TRACTION_METHODOLOGY.passengerMassSourceUrl} target="_blank" rel="noreferrer"><Icon name="external" size={14} /> Passenger-load standard reference</a></div>
+          <div className="rs-method"><h3>Visible assumptions</h3><ul><li>{DEMO_TRACTION_METHODOLOGY.passengerMassKg} kg per passenger, with the EN 15663 reference linked below.</li><li>Distinct operational-simulation coefficients for steel wheel, rubber tyre and RER heavy rail.</li><li>No gradients, driving style, auxiliaries, regenerative receptivity or actual consist mass.</li></ul><a href={DEMO_TRACTION_METHODOLOGY.passengerMassSourceUrl} target="_blank" rel="noreferrer"><Icon name="external" size={14} /> Passenger-load standard reference</a></div>
         </aside>
       </div>
     </div>

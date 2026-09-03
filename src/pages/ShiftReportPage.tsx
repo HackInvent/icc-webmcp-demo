@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  generateShiftReportDraft,
+  type ShiftReportAgentProgress,
+} from "../agent/shiftReportAgent";
 import { Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 import { StatusPill } from "../components/StatusPill";
@@ -7,14 +11,25 @@ import type { ShiftWorkspaceSnapshot } from "../runtime/types";
 
 type SaveState = "saved" | "saving" | "error";
 
-interface AgentDraftResponse {
-  status: "draft_ready";
-  reportId: string;
-  html: string;
-  modelAssisted: boolean;
-  warning: string | null;
-  sourceLogCount: number;
+interface ShiftReportPageProps {
+  shift: ShiftWorkspaceSnapshot;
+  expectedToolNames?: readonly string[];
+  inPageTools?: readonly WebMcpToolDefinition[];
+  toolsChecked?: boolean;
+  toolsPublished?: boolean;
+  agentEnabled?: boolean;
+  agentModel?: string | null;
 }
+
+const EMPTY_TOOL_NAMES: readonly string[] = Object.freeze([]);
+const EMPTY_IN_PAGE_TOOLS: readonly WebMcpToolDefinition[] = Object.freeze([]);
+
+const AGENT_PROGRESS_LABELS: Readonly<Record<ShiftReportAgentProgress, string>> = {
+  discovering: "Discovering the Shift Report WebMCP tool",
+  inspecting: "Reading persisted shift-log evidence through WebMCP",
+  reasoning: "Agent is drafting from verified evidence",
+  finalizing: "Validating the draft against the current log revision",
+};
 
 function timestamp(value: number | null): string {
   if (value === null) return "—";
@@ -29,15 +44,15 @@ function timestamp(value: number | null): string {
   }).format(value);
 }
 
-async function responseJson(response: Response): Promise<Record<string, unknown>> {
-  try {
-    return await response.json() as Record<string, unknown>;
-  } catch {
-    return {};
-  }
-}
-
-export function ShiftReportPage({ shift }: { shift: ShiftWorkspaceSnapshot }) {
+export function ShiftReportPage({
+  shift,
+  expectedToolNames = EMPTY_TOOL_NAMES,
+  inPageTools = EMPTY_IN_PAGE_TOOLS,
+  toolsChecked = false,
+  toolsPublished = false,
+  agentEnabled = false,
+  agentModel = null,
+}: ShiftReportPageProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef(shift.report);
   const latestHtmlRef = useRef(shift.report.contentHtml);
@@ -47,6 +62,8 @@ export function ShiftReportPage({ shift }: { shift: ShiftWorkspaceSnapshot }) {
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [saveMessage, setSaveMessage] = useState(`Saved ${timestamp(shift.report.updatedAt)}`);
   const [agentBusy, setAgentBusy] = useState(false);
+  const [agentProgress, setAgentProgress] =
+    useState<ShiftReportAgentProgress>("discovering");
   const [agentMessage, setAgentMessage] = useState<string | null>(null);
   const [freezeBusy, setFreezeBusy] = useState(false);
   const report = shift.report;
@@ -145,33 +162,25 @@ export function ShiftReportPage({ shift }: { shift: ShiftWorkspaceSnapshot }) {
   };
 
   const requestAgentDraft = async () => {
-    if (frozen || agentBusy) return;
+    if (frozen || agentBusy || !toolsPublished) return;
     setAgentBusy(true);
     setAgentMessage(null);
+    setAgentProgress("discovering");
+    const controller = new AbortController();
     try {
       if (saveTimerRef.current !== null) {
         window.clearTimeout(saveTimerRef.current);
         saveTimerRef.current = null;
       }
       await persistHtml(latestHtmlRef.current, "operator");
-      const response = await fetch("/api/reports/assist", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ reportId: reportRef.current.reportId }),
+      const draft = await generateShiftReportDraft({
+        reportId: reportRef.current.reportId,
+        expectedToolNames,
+        inPageTools,
+        modelEnabled: agentEnabled,
+        signal: controller.signal,
+        onProgress: setAgentProgress,
       });
-      const body = await responseJson(response);
-      if (!response.ok || body.status !== "draft_ready" || typeof body.html !== "string") {
-        throw new Error(
-          typeof body.message === "string"
-            ? body.message
-            : "The report assistant could not prepare a draft.",
-        );
-      }
-      const draft = body as unknown as AgentDraftResponse;
       if (draft.reportId !== reportRef.current.reportId) {
         throw new Error("The report changed during agent drafting. Request a new draft.");
       }
@@ -180,8 +189,8 @@ export function ShiftReportPage({ shift }: { shift: ShiftWorkspaceSnapshot }) {
       await persistHtml(draft.html, "agent");
       setAgentMessage(
         draft.modelAssisted
-          ? `OpenAI prepared an editable draft from ${draft.sourceLogCount} persisted log entries.`
-          : draft.warning ?? `A log chronology was prepared from ${draft.sourceLogCount} entries.`,
+          ? `${agentModel ?? "OpenAI"} prepared an editable draft from ${draft.sourceLogCount} persisted log entries through ${draft.transport === "native" ? "Native WebMCP" : "the in-page WebMCP bridge"}.`
+          : `A verified chronology was prepared from ${draft.sourceLogCount} entries through ${draft.transport === "native" ? "Native WebMCP" : "the in-page WebMCP bridge"}.${draft.warning ? ` ${draft.warning}` : ""}`,
       );
     } catch (error) {
       setAgentMessage(error instanceof Error ? error.message : "Report assistance failed.");
@@ -240,11 +249,17 @@ export function ShiftReportPage({ shift }: { shift: ShiftWorkspaceSnapshot }) {
             <button
               type="button"
               className="button button--secondary shift-report__agent-button"
-              disabled={frozen || agentBusy}
+              disabled={frozen || agentBusy || !toolsPublished}
               onClick={() => void requestAgentDraft()}
+              data-webmcp-tool="inspect_shift_log"
+              title={
+                toolsChecked && !toolsPublished
+                  ? "The Shift Report WebMCP tool is unavailable."
+                  : "Read the persisted shift log through WebMCP and prepare an editable draft."
+              }
             >
               <Icon name="radio" size={15}/>
-              {agentBusy ? "Agent reading shift logs…" : "Agent draft from shift logs"}
+              {agentBusy ? "Agent working…" : "Agent draft from shift logs"}
             </button>
             <button
               type="button"
@@ -266,9 +281,10 @@ export function ShiftReportPage({ shift }: { shift: ShiftWorkspaceSnapshot }) {
         <div><small>PERSISTENCE</small><strong>{saveMessage}</strong></div>
       </section>
 
-      {agentMessage && (
+      {(agentBusy || agentMessage) && (
         <div className="shift-report__agent-status" id="text-text-shift-report-agent-status" role="status">
-          <Icon name="radio" size={17}/><span>{agentMessage}</span>
+          <Icon name="radio" size={17}/>
+          <span>{agentBusy ? AGENT_PROGRESS_LABELS[agentProgress] : agentMessage}</span>
         </div>
       )}
 
